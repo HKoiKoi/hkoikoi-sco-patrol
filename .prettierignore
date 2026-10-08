@@ -1,0 +1,12 @@
+.next
+node_modules
+coverage
+out
+build
+package-lock.json
+next-env.d.ts
+*.tsbuildinfo
+shrimp_data
+.agents
+.claude/skills
+.playwright-mcp
