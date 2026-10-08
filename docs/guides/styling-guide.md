@@ -4,14 +4,14 @@
 
 > ✅ **버전 현황: 이 프로젝트는 Tailwind CSS v4로 전환되어 있습니다.**
 >
-> | 항목              | 현재 상태 (v4)                                                      |
-> | ----------------- | ------------------------------------------------------------------- |
-> | Tailwind CSS      | **v4.x** — CSS-first 설정 (`app/globals.css`), `tailwind.config.ts` 없음 |
-> | 애니메이션        | `tw-animate-css` (`@import "tw-animate-css"`)                       |
-> | 색상 변수         | `:root`/`.dark`에 `hsl(...)` **전체 값** 저장 → `@theme inline`으로 토큰 연결 (OKLCH 변환은 선택) |
-> | PostCSS 플러그인  | `@tailwindcss/postcss` (`autoprefixer` 불필요)                      |
-> | 다크모드          | `@custom-variant dark (&:is(.dark *))` + next-themes `attribute="class"` |
-> | shadcn/ui         | `components.json`의 `tailwind.config`는 `""` (v4 방식)              |
+> | 항목             | 현재 상태 (v4)                                                                                    |
+> | ---------------- | ------------------------------------------------------------------------------------------------- |
+> | Tailwind CSS     | **v4.x** — CSS-first 설정 (`app/globals.css`), `tailwind.config.ts` 없음                          |
+> | 애니메이션       | `tw-animate-css` (`@import "tw-animate-css"`)                                                     |
+> | 색상 변수        | `:root`/`.dark`에 `hsl(...)` **전체 값** 저장 → `@theme inline`으로 토큰 연결 (OKLCH 변환은 선택) |
+> | PostCSS 플러그인 | `@tailwindcss/postcss` (`autoprefixer` 불필요)                                                    |
+> | 다크모드         | `@custom-variant dark (&:is(.dark *))` + next-themes `attribute="class"`                          |
+> | shadcn/ui        | `components.json`의 `tailwind.config`는 `""` (v4 방식)                                            |
 >
 > v4 전환 이력과 주의사항은 **"Tailwind v4 마이그레이션"** 절을 참고하세요.
 > `components/ui/*`는 최신 shadcn(v4 + React 19) 버전으로 갱신되어 있습니다: `forwardRef` 제거, `data-slot` 속성, Radix 통합 패키지(`radix-ui`) 사용. 컴포넌트를 추가·갱신할 때는 `npx shadcn@latest add <name>` (덮어쓰기는 `--overwrite`)를 사용하세요. 변경 여부는 `--diff`로 먼저 확인할 수 있습니다.
@@ -106,14 +106,14 @@ Tailwind는 소스에서 **완전한 클래스 문자열**을 스캔합니다. �
 
 ```tsx
 // ❌ 동작하지 않음: 클래스가 빌드 시 감지되지 않음
-<div className={`text-${color}-500`} />
+<div className={`text-${color}-500`} />;
 
 // ✅ 완전한 클래스명을 매핑
 const colorMap = {
   red: "text-red-500",
   blue: "text-blue-500",
 } as const;
-<div className={colorMap[color]} />
+<div className={colorMap[color]} />;
 ```
 
 ## 🎭 shadcn/ui 컴포넌트 활용
@@ -170,7 +170,10 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 // ✅ 기존 컴포넌트 확장: className을 cn()으로 병합
-export function LiftButton({ className, ...props }: ComponentProps<typeof Button>) {
+export function LiftButton({
+  className,
+  ...props
+}: ComponentProps<typeof Button>) {
   return (
     <Button
       className={cn(
@@ -212,7 +215,11 @@ npx shadcn@latest add select textarea field
 // app/layout.tsx (Server Component)
 import { ThemeProvider } from "next-themes";
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     // ✅ suppressHydrationWarning 필수: next-themes가 <html>의 class를 변경함
     <html lang="ko" suppressHydrationWarning>
@@ -251,7 +258,11 @@ const subscribe = () => () => {};
 
 export function ThemeToggle() {
   // 서버/hydration: false → 클라이언트 마운트 후: true
-  const mounted = useSyncExternalStore(subscribe, () => true, () => false);
+  const mounted = useSyncExternalStore(
+    subscribe,
+    () => true,
+    () => false,
+  );
   const { resolvedTheme, setTheme } = useTheme();
 
   if (!mounted) return <Button variant="outline" size="icon" disabled />;
@@ -262,7 +273,11 @@ export function ThemeToggle() {
       size="icon"
       onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
     >
-      {resolvedTheme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
+      {resolvedTheme === "dark" ? (
+        <Sun className="size-4" />
+      ) : (
+        <Moon className="size-4" />
+      )}
       <span className="sr-only">테마 전환</span>
     </Button>
   );
@@ -478,14 +493,14 @@ import { cn } from "@/lib/utils";
 
 ### 적용 이력 (이 프로젝트)
 
-| 단계 | 내용 |
-| ---- | ---- |
-| 1 | `npx @tailwindcss/upgrade --force` 실행 (설정·CSS·템플릿 자동 변환, `autoprefixer` 제거, `@tailwindcss/postcss` 설치) |
-| 2 | `tailwind.config.ts` 삭제 → 색상/반경 토큰을 `app/globals.css`의 `@theme inline`으로 이동 |
-| 3 | `:root`/`.dark` 변수를 `hsl(...)` 전체 값으로 변경 (색상 값은 그대로 → 시각적 변화 없음) |
-| 4 | `tailwindcss-animate` 제거 → `tw-animate-css` 설치, `@import "tw-animate-css"` |
-| 5 | 업그레이드 도구가 넣은 border 호환 CSS(`border-color: gray-200`) 제거 — `* { @apply border-border }`가 이미 색을 지정하므로 불필요 |
-| 6 | `npm run build` 통과, 라이트/다크 로그인 화면 육안 확인 |
+| 단계 | 내용                                                                                                                               |
+| ---- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | `npx @tailwindcss/upgrade --force` 실행 (설정·CSS·템플릿 자동 변환, `autoprefixer` 제거, `@tailwindcss/postcss` 설치)              |
+| 2    | `tailwind.config.ts` 삭제 → 색상/반경 토큰을 `app/globals.css`의 `@theme inline`으로 이동                                          |
+| 3    | `:root`/`.dark` 변수를 `hsl(...)` 전체 값으로 변경 (색상 값은 그대로 → 시각적 변화 없음)                                           |
+| 4    | `tailwindcss-animate` 제거 → `tw-animate-css` 설치, `@import "tw-animate-css"`                                                     |
+| 5    | 업그레이드 도구가 넣은 border 호환 CSS(`border-color: gray-200`) 제거 — `* { @apply border-border }`가 이미 색을 지정하므로 불필요 |
+| 6    | `npm run build` 통과, 라이트/다크 로그인 화면 육안 확인                                                                            |
 
 > 같은 방식으로 다른 프로젝트를 전환할 때는 **새 브랜치**에서 `npx @tailwindcss/upgrade`를 실행하고 diff를 검토하세요.
 
@@ -562,17 +577,17 @@ npx @tailwindcss/upgrade
 
 ### 3. 변경된 유틸리티 (자주 만나는 항목)
 
-| v3                         | v4                                   |
-| -------------------------- | ------------------------------------ |
-| `shadow-sm` / `shadow`     | `shadow-xs` / `shadow-sm`            |
-| `rounded-sm` / `rounded`   | `rounded-xs` / `rounded-sm`          |
-| `outline-none`             | `outline-hidden`                     |
-| `ring` (3px, blue-500)     | `ring-3` (기본 `ring`은 1px, currentColor) |
-| `bg-gradient-to-r`         | `bg-linear-to-r`                     |
-| `!text-red-500` (앞에 `!`) | `text-red-500!` (**뒤에 `!`**)       |
-| `bg-[--my-var]`            | `bg-(--my-var)`                      |
+| v3                         | v4                                                    |
+| -------------------------- | ----------------------------------------------------- |
+| `shadow-sm` / `shadow`     | `shadow-xs` / `shadow-sm`                             |
+| `rounded-sm` / `rounded`   | `rounded-xs` / `rounded-sm`                           |
+| `outline-none`             | `outline-hidden`                                      |
+| `ring` (3px, blue-500)     | `ring-3` (기본 `ring`은 1px, currentColor)            |
+| `bg-gradient-to-r`         | `bg-linear-to-r`                                      |
+| `!text-red-500` (앞에 `!`) | `text-red-500!` (**뒤에 `!`**)                        |
+| `bg-[--my-var]`            | `bg-(--my-var)`                                       |
 | `border` (기본 gray-200)   | 기본색이 `currentColor` → 색상 명시 (`border-border`) |
-| `bg-opacity-50` 등         | 제거됨 → `bg-black/50`               |
+| `bg-opacity-50` 등         | 제거됨 → `bg-black/50`                                |
 
 > 시맨틱 색상(`border-border`)을 항상 명시하면 기본 border 색상 변경의 영향을 받지 않습니다. 이 가이드의 모든 예시가 그 방식입니다.
 
@@ -601,13 +616,13 @@ npx eslint app components lib   # 소스만 린트 (아래 참고)
 <div style={{ backgroundColor: 'red' }}>
 
 // 긴 클래스 문자열 하드코딩 → 컴포넌트/cva로 추출
-<div className="flex h-screen w-full items-center justify-center rounded-lg border-4 border-white bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 text-2xl font-bold text-white shadow-2xl">
+<div className="flex h-screen w-full items-center justify-center rounded-lg border-4 border-white bg-linear-to-r from-blue-500 via-purple-500 to-pink-500 text-2xl font-bold text-white shadow-2xl">
 
 // 충돌/중복 클래스
 <div className="p-4 pt-4 pb-4 pl-4 pr-4">
 
 // !important 남용
-<div className="!text-red-500 !bg-blue-500">
+<div className="text-red-500 bg-blue-500">
 
 // Tailwind와 CSS 모듈 혼재
 <div className={`${styles.customClass} flex items-center`}>
