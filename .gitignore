@@ -43,3 +43,6 @@ next-env.d.ts
 
 # playwright mcp (스크린샷, 스냅샷, 콘솔 로그)
 .playwright-mcp/
+
+# shrimp Task Manager WebGUI (포트가 실행마다 바뀜)
+shrimp_data/WebGUI.md
