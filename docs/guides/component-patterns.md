@@ -7,17 +7,17 @@
 
 ## 📌 React 19 / Next.js 16 핵심 변경 요약
 
-| 이전 방식                                    | 현재 방식                                                       |
-| -------------------------------------------- | --------------------------------------------------------------- |
-| `forwardRef((props, ref) => ...)`            | `ref`를 일반 prop으로 받기 (`forwardRef`는 deprecated 방향)     |
-| `<Context.Provider value={...}>`             | `<Context value={...}>`                                         |
-| `useContext(Ctx)`                            | `use(Ctx)` (조건부 호출 가능)                                   |
-| `useEffect` + `useState`로 데이터 패칭       | Server Component에서 `await`, 또는 Promise를 넘기고 `use()`로 읽기 |
-| `params: { id: string }` (동기)              | `params: Promise<{ id: string }>` → `await params`              |
-| 수동 `memo` / `useMemo` / `useCallback`      | React Compiler 사용 시 자동 메모이제이션 (측정 후 필요할 때만 수동) |
-| `React.FC`, `PropsWithChildren`              | 일반 함수 + props 인터페이스 (`ComponentProps<"tag">` 활용)     |
-| `middleware.ts`                              | `proxy.ts` (Next 16에서 이름 변경, 이 프로젝트 적용됨)          |
-| `useFormState` (react-dom)                   | `useActionState` (react)                                        |
+| 이전 방식                               | 현재 방식                                                           |
+| --------------------------------------- | ------------------------------------------------------------------- |
+| `forwardRef((props, ref) => ...)`       | `ref`를 일반 prop으로 받기 (`forwardRef`는 deprecated 방향)         |
+| `<Context.Provider value={...}>`        | `<Context value={...}>`                                             |
+| `useContext(Ctx)`                       | `use(Ctx)` (조건부 호출 가능)                                       |
+| `useEffect` + `useState`로 데이터 패칭  | Server Component에서 `await`, 또는 Promise를 넘기고 `use()`로 읽기  |
+| `params: { id: string }` (동기)         | `params: Promise<{ id: string }>` → `await params`                  |
+| 수동 `memo` / `useMemo` / `useCallback` | React Compiler 사용 시 자동 메모이제이션 (측정 후 필요할 때만 수동) |
+| `React.FC`, `PropsWithChildren`         | 일반 함수 + props 인터페이스 (`ComponentProps<"tag">` 활용)         |
+| `middleware.ts`                         | `proxy.ts` (Next 16에서 이름 변경, 이 프로젝트 적용됨)              |
+| `useFormState` (react-dom)              | `useActionState` (react)                                            |
 
 ## 🧩 기본 설계 원칙
 
@@ -179,7 +179,11 @@ export default function Page({
 import { useState } from "react";
 
 // ✅ 상호작용이 필요한 최소 단위만 Client Component로
-export function UserSearchInput({ onSearch }: { onSearch: (q: string) => void }) {
+export function UserSearchInput({
+  onSearch,
+}: {
+  onSearch: (q: string) => void;
+}) {
   const [query, setQuery] = useState("");
 
   return (
@@ -457,8 +461,7 @@ const buttonVariants = cva("inline-flex items-center justify-center ...", {
 
 // ✅ 네이티브 button 속성 + ref까지 한 번에 상속
 interface ButtonProps
-  extends ComponentProps<"button">,
-    VariantProps<typeof buttonVariants> {
+  extends ComponentProps<"button">, VariantProps<typeof buttonVariants> {
   loading?: boolean;
 }
 
@@ -536,8 +539,12 @@ export function Text<T extends React.ElementType = "p">({
 
 // 사용법
 <Text>기본 단락</Text>;
-<Text as="h1" variant="subtitle">제목</Text>;
-<Text as="a" href="/about">링크</Text>; // href 자동 타입 추론
+<Text as="h1" variant="subtitle">
+  제목
+</Text>;
+<Text as="a" href="/about">
+  링크
+</Text>; // href 자동 타입 추론
 ```
 
 ### 3. 데이터 로딩 — Render Props 대신 서버 패칭
@@ -602,12 +609,14 @@ const cardVariants = cva(
 );
 
 interface CardProps
-  extends ComponentProps<"div">,
-    VariantProps<typeof cardVariants> {}
+  extends ComponentProps<"div">, VariantProps<typeof cardVariants> {}
 
 export function Card({ variant, size, className, ...props }: CardProps) {
   return (
-    <div className={cn(cardVariants({ variant, size }), className)} {...props} />
+    <div
+      className={cn(cardVariants({ variant, size }), className)}
+      {...props}
+    />
   );
 }
 ```
@@ -901,7 +910,9 @@ export function ActionButton(props: ActionButtonProps) {
 
 <ActionButton onClick={save}>저장</ActionButton>; // ✅
 <ActionButton loading>저장</ActionButton>; // ✅
-<ActionButton loading onClick={save}>저장</ActionButton>; // ❌ 타입 에러
+<ActionButton loading onClick={save}>
+  저장
+</ActionButton>; // ❌ 타입 에러
 ```
 
 ## 🎨 고급 패턴
@@ -945,7 +956,13 @@ Provider는 Client Component이며, **`layout.tsx`(Server Component)에서 `chil
 // components/cart-provider.tsx
 "use client";
 
-import { createContext, use, useReducer, type Dispatch, type ReactNode } from "react";
+import {
+  createContext,
+  use,
+  useReducer,
+  type Dispatch,
+  type ReactNode,
+} from "react";
 
 interface CartState {
   items: CartItem[];
@@ -992,7 +1009,11 @@ export function useCart() {
 
 ```tsx
 // app/layout.tsx (Server Component)
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="ko">
       <body>

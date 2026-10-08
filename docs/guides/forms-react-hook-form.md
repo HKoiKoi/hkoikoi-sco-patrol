@@ -7,11 +7,11 @@
 
 ## 📌 먼저 읽기: 언제 무엇을 쓰나
 
-| 상황                                                         | 권장 방식                                                    |
-| ------------------------------------------------------------ | ------------------------------------------------------------ |
-| 필드가 적고 서버 검증만으로 충분 (검색, 간단한 설정)         | **`<form action>` + `useActionState`** (RHF 불필요)          |
-| 실시간 검증, 복잡한 필드 상호작용, 다단계/동적 필드, 파일 미리보기 | **RHF + Zod + Server Action**                                |
-| Supabase Auth 로그인/가입                                    | 클라이언트에서 `supabase.auth.*` 직접 호출 (현재 `login-form.tsx`) 또는 Server Action |
+| 상황                                                               | 권장 방식                                                                             |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------- |
+| 필드가 적고 서버 검증만으로 충분 (검색, 간단한 설정)               | **`<form action>` + `useActionState`** (RHF 불필요)                                   |
+| 실시간 검증, 복잡한 필드 상호작용, 다단계/동적 필드, 파일 미리보기 | **RHF + Zod + Server Action**                                                         |
+| Supabase Auth 로그인/가입                                          | 클라이언트에서 `supabase.auth.*` 직접 호출 (현재 `login-form.tsx`) 또는 Server Action |
 
 > 이 프로젝트의 기존 폼(`components/login-form.tsx` 등)은 `useState` + Supabase 클라이언트 방식입니다. 새 폼부터 이 문서의 패턴을 적용하세요.
 
@@ -105,13 +105,13 @@ export type RegisterInput = z.infer<typeof registerSchema>;
 
 #### Zod 4 변경 요약
 
-| Zod 3                                      | Zod 4                                              |
-| ------------------------------------------ | -------------------------------------------------- |
-| `z.string().email()` / `.url()` / `.uuid()` | `z.email()` / `z.url()` / `z.uuid()` (최상위 함수)  |
-| `{ message: "..." }`                       | `{ error: "..." }` (`message`도 계속 동작)         |
-| `err.flatten()` / `err.format()`           | `z.flattenError(err)` / `z.treeifyError(err)` (인스턴스 메서드는 deprecated) |
-| `a.merge(b)`                               | `z.object({ ...a.shape, ...b.shape })` 또는 `a.extend(b.shape)` |
-| 필수 에러: `required_error`, `invalid_type_error` | `error` 함수/문자열 하나로 통합                |
+| Zod 3                                             | Zod 4                                                                        |
+| ------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `z.string().email()` / `.url()` / `.uuid()`       | `z.email()` / `z.url()` / `z.uuid()` (최상위 함수)                           |
+| `{ message: "..." }`                              | `{ error: "..." }` (`message`도 계속 동작)                                   |
+| `err.flatten()` / `err.format()`                  | `z.flattenError(err)` / `z.treeifyError(err)` (인스턴스 메서드는 deprecated) |
+| `a.merge(b)`                                      | `z.object({ ...a.shape, ...b.shape })` 또는 `a.extend(b.shape)`              |
+| 필수 에러: `required_error`, `invalid_type_error` | `error` 함수/문자열 하나로 통합                                              |
 
 ### 2. Server Action 정의
 
@@ -293,9 +293,16 @@ export function NewsletterForm() {
 
   return (
     <form action={formAction}>
-      <input name="email" type="email" required aria-describedby="email-error" />
+      <input
+        name="email"
+        type="email"
+        required
+        aria-describedby="email-error"
+      />
       {!state.success && state.fieldErrors?.email && (
-        <p id="email-error" role="alert">{state.fieldErrors.email[0]}</p>
+        <p id="email-error" role="alert">
+          {state.fieldErrors.email[0]}
+        </p>
       )}
       <button disabled={isPending}>구독</button>
     </form>
@@ -362,7 +369,12 @@ import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
-import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 
 const step1Schema = z.object({
@@ -386,7 +398,8 @@ export function MultiStepForm({
   const [step, setStep] = useState(0);
   const [data, setData] = useState<Partial<CompleteData>>({});
 
-  const merge = (patch: Partial<CompleteData>) => setData((prev) => ({ ...prev, ...patch }));
+  const merge = (patch: Partial<CompleteData>) =>
+    setData((prev) => ({ ...prev, ...patch }));
 
   return (
     <div>
@@ -442,7 +455,11 @@ function Step1({
           render={({ field, fieldState }) => (
             <Field data-invalid={fieldState.invalid}>
               <FieldLabel htmlFor={field.name}>이름</FieldLabel>
-              <Input {...field} id={field.name} aria-invalid={fieldState.invalid} />
+              <Input
+                {...field}
+                id={field.name}
+                aria-invalid={fieldState.invalid}
+              />
               {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
             </Field>
           )}
@@ -497,7 +514,9 @@ export function MembersForm() {
           render={({ field, fieldState }) => (
             <div>
               <Input {...field} aria-invalid={fieldState.invalid} />
-              {fieldState.error && <p role="alert">{fieldState.error.message}</p>}
+              {fieldState.error && (
+                <p role="alert">{fieldState.error.message}</p>
+              )}
               <Button type="button" variant="ghost" onClick={() => remove(i)}>
                 삭제
               </Button>
@@ -531,7 +550,10 @@ export const uploadSchema = z.object({
   file: z
     .instanceof(File, { error: "파일을 선택해주세요" })
     .refine((f) => f.size <= MAX_SIZE, "파일 크기는 5MB 이하여야 합니다")
-    .refine((f) => ACCEPTED.includes(f.type), "PNG, JPG, PDF만 업로드할 수 있습니다"),
+    .refine(
+      (f) => ACCEPTED.includes(f.type),
+      "PNG, JPG, PDF만 업로드할 수 있습니다",
+    ),
 });
 ```
 
@@ -575,7 +597,9 @@ function Preview({ file }: { file?: File }) {
 
   if (!url) return null;
   // blob: URL은 next/image 최적화 대상이 아니므로 unoptimized
-  return <Image src={url} alt="미리보기" width={128} height={128} unoptimized />;
+  return (
+    <Image src={url} alt="미리보기" width={128} height={128} unoptimized />
+  );
 }
 ```
 
@@ -675,7 +699,11 @@ import { headers } from "next/headers";
 // 운영 환경에서는 Redis 등 외부 저장소 기반(예: Upstash Ratelimit)을 사용하세요.
 const hits = new Map<string, { count: number; resetAt: number }>();
 
-export async function checkRateLimit(key: string, limit = 5, windowMs = 60_000) {
+export async function checkRateLimit(
+  key: string,
+  limit = 5,
+  windowMs = 60_000,
+) {
   const now = Date.now();
   const record = hits.get(key);
 
@@ -699,7 +727,10 @@ export async function getClientKey() {
 // Server Action에서 사용
 export async function loginAction(_prev: ActionResult, input: unknown) {
   if (!(await checkRateLimit(`login:${await getClientKey()}`))) {
-    return { success: false, message: "너무 많은 요청입니다. 잠시 후 다시 시도해주세요." } as const;
+    return {
+      success: false,
+      message: "너무 많은 요청입니다. 잠시 후 다시 시도해주세요.",
+    } as const;
   }
   // ...
 }
@@ -710,11 +741,11 @@ export async function loginAction(_prev: ActionResult, input: unknown) {
 ```tsx
 // ❌ 모든 입력을 useState로 관리 → 키 입력마다 전체 리렌더
 const [data, setData] = useState({});
-<input onChange={(e) => setData((p) => ({ ...p, name: e.target.value }))} />
+<input onChange={(e) => setData((p) => ({ ...p, name: e.target.value }))} />;
 
 // ✅ RHF 사용 (비제어 방식으로 리렌더 최소화)
 const { register, handleSubmit } = useForm();
-<input {...register("name")} />
+<input {...register("name")} />;
 ```
 
 ```tsx
@@ -746,18 +777,25 @@ z.object({ ...a.shape, ...b.shape });
 
 ```tsx
 // ❌ index를 key로 사용하는 동적 필드
-fields.map((f, i) => <Row key={i} />)
+fields.map((f, i) => <Row key={i} />);
 
 // ✅ useFieldArray가 제공하는 고유 id
-fields.map((f, i) => <Row key={f.id} />)
+fields.map((f, i) => <Row key={f.id} />);
 ```
 
 ```tsx
 // ❌ redirect()를 try/catch로 감싸기 (내부 예외가 삼켜져 리다이렉트 실패)
-try { await save(); redirect("/done"); } catch {}
+try {
+  await save();
+  redirect("/done");
+} catch {}
 
 // ✅ try/catch 밖에서 호출
-try { await save(); } catch { return { success: false, message: "..." }; }
+try {
+  await save();
+} catch {
+  return { success: false, message: "..." };
+}
 redirect("/done");
 ```
 

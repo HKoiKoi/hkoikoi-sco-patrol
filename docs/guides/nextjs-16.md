@@ -8,18 +8,18 @@
 
 ## 📌 Next.js 15 → 16 변경 요약
 
-| 이전                                              | Next.js 16                                                                  |
-| ------------------------------------------------- | --------------------------------------------------------------------------- |
-| `params`/`searchParams`/`cookies()` 동기 접근 허용 (15까지 임시 호환) | **동기 접근 완전 제거** — 항상 `await` (또는 Client에서 `use()`) |
-| `middleware.ts` + `export function middleware`    | **`proxy.ts` + `export function proxy`** (런타임은 `nodejs` 고정)           |
-| `experimental.ppr`, `experimental.dynamicIO`      | 최상위 **`cacheComponents: true`** + `"use cache"`                          |
-| `experimental.turbo`                              | 최상위 **`turbopack`** 옵션, Turbopack이 `dev`/`build` **기본 번들러**      |
-| `experimental.typedRoutes`                        | 최상위 **`typedRoutes: true`**                                              |
-| `revalidateTag("tag")`                            | `revalidateTag("tag", "max")` (두 번째 인자 필수, 단일 인자는 deprecated)   |
-| (없음)                                            | Server Action 전용 `updateTag()` (read-your-writes)                         |
-| `next lint`                                       | **제거됨** → ESLint CLI 직접 사용 (`eslint .`)                              |
-| Parallel Routes `default.tsx` 선택                | **모든 slot에 `default.tsx` 명시 필수**                                     |
-| `unauthorized()`/`forbidden()` (`next/server`로 오해되기 쉬움) | `next/navigation`에서 import, `experimental.authInterrupts` 필요 |
+| 이전                                                                  | Next.js 16                                                                |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| `params`/`searchParams`/`cookies()` 동기 접근 허용 (15까지 임시 호환) | **동기 접근 완전 제거** — 항상 `await` (또는 Client에서 `use()`)          |
+| `middleware.ts` + `export function middleware`                        | **`proxy.ts` + `export function proxy`** (런타임은 `nodejs` 고정)         |
+| `experimental.ppr`, `experimental.dynamicIO`                          | 최상위 **`cacheComponents: true`** + `"use cache"`                        |
+| `experimental.turbo`                                                  | 최상위 **`turbopack`** 옵션, Turbopack이 `dev`/`build` **기본 번들러**    |
+| `experimental.typedRoutes`                                            | 최상위 **`typedRoutes: true`**                                            |
+| `revalidateTag("tag")`                                                | `revalidateTag("tag", "max")` (두 번째 인자 필수, 단일 인자는 deprecated) |
+| (없음)                                                                | Server Action 전용 `updateTag()` (read-your-writes)                       |
+| `next lint`                                                           | **제거됨** → ESLint CLI 직접 사용 (`eslint .`)                            |
+| Parallel Routes `default.tsx` 선택                                    | **모든 slot에 `default.tsx` 명시 필수**                                   |
+| `unauthorized()`/`forbidden()` (`next/server`로 오해되기 쉬움)        | `next/navigation`에서 import, `experimental.authInterrupts` 필요          |
 
 ## 🚀 필수 규칙 (엄격 준수)
 
@@ -520,9 +520,7 @@ app/
 import Image from "next/image";
 import { Modal } from "@/components/modal";
 
-export default async function PhotoModal(
-  props: PageProps<"/gallery/[id]">,
-) {
+export default async function PhotoModal(props: PageProps<"/gallery/[id]">) {
   const { id } = await props.params;
   const photo = await getPhoto(id);
 

@@ -56,16 +56,16 @@ app/
 
 **🚀 App Router 특수 파일:**
 
-| 파일                       | 역할                                                     |
-| -------------------------- | -------------------------------------------------------- |
-| `page.tsx`                 | 해당 경로의 UI (이 파일이 있어야 URL로 접근 가능)        |
-| `layout.tsx`               | 하위 라우트를 감싸는 공유 레이아웃                       |
-| `loading.tsx`              | 로딩 UI (자동으로 `<Suspense>` 경계 생성)                |
-| `error.tsx`                | 에러 UI (`"use client"` 필수)                            |
-| `not-found.tsx`            | 404 UI                                                   |
-| `route.ts`                 | Route Handler (API 엔드포인트)                           |
-| `default.tsx`              | Parallel Routes slot의 fallback (**Next 16에서 필수**)   |
-| `unauthorized.tsx` / `forbidden.tsx` | 401 / 403 UI (`authInterrupts` 활성화 시)      |
+| 파일                                 | 역할                                                   |
+| ------------------------------------ | ------------------------------------------------------ |
+| `page.tsx`                           | 해당 경로의 UI (이 파일이 있어야 URL로 접근 가능)      |
+| `layout.tsx`                         | 하위 라우트를 감싸는 공유 레이아웃                     |
+| `loading.tsx`                        | 로딩 UI (자동으로 `<Suspense>` 경계 생성)              |
+| `error.tsx`                          | 에러 UI (`"use client"` 필수)                          |
+| `not-found.tsx`                      | 404 UI                                                 |
+| `route.ts`                           | Route Handler (API 엔드포인트)                         |
+| `default.tsx`                        | Parallel Routes slot의 fallback (**Next 16에서 필수**) |
+| `unauthorized.tsx` / `forbidden.tsx` | 401 / 403 UI (`authInterrupts` 활성화 시)              |
 
 **루트 레벨 파일:**
 
@@ -225,13 +225,13 @@ import { Button } from "../../../components/ui/button";
 
 **📍 정의된 별칭 (`components.json` 기준):**
 
-| 별칭             | 경로               |
-| ---------------- | ------------------ |
-| `@/components`   | `./components`     |
-| `@/components/ui`| `./components/ui`  |
-| `@/lib`          | `./lib`            |
-| `@/lib/utils`    | `./lib/utils`      |
-| `@/hooks`        | `./hooks` (폴더 생성 시) |
+| 별칭              | 경로                     |
+| ----------------- | ------------------------ |
+| `@/components`    | `./components`           |
+| `@/components/ui` | `./components/ui`        |
+| `@/lib`           | `./lib`                  |
+| `@/lib/utils`     | `./lib/utils`            |
+| `@/hooks`         | `./hooks` (폴더 생성 시) |
 
 > `@/ui`, `@/utils` 같은 단축 별칭은 정의되어 있지 않습니다.
 > 같은 폴더 또는 바로 인접한 파일(`./user-table`)은 상대 경로를 써도 됩니다.
