@@ -11,6 +11,10 @@
     "shrimp-task-manager": {
       "command": "npx",
       "args": ["-y", "mcp-shrimp-task-manager"]
+    },
+    "shadcn": {
+      "command": "npx",
+      "args": ["shadcn@latest", "mcp"]
     }
   }
 }
