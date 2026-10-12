@@ -48,7 +48,6 @@ app/
 ├── protected/                # 로그인 필요 영역
 │   ├── layout.tsx
 │   └── page.tsx
-└── instruments/page.tsx      # Supabase 조회 예시
 ```
 
 파일 규칙:
