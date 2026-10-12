@@ -1,0 +1,11 @@
+.next
+node_modules
+package-lock.json
+shrimp_data
+.agents
+.claude/skills
+coverage
+*.tsbuildinfo
+next-env.d.ts
+supabase/.temp
+skills-lock.json
