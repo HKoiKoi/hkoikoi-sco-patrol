@@ -101,22 +101,22 @@ export const config = {
 import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 
-async function InstrumentsData() {
+async function LogsData() {
   const supabase = await createClient(); // 내부에서 cookies() 사용
-  const { data } = await supabase.from("instruments").select();
+  const { data } = await supabase.from("patrol_logs").select();
   return <pre>{JSON.stringify(data, null, 2)}</pre>;
 }
 
-export default function Instruments() {
+export default function Logs() {
   return (
-    <Suspense fallback={<div>Loading instruments...</div>}>
-      <InstrumentsData />
+    <Suspense fallback={<div>Loading logs...</div>}>
+      <LogsData />
     </Suspense>
   );
 }
 ```
 
-`app/instruments/page.tsx`, `app/protected/layout.tsx`의 `<AuthButton />` 래핑이 이 패턴입니다.
+`app/protected/layout.tsx`의 `<AuthButton />` 래핑이 이 패턴입니다.
 
 ### `use cache`로 캐시 선택
 

@@ -46,18 +46,18 @@ export function UserStatus({ isOnline }: { isOnline: boolean }) {
 `cacheComponents`가 켜져 있으므로 **요청 시점 데이터를 읽는 컴포넌트는 `<Suspense>`로 감싸고, 데이터를 읽는 쪽을 Suspense 안쪽 컴포넌트로 분리**합니다.
 
 ```tsx
-// app/instruments/page.tsx
+// app/logs/page.tsx (예시: 계획된 patrol_logs 테이블 기준)
 import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 
-async function InstrumentList() {
+async function LogList() {
   const supabase = await createClient();
-  const { data, error } = await supabase.from("instruments").select();
+  const { data, error } = await supabase.from("patrol_logs").select();
   if (error) return <p>불러오지 못했습니다: {error.message}</p>;
   return (
     <ul className="grid gap-2">
       {data.map((item) => (
-        <li key={item.id}>{item.name}</li>
+        <li key={item.id}>{item.memo}</li>
       ))}
     </ul>
   );
@@ -66,7 +66,7 @@ async function InstrumentList() {
 export default function Page() {
   return (
     <Suspense fallback={<ListSkeleton />}>
-      <InstrumentList />
+      <LogList />
     </Suspense>
   );
 }
