@@ -140,7 +140,7 @@ Phase 0 (완료)
     - 정상: `browser_navigate → /protected (임의 로그인 계정) → /logs로 이동`
     - 오류: `browser_navigate → /protected/patrol (비로그인) → /auth/login으로 이동(현 proxy 동작 유지)`
     - 엣지: `browser_console_messages → 각 페이지 로드 → 에러·hydration 경고 없음`
-  - 테스트 결과: 구현 완료(커밋 `2a0fe02`). `npm run check`·Playwright 시나리오·콘솔 검사는 Phase 1 통합 검증에서 수행
+  - 테스트 결과: 구현 완료(커밋 `2a0fe02`). Phase 1 통합 검증(2026-10-12): `npm run check` 통과(기존 `components/google-login-button.tsx`의 Prettier 줄바꿈 1건만 수정), `npm run build` 통과, `grep -r "tutorial\|DeployButton\|Hero" app components` 결과 없음. Playwright: `/` → `/logs` 이동, 비로그인 `/protected/patrol` → `/auth/login` 이동, `/logs` 렌더링 확인, 세 페이지 콘솔 에러·경고 0. 로그인 계정으로 `/protected` → `/logs` 이동은 사용자가 직접 확인(통과)
 
 - **Task 002: 도메인 타입 및 인터페이스 정의** ✅ - 완료
   - 관련 기능: F01~F11 (타입 계약)
@@ -157,7 +157,7 @@ Phase 0 (완료)
   - 테스트 체크리스트:
     - 정상: `npm run typecheck → 타입 파일 추가 → 에러 0`
     - 엣지: 유니온 분기에서 `switch (result.status)`의 `never` 검사로 누락 분기 컴파일 에러 확인
-  - 테스트 결과: `npm run typecheck` 에러 0, `npm run lint` 통과. 임시 파일에서 `switch (result.status)` + `never` 검사로 `SaveDraftResult`의 `conflict` 분기를 빼면 TS2322 컴파일 에러가 나는 것을 확인하고 파일 삭제. 비로그인 `Viewer`는 `null`로 표현, `client_request_id`는 `PatrolLog`에서 제외(요청 입력 타입은 RPC 호출 Task에서 추가)
+  - 테스트 결과: `npm run typecheck` 에러 0, `npm run lint` 통과. 임시 파일에서 `switch (result.status)` + `never` 검사로 `SaveDraftResult`의 `conflict` 분기를 빼면 TS2322 컴파일 에러가 나는 것을 확인하고 파일 삭제. 비로그인 `Viewer`는 `null`로 표현, `client_request_id`는 `PatrolLog`에서 제외(요청 입력 타입은 RPC 호출 Task에서 추가). Phase 1 통합 검증(2026-10-12): `npm run check`·`npm run build` 통과, 코드 리뷰에서 PRD 데이터 모델·RPC 응답과 일치, `lib/types`에 런타임 코드 없음 확인
 
 ### Phase 2: 공통 모듈 구현 (DB 독립)
 
