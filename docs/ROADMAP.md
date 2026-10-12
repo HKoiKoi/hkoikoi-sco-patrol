@@ -124,40 +124,40 @@ Phase 0 (완료)
 
 ### Phase 1: 애플리케이션 골격 구축
 
-- **Task 001: 스타터 잔재 정리 및 라우트 골격 생성** - 우선순위
+- **Task 001: 스타터 잔재 정리 및 라우트 골격 생성** ✅ - 완료
   - 관련 기능: F01, F08 (구조)
   - 설명: 스타터 데모 화면을 걷어내고 PRD의 4개 페이지 라우트를 빈 껍데기로 만든다. `.claude/agents/dev/starter-cleaner.md` 지침을 참고한다.
   - 관련 파일: `app/page.tsx`, `app/protected/page.tsx`, `app/protected/layout.tsx`, `app/layout.tsx`, `app/logs/page.tsx`(신규), `app/protected/patrol/page.tsx`(신규), `app/protected/admin/tags/page.tsx`(신규), `components/tutorial/*`, `components/hero.tsx`, `components/deploy-button.tsx`, `components/next-logo.tsx`, `components/supabase-logo.tsx`
   - 구현 사항:
-    - [ ] `components/tutorial/*`, `hero`, `deploy-button`, `next-logo`, `supabase-logo` 삭제 및 참조 제거(`env-var-warning`은 개발 편의용으로 유지 여부 판단)
-    - [ ] `app/page.tsx`(`/`)와 `app/protected/page.tsx`(`/protected`)를 `redirect("/logs")`로 교체
-    - [ ] `app/logs/page.tsx`, `app/protected/patrol/page.tsx`, `app/protected/admin/tags/page.tsx` 빈 페이지 생성(제목과 `<Suspense>` 자리만)
-    - [ ] `app/protected/layout.tsx`의 스타터 nav/footer 제거(공통 레이아웃은 Task 006에서 구현)
-    - [ ] `app/layout.tsx`: `lang="ko"`, 메타데이터(`title: "SCO 순찰 일지"`, 설명), 모바일 viewport 확인
+    - ✅ `components/tutorial/*`, `hero`, `deploy-button`, `next-logo`, `supabase-logo` 삭제 및 참조 제거(`env-var-warning`은 개발 편의용으로 유지 여부 판단)
+    - ✅ `app/page.tsx`(`/`)와 `app/protected/page.tsx`(`/protected`)를 `redirect("/logs")`로 교체
+    - ✅ `app/logs/page.tsx`, `app/protected/patrol/page.tsx`, `app/protected/admin/tags/page.tsx` 빈 페이지 생성(제목과 `<Suspense>` 자리만)
+    - ✅ `app/protected/layout.tsx`의 스타터 nav/footer 제거(공통 레이아웃은 Task 006에서 구현)
+    - ✅ `app/layout.tsx`: `lang="ko"`, 메타데이터(`title: "SCO 순찰 일지"`, 설명), 모바일 viewport 확인
   - 완료 기준: 4개 경로가 빈 페이지로 렌더링되고 `/`, `/protected`가 `/logs`로 이동한다. 스타터 컴포넌트 import가 남아 있지 않다(`grep -r "tutorial\|DeployButton\|Hero" app components` 결과 없음). `npm run check`, `npm run build` 통과.
   - 테스트 체크리스트:
     - 정상: `browser_navigate → / → URL이 /logs로 바뀜`
     - 정상: `browser_navigate → /protected (임의 로그인 계정) → /logs로 이동`
     - 오류: `browser_navigate → /protected/patrol (비로그인) → /auth/login으로 이동(현 proxy 동작 유지)`
     - 엣지: `browser_console_messages → 각 페이지 로드 → 에러·hydration 경고 없음`
-  - 테스트 결과: (미수행)
+  - 테스트 결과: 구현 완료(커밋 `2a0fe02`). `npm run check`·Playwright 시나리오·콘솔 검사는 Phase 1 통합 검증에서 수행
 
-- **Task 002: 도메인 타입 및 인터페이스 정의**
+- **Task 002: 도메인 타입 및 인터페이스 정의** ✅ - 완료
   - 관련 기능: F01~F11 (타입 계약)
   - 설명: DB 스키마와 RPC 응답을 TypeScript 타입으로 먼저 정의해 UI 작업(Phase 3)과 DB 작업(Phase 4)이 같은 계약을 쓰도록 한다. Phase 3의 더미 데이터와 가짜 어댑터는 이 타입으로만 작성하고, Task 015에서 생성한 DB 타입과 교차 확인한다.
   - 관련 파일: `lib/types/patrol.ts`(신규), `lib/types/auth.ts`(신규)
   - 구현 사항:
-    - [ ] `Role = "pending" | "manager" | "admin"`, `Viewer`(비로그인 | `{ userId, fullName, role }`) 타입
-    - [ ] `SeatCategory = "standing" | "cafe_zone" | "drowsy" | "away"`, `SeatSet`(카테고리별 `number[]`), `PatrolContent = SeatSet & { memo: string }`
-    - [ ] `PatrolLog`(id, businessDate, patrolledAt, authorId, authorName, 좌석 4종, memo), `PatrolDraft`(revision, updatedAt, content), `QuickTag`(id, label, sortOrder, isActive)
-    - [ ] RPC 응답 판별 유니온: `SaveDraftResult = { status: "ok"; revision } | { status: "conflict"; serverRevision; serverDraft }`, `CompletePatrolResult = { status: "ok" | "duplicate"; logId; patrolledAt; revision } | { status: "conflict"; serverRevision }`
-    - [ ] Server Action 공통 결과 타입 `ActionResult<T> = { ok: true; data: T } | { ok: false; error: string }`
-    - [ ] 로컬 백업 타입 `DraftBackup = { revision; savedAt; payload: PatrolContent }`
+    - ✅ `Role = "pending" | "manager" | "admin"`, `Viewer`(비로그인 | `{ userId, fullName, role }`) 타입
+    - ✅ `SeatCategory = "standing" | "cafe_zone" | "drowsy" | "away"`, `SeatSet`(카테고리별 `number[]`), `PatrolContent = SeatSet & { memo: string }`
+    - ✅ `PatrolLog`(id, businessDate, patrolledAt, authorId, authorName, 좌석 4종, memo), `PatrolDraft`(revision, updatedAt, content), `QuickTag`(id, label, sortOrder, isActive)
+    - ✅ RPC 응답 판별 유니온: `SaveDraftResult = { status: "ok"; revision } | { status: "conflict"; serverRevision; serverDraft }`, `CompletePatrolResult = { status: "ok" | "duplicate"; logId; patrolledAt; revision } | { status: "conflict"; serverRevision }`
+    - ✅ Server Action 공통 결과 타입 `ActionResult<T> = { ok: true; data: T } | { ok: false; error: string }`
+    - ✅ 로컬 백업 타입 `DraftBackup = { revision; savedAt; payload: PatrolContent }`
   - 완료 기준: 타입 파일이 런타임 코드 없이 export되고 `npm run typecheck` 통과. PRD 데이터 모델의 모든 필드가 타입에 대응된다.
   - 테스트 체크리스트:
     - 정상: `npm run typecheck → 타입 파일 추가 → 에러 0`
     - 엣지: 유니온 분기에서 `switch (result.status)`의 `never` 검사로 누락 분기 컴파일 에러 확인
-  - 테스트 결과: (미수행)
+  - 테스트 결과: `npm run typecheck` 에러 0, `npm run lint` 통과. 임시 파일에서 `switch (result.status)` + `never` 검사로 `SaveDraftResult`의 `conflict` 분기를 빼면 TS2322 컴파일 에러가 나는 것을 확인하고 파일 삭제. 비로그인 `Viewer`는 `null`로 표현, `client_request_id`는 `PatrolLog`에서 제외(요청 입력 타입은 RPC 호출 Task에서 추가)
 
 ### Phase 2: 공통 모듈 구현 (DB 독립)
 
