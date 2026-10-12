@@ -3,6 +3,7 @@
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
+import { GoogleLoginButton } from "@/components/google-login-button";
 import {
   Card,
   CardContent,
@@ -103,6 +104,13 @@ export function LoginForm({
               </Link>
             </div>
           </form>
+          <div className="relative my-6 text-center text-sm">
+            <div className="absolute inset-0 top-1/2 border-t" />
+            <span className="relative bg-card px-2 text-muted-foreground">
+              or
+            </span>
+          </div>
+          <GoogleLoginButton label="Continue with Google" />
         </CardContent>
       </Card>
     </div>
