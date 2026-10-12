@@ -52,7 +52,7 @@ Next.js 16 App Router + Supabase Auth(`@supabase/ssr`) 스타터 기반 프로�
 ### 인증/세션 흐름
 
 - `middleware.ts`가 아니라 **`proxy.ts`**(Next.js 16 규약)가 모든 요청에서 `lib/supabase/proxy.ts`의 `updateSession()`을 호출해 세션 쿠키를 갱신한다.
-- `updateSession()`은 `createServerClient`와 `supabase.auth.getClaims()` 사이에 다른 코드를 넣으면 안 되고, 반환하는 `supabaseResponse`를 그대로 돌려줘야 한다(깨지면 사용자가 무작위로 로그아웃됨). 비로그인 사용자는 `/`, `/auth/*`, `/login*` 외 경로 접근 시 `/auth/login`으로 리다이렉트된다. 일지 조회 `/logs*`는 공개 경로로 추가해야 하고, 로그인 리디렉션 시 `next=<pathname+search>`를 붙인다(ROADMAP Task 009, 반영되면 이 설명을 갱신). 공개 경로를 추가하려면 이 조건문을 수정한다. `proxy.ts`는 로그인 여부만 판단하고, 역할 검증은 `lib/auth/dal.ts`의 `requireStaff()` / `requireAdmin()`이 서버에서 하며 순찰 기록·태그 관리 페이지와 모든 Server Action에서 호출한다(레이아웃 검사만으로 끝내지 않는다). 권한이 부족하면 `/logs?notice=<login-required|pending|admin-required>`로 보내고 공통 배너가 문구를 표시한다(`lib/auth/notice.ts`).
+- `updateSession()`은 `createServerClient`와 `supabase.auth.getClaims()` 사이에 다른 코드를 넣으면 안 되고, 반환하는 `supabaseResponse`를 그대로 돌려줘야 한다(깨지면 사용자가 무작위로 로그아웃됨). 비로그인 사용자는 `/`, `/auth/*`, `/login*` 외 경로 접근 시 `/auth/login`으로 리다이렉트된다. 일지 조회 `/logs*`는 공개 경로로 추가해야 하고, 로그인 리디렉션 시 `next=<pathname+search>`를 붙인다(ROADMAP Task 005, 반영되면 이 설명을 갱신). 공개 경로를 추가하려면 이 조건문을 수정한다. `proxy.ts`는 로그인 여부만 판단하고, 역할 검증은 `lib/auth/dal.ts`의 `requireStaff()` / `requireAdmin()`이 서버에서 하며 순찰 기록·태그 관리 페이지와 모든 Server Action에서 호출한다(레이아웃 검사만으로 끝내지 않는다). 권한이 부족하면 `/logs?notice=<login-required|pending|admin-required>`로 보내고 공통 배너가 문구를 표시한다(`lib/auth/notice.ts`).
 - 로그인 후·로그아웃 후 이동 경로는 `/logs`다. 원래 화면으로 돌아가는 `next` 파라미터는 사이트 내부 경로만 허용하는 `getSafeNextPath()`(`lib/auth/safe-next.ts`)로 검증하고 로그인 폼, Google 버튼, `/auth/callback`, `/auth/confirm`이 모두 이 함수를 쓴다. 로그아웃 시 `localStorage`의 `draft:` 백업 키를 모두 지운다.
 - Cache Components 환경이므로 쿠키·DB를 읽는 컴포넌트는 `<Suspense>` 경계 안에 두고 로딩 표시를 제공한다. 현재 시각을 읽기 전에는 `await io()`를 호출한다(`node_modules/next/dist/docs` 참고).
 - Supabase 클라이언트는 `lib/supabase/client.ts`(브라우저)와 `lib/supabase/server.ts`(서버)로 나뉜다. 서버 클라이언트는 전역 변수에 보관하지 말고 요청마다 `await createClient()`로 만든다.
@@ -65,12 +65,12 @@ Next.js 16 App Router + Supabase Auth(`@supabase/ssr`) 스타터 기반 프로�
 
 ## 참고 문서 / 도구
 
-- `docs/PRD.md`(요구사항·데이터 모델·RLS 규칙), `docs/ROADMAP.md`(Phase 0~6, Task 000~024 진행 현황) — 기능 구현 전에 해당 Task와 PRD 절을 먼저 읽는다. PRD와 ROADMAP은 서로 맞춰 유지하며, 한쪽을 바꾸면 다른 쪽도 갱신한다.
+- `docs/PRD.md`(요구사항·데이터 모델·RLS 규칙), `docs/ROADMAP.md`(Phase 0~6, Task 000~026 진행 현황) — 기능 구현 전에 해당 Task와 PRD 절을 먼저 읽는다. PRD와 ROADMAP은 서로 맞춰 유지하며, 한쪽을 바꾸면 다른 쪽도 갱신한다.
   - 별도 `tasks/` 파일은 만들지 않고 ROADMAP의 Task 항목에 직접 기록한다. 완료한 Task만 ✅ 표시와 테스트 결과를 반영하고, 한 Task를 마치면 멈추고 다음 지시를 기다린다.
   - 모든 Task의 완료 조건: `npm run check` 통과, 관련 화면의 Playwright MCP 시나리오 통과, 콘솔 에러·hydration 경고 없음.
   - 테스트 러너가 없으므로 순수 함수는 커밋하지 않는 임시 스크립트(Node 24 `node check.ts`), DB는 Supabase MCP `execute_sql`(트랜잭션 안에서 `set local role` / `request.jwt.claims`로 사용자 흉내 후 `rollback`)과 `get_advisors`, 화면은 Playwright MCP로 검증한다.
-  - QA 계정: `qa-admin`, `qa-manager`, `qa-manager2`, `qa-pending`(Task 006에서 준비), 비로그인.
-  - 컴포넌트 배치: shadcn은 `components/ui/`(추가는 `npx shadcn@latest add <name>`만 사용), 여러 페이지 공용은 `components/<domain>/`, 한 페이지 전용은 라우트의 `_components/`. import는 `components/ui` ← `components/<domain>` ← `app/` 단방향이다. Phase 4의 더미 데이터(`lib/dummy/*`)는 Phase 5에서 삭제한다.
+  - QA 계정: `qa-admin`, `qa-manager`, `qa-manager2`, `qa-pending`(Task 015에서 준비), 비로그인.
+  - 컴포넌트 배치: shadcn은 `components/ui/`(추가는 `npx shadcn@latest add <name>`만 사용), 여러 페이지 공용은 `components/<domain>/`, 한 페이지 전용은 라우트의 `_components/`. import는 `components/ui` ← `components/<domain>` ← `app/` 단방향이다. Phase 3의 더미 데이터(`lib/dummy/*`)는 Phase 5(Task 018·020)에서 삭제한다.
 - `docs/guides/` — 프로젝트 구조, 컴포넌트 패턴, 스타일링, Next.js 16, react-hook-form 가이드. 해당 영역 작업 전에 먼저 읽는다.
 - `.claude/agents/`(code-reviewer, ui-markup-specialist, development-planner, prd-* 등)와 `.claude/skills/`(git-branch, git-commit, git-pr, supabase)에 프로젝트 전용 에이전트·스킬이 있다. 커밋/PR은 한국어 컨벤셔널 형식(`타입: 제목`)이며, 기본 브랜치는 `main`, 작업 브랜치는 `develop`이다.
 - `.mcp.json`에 context7, playwright, sequential-thinking, shrimp-task-manager, supabase MCP 서버가 설정되어 있다.

@@ -26,7 +26,7 @@ SCO 관리형 독서실의 30분 간격 순찰 업무를 스마트폰/태블릿�
 
 ## 개발 진행
 
-[`docs/ROADMAP.md`](docs/ROADMAP.md)가 Phase 0~6, Task 000~024 단위로 진행 현황을 관리합니다.
+[`docs/ROADMAP.md`](docs/ROADMAP.md)가 Phase 0~6, Task 000~026 단위로 진행 현황을 관리합니다.
 
 | Phase | 내용                                                                 |
 | ----- | -------------------------------------------------------------------- |
@@ -94,4 +94,4 @@ npm run check        # typecheck + lint + format:check
 - **강등**: 사용자를 삭제하지 말고 `pending`으로 강등합니다. 이후 작성·수정·삭제가 막히고 과거 기록의 작성자 이름은 유지됩니다.
 - **인증 설정(수동)**: 이메일 확인 메일 템플릿 링크를 `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/logs`로 바꾸고, Site URL과 Redirect URLs(`/auth/callback`, `/auth/confirm`, 로컬·HTTPS 터널·운영 도메인), Google OAuth 승인된 리디렉션 URI를 등록합니다.
 - **`pg_cron`**: 방치 초안 정리 스케줄을 위해 확장이 활성화되어 있어야 합니다. 실행 이력은 `cron.job_run_details`에서 확인합니다.
-- 실기기 확인 결과와 운영 절차는 ROADMAP Task 006, 022, 024 진행에 맞춰 이 절에 보강합니다.
+- 실기기 확인 결과와 운영 절차는 ROADMAP Task 015, 024, 026 진행에 맞춰 이 절에 보강합니다.
