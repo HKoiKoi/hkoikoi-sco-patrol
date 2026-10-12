@@ -5,15 +5,15 @@
 
 ## 현재 환경
 
-| 항목 | 버전 / 설정 |
-| --- | --- |
-| Next.js | 16.4 (App Router 전용, Turbopack 기본) |
-| React | 19.3 |
-| Node.js | 20.9 이상 (필수) |
-| TypeScript | 5.1 이상 |
-| Cache Components | `next.config.ts`에서 `cacheComponents: true` |
-| 요청 가로채기 | `proxy.ts` (`middleware.ts`는 deprecated) |
-| 린트 | ESLint 9 flat config (`eslint .`), `next lint`는 제거됨 |
+| 항목             | 버전 / 설정                                             |
+| ---------------- | ------------------------------------------------------- |
+| Next.js          | 16.4 (App Router 전용, Turbopack 기본)                  |
+| React            | 19.3                                                    |
+| Node.js          | 20.9 이상 (필수)                                        |
+| TypeScript       | 5.1 이상                                                |
+| Cache Components | `next.config.ts`에서 `cacheComponents: true`            |
+| 요청 가로채기    | `proxy.ts` (`middleware.ts`는 deprecated)               |
+| 린트             | ESLint 9 flat config (`eslint .`), `next lint`는 제거됨 |
 
 ## 필수 규칙
 
@@ -55,7 +55,11 @@ Next.js 16에서는 동기 접근이 완전히 제거되었습니다. `cookies()
 export default async function Page(props: PageProps<"/blog/[slug]">) {
   const { slug } = await props.params;
   const { q } = await props.searchParams;
-  return <h1>{slug} / {q}</h1>;
+  return (
+    <h1>
+      {slug} / {q}
+    </h1>
+  );
 }
 ```
 
@@ -132,12 +136,12 @@ async function getPosts() {
 
 ### 캐시 무효화
 
-| API | 사용처 | 동작 |
-| --- | --- | --- |
-| `updateTag(tag)` | Server Action | 즉시 만료, 같은 요청에서 최신 데이터를 읽음 (read-your-writes) |
+| API                         | 사용처                       | 동작                                                              |
+| --------------------------- | ---------------------------- | ----------------------------------------------------------------- |
+| `updateTag(tag)`            | Server Action                | 즉시 만료, 같은 요청에서 최신 데이터를 읽음 (read-your-writes)    |
 | `revalidateTag(tag, "max")` | Server Action, Route Handler | stale-while-revalidate. **두 번째 인자 필수** (생략은 deprecated) |
-| `refresh()` | Server Action | 캐시되지 않은 데이터만 갱신 |
-| `revalidatePath(path)` | Server Action, Route Handler | 경로 단위 무효화 |
+| `refresh()`                 | Server Action                | 캐시되지 않은 데이터만 갱신                                       |
+| `revalidatePath(path)`      | Server Action, Route Handler | 경로 단위 무효화                                                  |
 
 ```ts
 "use server";
@@ -154,16 +158,16 @@ export async function updateProfile(formData: FormData) {
 
 Cache Components에서는 아래 설정/API를 쓰지 않습니다.
 
-| 기존 | 대체 |
-| --- | --- |
+| 기존                                                      | 대체                                          |
+| --------------------------------------------------------- | --------------------------------------------- |
 | `export const dynamic = "force-dynamic" / "force-static"` | 기본이 동적. 정적으로 만들 부분은 `use cache` |
-| `export const revalidate = 60` | `cacheLife` |
-| `export const fetchCache`, `dynamicParams` | 사용 불가 |
-| `export const runtime = "edge"` | 사용 불가 (Node.js 런타임 필수) |
-| `experimental_ppr`, `experimental.ppr` | 제거됨 (PPR이 기본 동작) |
-| `unstable_cache` | `use cache` |
-| `unstable_noStore` | 불필요 (기본이 동적) |
-| `experimental.dynamicIO`, `experimental.useCache` | `cacheComponents` |
+| `export const revalidate = 60`                            | `cacheLife`                                   |
+| `export const fetchCache`, `dynamicParams`                | 사용 불가                                     |
+| `export const runtime = "edge"`                           | 사용 불가 (Node.js 런타임 필수)               |
+| `experimental_ppr`, `experimental.ppr`                    | 제거됨 (PPR이 기본 동작)                      |
+| `unstable_cache`                                          | `use cache`                                   |
+| `unstable_noStore`                                        | 불필요 (기본이 동적)                          |
+| `experimental.dynamicIO`, `experimental.useCache`         | `cacheComponents`                             |
 
 > `generateStaticParams`는 최소 1개 이상의 param을 반환해야 합니다.
 
@@ -249,7 +253,7 @@ export default function Title({ title }: { title: string }) {
 }
 
 // 금지: 클라이언트 컴포넌트에서 서버 전용 모듈 import
-"use client";
+("use client");
 import { createClient } from "@/lib/supabase/server"; // 서버 전용
 ```
 
@@ -260,11 +264,13 @@ import { createClient } from "@/lib/supabase/server"; // 서버 전용
 
 ## 점검 명령
 
-`package.json`의 스크립트는 `dev`, `build`, `start`, `lint`뿐입니다.
+`package.json`의 주요 스크립트는 `dev`, `build`, `start`, `lint`, `typecheck`, `format`, `check`입니다.
 
 ```bash
 npm run lint                 # ESLint (eslint .)
-npx tsc --noEmit             # 타입 체크
+npm run typecheck            # 타입 체크 (tsc --noEmit)
+npm run format:check         # Prettier 검사
+npm run check                # typecheck + lint + format:check
 npx next typegen             # PageProps/LayoutProps/RouteContext 타입 생성
 npm run build                # 프로덕션 빌드 (Cache Components 검증 포함)
 ```

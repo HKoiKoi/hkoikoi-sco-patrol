@@ -15,7 +15,10 @@ export function UserStatus({ isOnline }: { isOnline: boolean }) {
     <span
       role="status"
       aria-label={isOnline ? "온라인" : "오프라인"}
-      className={cn("size-3 rounded-full", isOnline ? "bg-chart-2" : "bg-muted-foreground")}
+      className={cn(
+        "size-3 rounded-full",
+        isOnline ? "bg-chart-2" : "bg-muted-foreground",
+      )}
     />
   );
 }
@@ -85,7 +88,11 @@ import { Button } from "@/components/ui/button";
 export function LikeButton({ initialLiked }: { initialLiked: boolean }) {
   const [liked, setLiked] = useState(initialLiked);
   return (
-    <Button variant="outline" aria-pressed={liked} onClick={() => setLiked((v) => !v)}>
+    <Button
+      variant="outline"
+      aria-pressed={liked}
+      onClick={() => setLiked((v) => !v)}
+    >
       {liked ? "좋아요 취소" : "좋아요"}
     </Button>
   );
@@ -122,7 +129,9 @@ import { useActionState } from "react";
 import { updateName } from "./actions";
 
 export function NameForm() {
-  const [state, formAction, isPending] = useActionState(updateName, { message: "" });
+  const [state, formAction, isPending] = useActionState(updateName, {
+    message: "",
+  });
   return (
     <form action={formAction} className="grid gap-3">
       <Input name="name" required />
@@ -144,18 +153,29 @@ React Hook Form과 조합하는 방법은 `forms-react-hook-form.md`를 참고�
 
 import { useOptimistic, useTransition } from "react";
 
-export function TodoList({ todos, addTodo }: { todos: Todo[]; addTodo: (title: string) => Promise<void> }) {
-  const [optimistic, addOptimistic] = useOptimistic(todos, (current, title: string) => [
-    ...current,
-    { id: crypto.randomUUID(), title, pending: true },
-  ]);
+export function TodoList({
+  todos,
+  addTodo,
+}: {
+  todos: Todo[];
+  addTodo: (title: string) => Promise<void>;
+}) {
+  const [optimistic, addOptimistic] = useOptimistic(
+    todos,
+    (current, title: string) => [
+      ...current,
+      { id: crypto.randomUUID(), title, pending: true },
+    ],
+  );
   const [, startTransition] = useTransition();
 
   return (
     <>
       <ul>
         {optimistic.map((t) => (
-          <li key={t.id} className={cn(t.pending && "opacity-50")}>{t.title}</li>
+          <li key={t.id} className={cn(t.pending && "opacity-50")}>
+            {t.title}
+          </li>
         ))}
       </ul>
       <button
@@ -178,8 +198,18 @@ export function TodoList({ todos, addTodo }: { todos: Todo[]; addTodo: (title: s
 React 19에서는 함수 컴포넌트가 `ref`를 prop으로 직접 받습니다. 새 컴포넌트에서는 `forwardRef`가 필요 없습니다. 기존 `components/ui/*`의 `forwardRef`는 동작에 문제가 없으므로 일괄 변환하지 않습니다.
 
 ```tsx
-function TextField({ ref, className, ...props }: React.ComponentProps<"input">) {
-  return <input ref={ref} className={cn("h-9 rounded-md border px-3", className)} {...props} />;
+function TextField({
+  ref,
+  className,
+  ...props
+}: React.ComponentProps<"input">) {
+  return (
+    <input
+      ref={ref}
+      className={cn("h-9 rounded-md border px-3", className)}
+      {...props}
+    />
+  );
 }
 ```
 
@@ -248,10 +278,13 @@ const panelVariants = cva("rounded-lg border bg-card text-card-foreground", {
   defaultVariants: { size: "md", tone: "default" },
 });
 
-type PanelProps = React.ComponentProps<"div"> & VariantProps<typeof panelVariants>;
+type PanelProps = React.ComponentProps<"div"> &
+  VariantProps<typeof panelVariants>;
 
 export function Panel({ size, tone, className, ...props }: PanelProps) {
-  return <div className={cn(panelVariants({ size, tone }), className)} {...props} />;
+  return (
+    <div className={cn(panelVariants({ size, tone }), className)} {...props} />
+  );
 }
 ```
 
@@ -273,22 +306,46 @@ function useTabs() {
   return ctx;
 }
 
-export function Tabs({ defaultValue, children }: { defaultValue: string; children: React.ReactNode }) {
+export function Tabs({
+  defaultValue,
+  children,
+}: {
+  defaultValue: string;
+  children: React.ReactNode;
+}) {
   const [value, setValue] = useState(defaultValue);
   return <TabsContext value={{ value, setValue }}>{children}</TabsContext>;
 }
 
-export function TabsTrigger({ value, children }: { value: string; children: React.ReactNode }) {
+export function TabsTrigger({
+  value,
+  children,
+}: {
+  value: string;
+  children: React.ReactNode;
+}) {
   const tabs = useTabs();
   return (
-    <button role="tab" aria-selected={tabs.value === value} onClick={() => tabs.setValue(value)}>
+    <button
+      role="tab"
+      aria-selected={tabs.value === value}
+      onClick={() => tabs.setValue(value)}
+    >
       {children}
     </button>
   );
 }
 
-export function TabsContent({ value, children }: { value: string; children: React.ReactNode }) {
-  return useTabs().value === value ? <div role="tabpanel">{children}</div> : null;
+export function TabsContent({
+  value,
+  children,
+}: {
+  value: string;
+  children: React.ReactNode;
+}) {
+  return useTabs().value === value ? (
+    <div role="tabpanel">{children}</div>
+  ) : null;
 }
 ```
 
@@ -312,10 +369,10 @@ function useToggle(initial = false) {
 
 ## 데이터 패칭 위치
 
-| 상황 | 방법 |
-| --- | --- |
-| 초기 렌더에 필요한 데이터 | Server Component에서 직접 조회 + `Suspense` |
-| 사용자 변경 (폼 제출) | Server Action + `useActionState` |
+| 상황                           | 방법                                                                |
+| ------------------------------ | ------------------------------------------------------------------- |
+| 초기 렌더에 필요한 데이터      | Server Component에서 직접 조회 + `Suspense`                         |
+| 사용자 변경 (폼 제출)          | Server Action + `useActionState`                                    |
 | 브라우저 전용 실시간/반복 조회 | Client Component + `lib/supabase/client.ts` 또는 SWR/TanStack Query |
 
 `useEffect` 안에서 `fetch` + `useState`로 로딩/에러를 직접 관리하는 `DataFetcher` 류의 render-props 컴포넌트는 만들지 않습니다. 서버 패칭 또는 Suspense + `use()`를 사용하세요.
@@ -349,7 +406,13 @@ type SelectProps<T> = {
   getKey: (option: T) => string;
 };
 
-export function Select<T>({ options, value, onChange, getLabel, getKey }: SelectProps<T>) {
+export function Select<T>({
+  options,
+  value,
+  onChange,
+  getLabel,
+  getKey,
+}: SelectProps<T>) {
   return (
     <select
       value={value ? getKey(value) : ""}
@@ -374,8 +437,7 @@ export function Select<T>({ options, value, onChange, getLabel, getKey }: Select
 
 ```tsx
 type ActionProps =
-  | { loading: true; onClick?: never }
-  | { loading?: false; onClick: () => void };
+  { loading: true; onClick?: never } | { loading?: false; onClick: () => void };
 ```
 
 ### Supabase 타입
@@ -398,20 +460,24 @@ DB 타입은 `supabase gen types typescript` 또는 MCP의 `generate_typescript_
 ## 체크리스트
 
 **설계**
+
 - [ ] 단일 책임, 컴포지션 활용
 - [ ] 네이티브 props는 `React.ComponentProps<"tag">`로 확장
 
 **Server/Client**
+
 - [ ] Server Component 우선, `'use client'`는 말단에만
 - [ ] 요청 시점 데이터는 `Suspense` 경계 안에서 읽기
 - [ ] `params`/`searchParams`는 `await`
 
 **타입 / 성능**
+
 - [ ] Props 타입 정의, `any` 없음
 - [ ] 수동 메모이제이션은 측정 후에만
 - [ ] 무거운 클라이언트 컴포넌트는 `next/dynamic`
 
 **접근성 / 품질**
+
 - [ ] 의미 있는 HTML 태그, 필요한 ARIA 속성, 키보드 조작
 - [ ] Effect cleanup 작성 (`<Activity>`로 숨겨질 때 정리됨)
 - [ ] `npm run lint`, `npx tsc --noEmit` 통과

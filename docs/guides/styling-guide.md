@@ -4,15 +4,15 @@
 
 ## 기술 스택
 
-| 도구 | 버전 | 비고 |
-| --- | --- | --- |
-| Tailwind CSS | 4.3 | CSS-first 설정. `tailwind.config.ts` 없음 |
-| `@tailwindcss/postcss` | 4.3 | `postcss.config.mjs`의 유일한 플러그인 (autoprefixer 불필요) |
-| shadcn/ui | new-york | `components.json`, Radix UI 기반 |
-| tailwindcss-animate | 1.x | `@plugin 'tailwindcss-animate'`로 로드 |
-| next-themes | 0.4 | `class` 전략 다크모드 |
-| class-variance-authority, clsx, tailwind-merge | | 변형 정의와 `cn()` |
-| lucide-react | 1.x | 아이콘 |
+| 도구                                           | 버전     | 비고                                                         |
+| ---------------------------------------------- | -------- | ------------------------------------------------------------ |
+| Tailwind CSS                                   | 4.3      | CSS-first 설정. `tailwind.config.ts` 없음                    |
+| `@tailwindcss/postcss`                         | 4.3      | `postcss.config.mjs`의 유일한 플러그인 (autoprefixer 불필요) |
+| shadcn/ui                                      | new-york | `components.json`, Radix UI 기반                             |
+| tailwindcss-animate                            | 1.x      | `@plugin 'tailwindcss-animate'`로 로드                       |
+| next-themes                                    | 0.4      | `class` 전략 다크모드                                        |
+| class-variance-authority, clsx, tailwind-merge |          | 변형 정의와 `cn()`                                           |
+| lucide-react                                   | 1.x      | 아이콘                                                       |
 
 ## Tailwind v4 설정 구조
 
@@ -39,8 +39,14 @@
 
 /* 실제 색상 값은 :root / .dark 에서 HSL 채널로 정의 */
 @layer base {
-  :root { --background: 0 0% 100%; --foreground: 0 0% 3.9%; /* ... */ }
-  .dark { --background: 0 0% 3.9%; --foreground: 0 0% 98%; /* ... */ }
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 3.9%; /* ... */
+  }
+  .dark {
+    --background: 0 0% 3.9%;
+    --foreground: 0 0% 98%; /* ... */
+  }
 }
 ```
 
@@ -54,20 +60,20 @@
 
 ## v3 → v4 클래스 변경점
 
-| v3 | v4 |
-| --- | --- |
-| `shadow-sm` | `shadow-xs` |
-| `shadow` | `shadow-sm` |
-| `rounded-sm` | `rounded-xs` (`rounded`는 `rounded-sm`) |
-| `outline-none` | `outline-hidden` |
-| `ring` (3px) | `ring-3` (`ring`은 1px) |
-| `bg-gradient-to-r` | `bg-linear-to-r` |
-| `data-[disabled]:` | `data-disabled:` |
-| `min-w-[8rem]` | `min-w-32` |
-| `bg-opacity-50` 등 | `bg-black/50` |
-| `flex-shrink-*`, `flex-grow-*` | `shrink-*`, `grow-*` |
-| `!p-4` (접두 important) | `p-4!` (접미) |
-| `space-x-*`, `space-y-*` | 동작하지만 레이아웃은 `flex`/`grid` + `gap-*` 권장 |
+| v3                             | v4                                                 |
+| ------------------------------ | -------------------------------------------------- |
+| `shadow-sm`                    | `shadow-xs`                                        |
+| `shadow`                       | `shadow-sm`                                        |
+| `rounded-sm`                   | `rounded-xs` (`rounded`는 `rounded-sm`)            |
+| `outline-none`                 | `outline-hidden`                                   |
+| `ring` (3px)                   | `ring-3` (`ring`은 1px)                            |
+| `bg-gradient-to-r`             | `bg-linear-to-r`                                   |
+| `data-[disabled]:`             | `data-disabled:`                                   |
+| `min-w-[8rem]`                 | `min-w-32`                                         |
+| `bg-opacity-50` 등             | `bg-black/50`                                      |
+| `flex-shrink-*`, `flex-grow-*` | `shrink-*`, `grow-*`                               |
+| `!p-4` (접두 important)        | `p-4!` (접미)                                      |
+| `space-x-*`, `space-y-*`       | 동작하지만 레이아웃은 `flex`/`grid` + `gap-*` 권장 |
 
 CSS 변수를 클래스에서 참조할 때는 `bg-(--color)` 형태입니다.
 
@@ -86,7 +92,7 @@ CSS 변수를 클래스에서 참조할 때는 `bg-(--color)` 형태입니다.
 ```
 
 - 다크모드는 시맨틱 토큰(`bg-background`, `text-muted-foreground` 등)으로 처리하고, `dark:` 접두사는 토큰으로 해결되지 않을 때만 쓴다.
-- 클래스 정렬은 Prettier 플러그인이 설치되어 있지 않으므로 레이아웃 → 크기 → 타이포 → 배경/테두리 → 효과 → 상호작용 순서를 수동으로 지킨다.
+- 클래스 정렬은 `prettier-plugin-tailwindcss`가 저장/커밋 시 자동으로 처리한다(`cn()`, `cva()`, `clsx()`, `twMerge()` 인자 포함). 순서를 수동으로 맞추지 않는다.
 - 커스텀 CSS 클래스와 CSS Modules는 만들지 않는다. 반복되면 컴포넌트로 추출한다.
 - `!important`(`p-4!`)는 서드파티 스타일을 덮어쓸 때만 쓴다.
 
@@ -115,10 +121,18 @@ v4의 `container`는 기본으로 가운데 정렬/패딩이 없으므로 `mx-au
 변형이 있는 컴포넌트는 `cva`로 정의합니다 (`components/ui/button.tsx` 참고).
 
 ```tsx
-const badgeVariants = cva("inline-flex items-center rounded-md px-2 py-0.5 text-xs", {
-  variants: { variant: { default: "bg-primary text-primary-foreground", outline: "border" } },
-  defaultVariants: { variant: "default" },
-});
+const badgeVariants = cva(
+  "inline-flex items-center rounded-md px-2 py-0.5 text-xs",
+  {
+    variants: {
+      variant: {
+        default: "bg-primary text-primary-foreground",
+        outline: "border",
+      },
+    },
+    defaultVariants: { variant: "default" },
+  },
+);
 ```
 
 ## shadcn/ui
@@ -135,8 +149,19 @@ npx shadcn@latest add dialog
 - 확장은 래핑으로 합니다.
 
 ```tsx
-export function LiftButton({ className, ...props }: React.ComponentProps<typeof Button>) {
-  return <Button className={cn("transition-all hover:-translate-y-0.5 hover:shadow-lg", className)} {...props} />;
+export function LiftButton({
+  className,
+  ...props
+}: React.ComponentProps<typeof Button>) {
+  return (
+    <Button
+      className={cn(
+        "transition-all hover:-translate-y-0.5 hover:shadow-lg",
+        className,
+      )}
+      {...props}
+    />
+  );
 }
 ```
 
@@ -145,7 +170,12 @@ export function LiftButton({ className, ...props }: React.ComponentProps<typeof 
 `app/layout.tsx`에서 `next-themes`의 `ThemeProvider`를 `attribute="class"`로 설정하고 `<html suppressHydrationWarning>`을 둡니다. Tailwind의 `@custom-variant dark`가 `.dark` 클래스를 기준으로 동작합니다.
 
 ```tsx
-<ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+<ThemeProvider
+  attribute="class"
+  defaultTheme="system"
+  enableSystem
+  disableTransitionOnChange
+>
   {children}
 </ThemeProvider>
 ```
@@ -162,16 +192,16 @@ const mounted = useSyncExternalStore(
 
 ## 색상 시스템
 
-| 토큰 | 용도 |
-| --- | --- |
-| `background` / `foreground` | 페이지 배경 / 기본 텍스트 |
-| `card`, `popover` (+ `-foreground`) | 카드, 팝오버 표면 |
-| `primary`, `secondary` (+ `-foreground`) | 주요/보조 액션 |
-| `muted` / `muted-foreground` | 약한 배경 / 보조 텍스트 |
-| `accent` (+ `-foreground`) | hover, 선택 상태 |
-| `destructive` | 삭제, 오류 |
-| `border`, `input`, `ring` | 테두리, 입력 테두리, 포커스 링 |
-| `chart-1` ~ `chart-5` | 차트 계열 색상 |
+| 토큰                                     | 용도                           |
+| ---------------------------------------- | ------------------------------ |
+| `background` / `foreground`              | 페이지 배경 / 기본 텍스트      |
+| `card`, `popover` (+ `-foreground`)      | 카드, 팝오버 표면              |
+| `primary`, `secondary` (+ `-foreground`) | 주요/보조 액션                 |
+| `muted` / `muted-foreground`             | 약한 배경 / 보조 텍스트        |
+| `accent` (+ `-foreground`)               | hover, 선택 상태               |
+| `destructive`                            | 삭제, 오류                     |
+| `border`, `input`, `ring`                | 테두리, 입력 테두리, 포커스 링 |
+| `chart-1` ~ `chart-5`                    | 차트 계열 색상                 |
 
 ```tsx
 <div className="border-border bg-background">

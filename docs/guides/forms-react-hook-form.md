@@ -55,13 +55,13 @@ export type SignUpValues = z.infer<typeof signUpSchema>;
 
 Zod 4 변경점:
 
-| Zod 3 | Zod 4 |
-| --- | --- |
-| `z.string().email()` | `z.email()` (기존 방식은 deprecated) |
-| `z.string().uuid()`, `.url()` | `z.uuid()`, `z.url()` |
-| `{ message: "..." }`, `required_error`, `invalid_type_error` | `{ error: "..." }` (문자열 또는 함수) |
-| `error.flatten()`, `error.format()` | `z.flattenError(error)`, `z.treeifyError(error)` |
-| `z.boolean().refine(v => v === true)` | `z.literal(true, { error })` |
+| Zod 3                                                        | Zod 4                                            |
+| ------------------------------------------------------------ | ------------------------------------------------ |
+| `z.string().email()`                                         | `z.email()` (기존 방식은 deprecated)             |
+| `z.string().uuid()`, `.url()`                                | `z.uuid()`, `z.url()`                            |
+| `{ message: "..." }`, `required_error`, `invalid_type_error` | `{ error: "..." }` (문자열 또는 함수)            |
+| `error.flatten()`, `error.format()`                          | `z.flattenError(error)`, `z.treeifyError(error)` |
+| `z.boolean().refine(v => v === true)`                        | `z.literal(true, { error })`                     |
 
 `FormData`는 모든 값이 문자열(또는 `File`)이므로 숫자/날짜는 `z.coerce.number()` 등으로 변환하고, 체크박스는 `formData.get("terms") === "on"`처럼 먼저 boolean으로 바꾼 뒤 스키마에 넘깁니다.
 
@@ -140,13 +140,27 @@ import { Loader2 } from "lucide-react";
 import { profileSchema, type ProfileValues } from "@/lib/schemas/profile";
 import { updateProfileAction, type ActionState } from "@/app/profile/actions";
 import { Button } from "@/components/ui/button";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 
 const initialState: ActionState = { ok: false, message: "" };
 
-export function ProfileForm({ defaultValues }: { defaultValues: ProfileValues }) {
-  const [state, formAction, isPending] = useActionState(updateProfileAction, initialState);
+export function ProfileForm({
+  defaultValues,
+}: {
+  defaultValues: ProfileValues;
+}) {
+  const [state, formAction, isPending] = useActionState(
+    updateProfileAction,
+    initialState,
+  );
 
   const form = useForm<ProfileValues>({
     resolver: zodResolver(profileSchema),
@@ -158,13 +172,17 @@ export function ProfileForm({ defaultValues }: { defaultValues: ProfileValues })
   useEffect(() => {
     if (!state.fieldErrors) return;
     for (const [name, messages] of Object.entries(state.fieldErrors)) {
-      form.setError(name as keyof ProfileValues, { type: "server", message: messages?.[0] });
+      form.setError(name as keyof ProfileValues, {
+        type: "server",
+        message: messages?.[0],
+      });
     }
   }, [state.fieldErrors, form]);
 
   const onSubmit = form.handleSubmit((values) => {
     const formData = new FormData();
-    for (const [key, value] of Object.entries(values)) formData.set(key, String(value ?? ""));
+    for (const [key, value] of Object.entries(values))
+      formData.set(key, String(value ?? ""));
     // 액션은 반드시 transition 안에서 호출한다 (isPending 연동, React 경고 방지)
     startTransition(() => formAction(formData));
   });
@@ -187,7 +205,14 @@ export function ProfileForm({ defaultValues }: { defaultValues: ProfileValues })
         />
 
         {state.message && (
-          <p role="status" className={state.ok ? "text-sm text-muted-foreground" : "text-sm text-destructive"}>
+          <p
+            role="status"
+            className={
+              state.ok
+                ? "text-sm text-muted-foreground"
+                : "text-sm text-destructive"
+            }
+          >
             {state.message}
           </p>
         )}
@@ -237,8 +262,12 @@ const next = async () => {
 ```ts
 const fileSchema = z
   .instanceof(File)
-  .refine((f) => f.size <= 5 * 1024 * 1024, { error: "5MB 이하만 업로드할 수 있습니다" })
-  .refine((f) => ["image/png", "image/jpeg", "image/webp"].includes(f.type), { error: "이미지 파일만 가능합니다" });
+  .refine((f) => f.size <= 5 * 1024 * 1024, {
+    error: "5MB 이하만 업로드할 수 있습니다",
+  })
+  .refine((f) => ["image/png", "image/jpeg", "image/webp"].includes(f.type), {
+    error: "이미지 파일만 가능합니다",
+  });
 ```
 
 - `File` 검증은 브라우저와 서버 모두에서 한다. MIME 타입은 위조 가능하므로 서버(또는 Storage 정책)에서도 제한한다.
@@ -284,6 +313,7 @@ useEffect(() => {
 ## 체크리스트
 
 **필수**
+
 - [ ] 스키마를 `lib/schemas/`에서 클라이언트·서버가 공유
 - [ ] Zod 4 API 사용 (`z.email()`, `{ error }`, `z.flattenError`)
 - [ ] Server Action에서 `safeParse` + 인증 확인
@@ -292,11 +322,13 @@ useEffect(() => {
 - [ ] 접근성: `<label>` 연결, `aria-invalid`, `role="status"`/`role="alert"`
 
 **권장**
+
 - [ ] 변경 후 `updateTag` / `revalidateTag(tag, "max")`
 - [ ] 파일 업로드는 Storage 직접 업로드 + 크기/형식 제한
 - [ ] 다단계/자동 저장 폼의 Effect cleanup
 
 **품질**
+
 - [ ] `npm run lint`
 - [ ] `npx tsc --noEmit`
 - [ ] `npm run build`

@@ -16,7 +16,9 @@ hkoikoi-sco-patrol/
 ├── proxy.ts                # 요청 전처리 (Supabase 세션 갱신)
 ├── next.config.ts          # Next.js 설정 (cacheComponents)
 ├── postcss.config.mjs      # Tailwind CSS v4 (@tailwindcss/postcss)
-├── eslint.config.mjs       # ESLint flat config
+├── eslint.config.mjs       # ESLint flat config (eslint-config-prettier 포함)
+├── .prettierrc.json        # Prettier (Tailwind 클래스 정렬 플러그인)
+├── .husky/                 # Git hooks (pre-commit: lint-staged, pre-push: typecheck)
 ├── components.json         # shadcn/ui 설정
 ├── tsconfig.json           # TypeScript 설정 (@/* → ./*)
 ├── AGENTS.md / CLAUDE.md   # 에이전트 지침 (Next.js 번들 문서 안내 포함)
@@ -114,13 +116,13 @@ signUpSuccess/        # X
 
 `tsconfig.json`의 `"@/*": ["./*"]`, `components.json`의 aliases를 따릅니다. 루트 기준이므로 `src`가 붙지 않습니다.
 
-| 별칭 | 실제 경로 |
-| --- | --- |
-| `@/components` | `./components` |
-| `@/components/ui` | `./components/ui` |
-| `@/lib` | `./lib` |
-| `@/lib/utils` | `./lib/utils.ts` |
-| `@/hooks` | `./hooks` (필요 시 생성) |
+| 별칭              | 실제 경로                |
+| ----------------- | ------------------------ |
+| `@/components`    | `./components`           |
+| `@/components/ui` | `./components/ui`        |
+| `@/lib`           | `./lib`                  |
+| `@/lib/utils`     | `./lib/utils.ts`         |
+| `@/hooks`         | `./hooks` (필요 시 생성) |
 
 ```tsx
 import { Button } from "@/components/ui/button";
@@ -132,16 +134,16 @@ import { createClient } from "@/lib/supabase/server";
 
 ## 새 파일 추가 규칙
 
-| 대상 | 위치 |
-| --- | --- |
-| 새 페이지 | `app/<경로>/page.tsx` (동적: `app/users/[id]/page.tsx`) |
-| 인증이 필요한 페이지 | `app/protected/` 아래 |
-| Route Handler | `app/<경로>/route.ts` |
-| Server Action | 기능 옆 `actions.ts` (파일 최상단에 `"use server"`) |
-| 공통 UI | `components/ui/` (shadcn CLI) |
-| 한 페이지 전용 컴포넌트 | 해당 라우트 폴더의 `_components/` |
-| 여러 페이지 공용 컴포넌트 | `components/` |
-| DB 스키마 변경 | `supabase/migrations/<timestamp>_<설명>.sql` |
+| 대상                      | 위치                                                    |
+| ------------------------- | ------------------------------------------------------- |
+| 새 페이지                 | `app/<경로>/page.tsx` (동적: `app/users/[id]/page.tsx`) |
+| 인증이 필요한 페이지      | `app/protected/` 아래                                   |
+| Route Handler             | `app/<경로>/route.ts`                                   |
+| Server Action             | 기능 옆 `actions.ts` (파일 최상단에 `"use server"`)     |
+| 공통 UI                   | `components/ui/` (shadcn CLI)                           |
+| 한 페이지 전용 컴포넌트   | 해당 라우트 폴더의 `_components/`                       |
+| 여러 페이지 공용 컴포넌트 | `components/`                                           |
+| DB 스키마 변경            | `supabase/migrations/<timestamp>_<설명>.sql`            |
 
 DB 변경은 마이그레이션으로만 합니다. 새 테이블에는 RLS를 켜고 필요한 권한만 grant 합니다 (`profiles` 마이그레이션 참고).
 
