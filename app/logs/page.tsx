@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getBusinessDate, parseBusinessDateParam } from "@/lib/business-date";
 import { getDummyLogsByDate } from "@/lib/dummy/patrol-logs";
+import { ACTIVE_DUMMY_VIEWER } from "@/lib/dummy/viewers";
 
 import { DateNav } from "./_components/date-nav";
 import { PatrolLogList } from "./_components/patrol-log-list";
@@ -35,8 +36,13 @@ async function LogsContent({ searchParams }: LogsPageProps) {
 
   return (
     <div className="space-y-4">
-      <DateNav date={businessDate} currentDate={currentDate} />
-      <PatrolLogList logs={logs} />
+      <DateNav
+        date={businessDate}
+        currentDate={currentDate}
+        viewer={ACTIVE_DUMMY_VIEWER}
+      />
+      {/* TODO: Task 018에서 getViewer()로 교체 */}
+      <PatrolLogList logs={logs} viewer={ACTIVE_DUMMY_VIEWER} />
     </div>
   );
 }

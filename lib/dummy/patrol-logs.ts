@@ -85,6 +85,19 @@ export const DUMMY_PATROL_LOGS: PatrolLog[] = [
     away: [18, 21],
     memo: "퇴실자 탭 디스플레이 종료\n6, 11번 열람실 전원 퇴실로 에어컨 종료 및 소등\n화장실 정리",
   },
+  // 카페존 좌석 13개 (칩 줄바꿈 레이아웃 확인용, 다른 카테고리와 번호 겹침 없음)
+  {
+    id: "dummy-log-1013-cafe13",
+    businessDate: "2026-10-13",
+    patrolledAt: "2026-10-13T23:45:00+09:00",
+    authorId: "dummy-manager",
+    authorName: "김매니저",
+    standing: [30],
+    cafe_zone: [31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43],
+    drowsy: [50],
+    away: [60],
+    memo: "카페존 만석",
+  },
   // 좌석 4종 모두 비어 있고 메모도 빈 기록 (관리자 작성)
   {
     id: "dummy-log-1013-empty",
@@ -126,9 +139,9 @@ export const DUMMY_PATROL_LOGS: PatrolLog[] = [
   },
 ];
 
-/** 영업일에 해당하는 더미 기록을 순찰 시각 오름차순으로 반환한다. */
+/** 영업일에 해당하는 더미 기록을 순찰 시각 내림차순(최신이 위)으로 반환한다. */
 export function getDummyLogsByDate(date: string): PatrolLog[] {
   return DUMMY_PATROL_LOGS.filter((log) => log.businessDate === date).sort(
-    (a, b) => Date.parse(a.patrolledAt) - Date.parse(b.patrolledAt),
+    (a, b) => Date.parse(b.patrolledAt) - Date.parse(a.patrolledAt),
   );
 }
