@@ -1,3 +1,4 @@
+import { getSafeNextPath } from "@/lib/auth/safe-next";
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse, type NextRequest } from "next/server";
 
@@ -5,14 +6,8 @@ export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
 
-  // open redirect 방지: 사이트 내부 상대 경로("/foo")만 허용하고 "//evil.com", "/\evil.com"은 거부
-  const nextParam = searchParams.get("next") ?? "/protected";
-  const next =
-    nextParam.startsWith("/") &&
-    !nextParam.startsWith("//") &&
-    !nextParam.startsWith("/\\")
-      ? nextParam
-      : "/protected";
+  // open redirect 방지: 사이트 내부 경로만 허용
+  const next = getSafeNextPath(searchParams.get("next"));
 
   if (code) {
     const supabase = await createClient();

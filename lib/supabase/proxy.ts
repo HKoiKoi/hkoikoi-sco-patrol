@@ -47,16 +47,23 @@ export async function updateSession(request: NextRequest) {
   const { data } = await supabase.auth.getClaims();
   const user = data?.claims;
 
+  const { pathname, search } = request.nextUrl;
+  // 일지 조회 공개 경로: "/logs" 또는 "/logs/..." ("/logsfoo"는 제외)
+  const isLogsPath = pathname === "/logs" || pathname.startsWith("/logs/");
+
   if (
-    request.nextUrl.pathname !== "/" &&
+    pathname !== "/" &&
     !user &&
-    !request.nextUrl.pathname.startsWith("/logs") &&
-    !request.nextUrl.pathname.startsWith("/login") &&
-    !request.nextUrl.pathname.startsWith("/auth")
+    !isLogsPath &&
+    !pathname.startsWith("/login") &&
+    !pathname.startsWith("/auth")
   ) {
     // no user, potentially respond by redirecting the user to the login page
     const url = request.nextUrl.clone();
     url.pathname = "/auth/login";
+    // 로그인 후 원래 화면으로 돌아오도록 현재 경로를 전달
+    url.search = "";
+    url.searchParams.set("next", pathname + search);
     return NextResponse.redirect(url);
   }
 
