@@ -225,23 +225,23 @@ Phase 0 (완료)
 
 > 이 Phase의 화면은 `lib/dummy/*.ts`의 하드코딩 데이터를 사용하며 DB에 접근하지 않는다. 더미 데이터와 가짜 어댑터는 Task 002 타입(`Viewer`, `PatrolLog`, `QuickTag`, `PatrolDraft`, `SaveDraftResult`, `CompletePatrolResult`)으로만 작성하고(`as` 단언 금지) 다음 엣지 데이터를 포함한다: 빈 배열(기록 없는 날짜, 좌석 4종이 모두 빈 기록, 퀵 태그 0개), 여러 줄 메모, 2,000자 메모, 03:59·04:00(KST) 완료 기록(각각 전일·당일 영업일), 강등된 작성자(현재 `pending`이지만 이름이 표시되는 기록). 더미 viewer는 `lib/dummy/viewers.ts`의 4종 상수(admin/manager/pending/비로그인)를 바꿔 가며 확인한다. 컴포넌트는 Task 002 타입과 `viewer` prop을 받고 버튼 노출은 Task 004의 `lib/permissions.ts`로만 판정한다. 더미는 Phase 5의 Task 018(조회)과 Task 020(자동 저장)에서 삭제한다. 모바일 우선, 터치 타깃 48px 이상, 다크 모드 확인.
 
-- **Task 006: 공통 레이아웃·내비게이션·안내 배너 구현**
+- **Task 006: 공통 레이아웃·내비게이션·안내 배너 구현** ✅ - 완료
   - 관련 기능: F01
   - 설명: 모든 페이지가 공유하는 상단 내비게이션과 역할별 메뉴, 승인 대기 배너, `notice` 안내 표시를 만든다. 필요한 shadcn 컴포넌트를 추가한다.
   - 관련 파일: `app/layout.tsx`, `components/layout/app-header.tsx`, `components/layout/nav-menu.tsx`, `components/layout/notice-banner.tsx`, `components/layout/pending-banner.tsx`, `components/auth-button.tsx`, `components/logout-button.tsx`, `components/ui/*`, `lib/dummy/viewers.ts`(신규)
   - 구현 사항:
-    - [ ] `npx shadcn@latest add textarea dialog alert-dialog sonner separator switch skeleton` (필요한 것만)
-    - [ ] 헤더: 앱 이름, "일지 조회"(항상), "순찰 기록"(항상 노출, 권한 처리는 클릭 시), "퀵 태그 관리"(`isAdmin(viewer)`일 때만), 로그인/로그아웃 버튼, 테마 전환. 모바일에서는 드롭다운 메뉴
-    - [ ] 헤더의 사용자 영역은 `<Suspense fallback={<Skeleton/>}>` 안에서 `viewer` prop을 받는 구조. 이 Task에서는 `lib/dummy/viewers.ts`의 더미 viewer 4종 상수 중 하나를 넘기고, 실제 `getViewer()` 연결은 Task 018에서 한다
-    - [ ] `notice` 쿼리 파라미터 배너(`login-required`/`pending`/`admin-required`, 문구는 Task 005의 `lib/auth/notice.ts`)와 pending 사용자용 상단 승인 대기 배너
-    - [ ] 전역 토스트(`sonner`) 설치, 한국어 문구로 통일
+    - ✅ `npx shadcn@latest add sonner skeleton separator` (textarea, dialog, alert-dialog, switch는 사용 시점인 Task 007 이후에 추가)
+    - ✅ 헤더: 앱 이름, "일지 조회"(항상), "순찰 기록"(항상 노출, 권한 처리는 클릭 시), "퀵 태그 관리"(`isAdmin(viewer)`일 때만), 로그인/로그아웃 버튼, 테마 전환. 모바일에서는 드롭다운 메뉴
+    - ✅ 헤더의 사용자 영역은 `<Suspense fallback={<Skeleton/>}>` 안에서 `viewer` prop을 받는 구조. 이 Task에서는 `lib/dummy/viewers.ts`의 더미 viewer 4종 상수 중 하나를 넘기고, 실제 `getViewer()` 연결은 Task 018에서 한다
+    - ✅ `notice` 쿼리 파라미터 배너(`login-required`/`pending`/`admin-required`, 문구는 Task 005의 `lib/auth/notice.ts`)와 pending 사용자용 상단 승인 대기 배너
+    - ✅ 전역 토스트(`sonner`) 설치, 한국어 문구로 통일
   - 완료 기준: 더미 viewer 4종(비로그인/pending/manager/admin)에서 메뉴 노출 규칙이 PRD "메뉴 구조"와 일치. 375px·768px 폭에서 레이아웃이 깨지지 않음.
   - 테스트 체크리스트:
     - 정상: 더미 viewer를 admin/manager/pending/비로그인으로 바꿔 가며 `browser_snapshot` → "퀵 태그 관리"는 admin에서만, 승인 대기 배너는 pending에서만 표시
     - 정상: `browser_resize → 375x812 → browser_snapshot → 메뉴가 드롭다운으로 접힘`
     - 정상: `browser_navigate → /logs?notice=pending → 승인 대기 문구 배너 표시`
     - 엣지: `browser_navigate → /logs?notice=unknown → 배너 없음`
-  - 테스트 결과: (미수행)
+  - 테스트 결과: `npm run check`·`npm run build` 통과. Playwright(dev 서버, 더미 viewer 교체): admin은 일지 조회·순찰 기록·퀵 태그 관리 노출, manager·pending·비로그인은 퀵 태그 관리 없음. 승인 대기 배너는 pending에서만 표시, 비로그인은 로그인·가입 링크 표시. 375x812에서 햄버거 드롭다운(admin: 3개 항목)으로 접힘, 768px에서 가로 링크 표시. `/logs?notice=pending` 문구 배너 표시, `?notice=unknown` 배너 없음. 콘솔 에러·경고 0(hydration 경고 없음). `ACTIVE_DUMMY_VIEWER`는 검증 후 기본값 admin으로 원복. 순찰 기록 클릭 시 권한 안내 처리는 Task 007·018 범위
 
 - **Task 007: 일지 조회 페이지 UI 구현 (더미 데이터)**
   - 관련 기능: F06, F08, F09, F10, F01
