@@ -48,6 +48,18 @@ export type CompletePatrolResult =
     }
   | { status: "conflict"; serverRevision: number };
 
+/** 초안 저장·순찰 완료 어댑터. 더미(가짜)와 Supabase RPC 구현이 같은 계약을 따른다. */
+export interface PatrolDraftAdapter {
+  saveDraft(
+    baseRevision: number,
+    content: PatrolContent,
+  ): Promise<SaveDraftResult>;
+  completePatrol(
+    requestId: string,
+    expectedRevision: number,
+  ): Promise<CompletePatrolResult>;
+}
+
 /** Server Action 공통 반환 형태. */
 export type ActionResult<T> =
   { ok: true; data: T } | { ok: false; error: string };
