@@ -163,34 +163,34 @@ Phase 0 (완료)
 
 > 순수 함수 검증은 테스트 러너 대신 스크래치 디렉터리의 임시 스크립트(Node 24 타입 스트리핑, `node check.ts`)로 PRD 표의 케이스를 assert 한 뒤 삭제한다. 스크립트는 커밋하지 않는다. 이 Phase의 Task는 DB 스키마에 의존하지 않는다.
 
-- **Task 003: 영업일·시각 유틸리티 구현 (`lib/business-date.ts`)**
+- ✅ **Task 003: 영업일·시각 유틸리티 구현 (`lib/business-date.ts`)**
   - 관련 기능: F05, F08
   - 설명: 화면 표시와 날짜 이동 기본값용 영업일 계산. 서버 기본 시간대에 의존하지 않고 `Asia/Seoul`을 명시한다(최종 기준은 DB).
   - 관련 파일: `lib/business-date.ts`
   - 구현 사항:
-    - [ ] `getBusinessDate(at: Date): string` — `Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" })`로 `at - 4h`의 KST 날짜를 `YYYY-MM-DD`로 반환
-    - [ ] `parseBusinessDateParam(value: string | string[] | undefined): string | null` — `^\d{4}-\d{2}-\d{2}$` 형식과 실제 존재 날짜(2월 30일 등 거부) 검증
-    - [ ] `shiftBusinessDate(date: string, days: number): string` — UTC 기준 날짜 산술로 월말·연말 처리
-    - [ ] `formatKstTime(iso: string): string` — `HH:mm`, `hourCycle: "h23"`, `timeZone: "Asia/Seoul"`(서버·클라이언트 동일 결과)
-    - [ ] `formatBusinessDateLabel(date)` — 화면용 `YYYY. MM. DD (요일)` 표기
+    - [x] `getBusinessDate(at: Date): string` — `Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" })`로 `at - 4h`의 KST 날짜를 `YYYY-MM-DD`로 반환
+    - [x] `parseBusinessDateParam(value: string | string[] | undefined): string | null` — `^\d{4}-\d{2}-\d{2}$` 형식과 실제 존재 날짜(2월 30일 등 거부) 검증
+    - [x] `shiftBusinessDate(date: string, days: number): string` — UTC 기준 날짜 산술로 월말·연말 처리
+    - [x] `formatKstTime(iso: string): string` — `HH:mm`, `hourCycle: "h23"`, `timeZone: "Asia/Seoul"`(서버·클라이언트 동일 결과)
+    - [x] `formatBusinessDateLabel(date)` — 화면용 `YYYY. MM. DD (요일)` 표기
   - 완료 기준: PRD 영업일 경계표 7건과 날짜 파싱/이동 케이스를 임시 스크립트로 모두 통과. `TZ=UTC`와 `TZ=America/New_York` 환경에서 같은 결과.
   - 테스트 체크리스트:
     - 정상: 경계표 7건 (예: `2026-10-12T03:59:59+09:00 → 2026-10-11`, `04:00:00 → 2026-10-12`)
     - 오류: `parseBusinessDateParam("2026-13-40") → null`, `"2026-02-30" → null`, `"20261012" → null`, 배열 입력 → null
     - 엣지: `shiftBusinessDate("2026-12-31", 1) → "2027-01-01"`, `("2028-03-01", -1) → "2028-02-29"`
     - 엣지: `formatKstTime("2026-10-11T15:05:00Z") → "00:05"`(`24:05` 아님)
-  - 테스트 결과: (미수행)
+  - 테스트 결과: 임시 스크립트(Node 24 `node check.ts`, 커밋 안 함) 21케이스 통과 — 경계표 7건, 파싱 6건(정상 2·오류 4), 이동 3건, formatKstTime 2건, 라벨 2건 + `TZ=UTC`·`TZ=America/New_York` 2종 모두 동일 결과. `npm run check`(typecheck·lint·format:check) 통과.
 
-- **Task 004: 복사 문구·좌석·태그 문구·권한 판정 순수 함수 구현**
+- ✅ **Task 004: 복사 문구·좌석·태그 문구·권한 판정 순수 함수 구현**
   - 관련 기능: F02, F04, F06, F09, F10, F11
   - 설명: 복사 문구 생성(`lib/patrol-format.ts`)과 클라이언트·서버가 공유하는 입력 정규화 함수, 화면의 버튼 노출에 쓰는 권한 판정 함수를 만든다.
   - 관련 파일: `lib/patrol-format.ts`, `lib/seat-numbers.ts`, `lib/quick-tag-label.ts`, `lib/permissions.ts`
   - 구현 사항:
-    - [ ] `formatPatrolLine({ patrolledAt, memo, drowsy }): string` — `HH:mm 순찰 → 완료[ (상세)]`. 메모를 `\r\n`/`\n`으로 분리, 탭·전각 공백(U+3000)을 공백 한 칸으로, 각 줄 트림, 빈 줄 제거 후 `", "` 연결. 졸음/딴짓 오름차순 `", "` 연결 + `"번 졸아서 깨움"`. 스탠딩·카페존·자리비움 미포함. 결과에 개행·탭 없음 보장
-    - [ ] `lib/seat-numbers.ts`: `parseSeatInput(text): number | null`(양의 정수만, 상한 없음), `addSeat(list, n)`(카테고리 내 중복 거부 결과 반환), `removeSeat`, `normalizeSeats(list)`(정렬·중복 제거), `moveAwaySeat(seats, n, target)`(대상에 이미 있으면 자리비움에서 제거만)
-    - [ ] `lib/quick-tag-label.ts`: `normalizeTagLabel`(트림, 연속 공백 한 칸), `tagLabelKey`(소문자화), `validateTagLabel`(필수, 개행 불가) — DB 유일 인덱스 규칙과 일치
-    - [ ] 메모 최대 길이 상수 `MEMO_MAX_LENGTH = 2000` 공유
-    - [ ] `lib/permissions.ts`: `canEdit(log, viewer)`(로그인 + 역할이 `manager`/`admin`이고 `log.authorId === viewer.userId`, 또는 `admin`이면 true. `pending`·비로그인은 false), `canWrite(viewer)`(`manager`/`admin`), `isAdmin(viewer)`. Task 002 `PatrolLog`·`Viewer` 타입만 사용하며 화면의 버튼 노출 판정은 이 함수들로만 한다(최종 방어선은 RLS)
+    - [x] `formatPatrolLine({ patrolledAt, memo, drowsy }): string` — `HH:mm 순찰 → 완료[ (상세)]`. 메모를 `\r\n`/`\n`으로 분리, 탭·전각 공백(U+3000)을 공백 한 칸으로, 각 줄 트림, 빈 줄 제거 후 `", "` 연결. 졸음/딴짓 오름차순 `", "` 연결 + `"번 졸아서 깨움"`. 스탠딩·카페존·자리비움 미포함. 결과에 개행·탭 없음 보장
+    - [x] `lib/seat-numbers.ts`: `parseSeatInput(text): number | null`(양의 정수만, 상한 없음), `addSeat(list, n)`(카테고리 내 중복 거부 결과 반환), `removeSeat`, `normalizeSeats(list)`(정렬·중복 제거), `moveAwaySeat(seats, n, target)`(대상에 이미 있으면 자리비움에서 제거만)
+    - [x] `lib/quick-tag-label.ts`: `normalizeTagLabel`(트림, 연속 공백 한 칸), `tagLabelKey`(소문자화), `validateTagLabel`(필수, 개행 불가) — DB 유일 인덱스 규칙과 일치
+    - [x] 메모 최대 길이 상수 `MEMO_MAX_LENGTH = 2000` 공유
+    - [x] `lib/permissions.ts`: `canEdit(log, viewer)`(로그인 + 역할이 `manager`/`admin`이고 `log.authorId === viewer.userId`, 또는 `admin`이면 true. `pending`·비로그인은 false), `canWrite(viewer)`(`manager`/`admin`), `isAdmin(viewer)`. Task 002 `PatrolLog`·`Viewer` 타입만 사용하며 화면의 버튼 노출 판정은 이 함수들로만 한다(최종 방어선은 RLS)
   - 완료 기준: PRD "복사 문구 형식" 표 6건이 정확히 일치. 좌석·태그·권한 규칙 케이스 통과.
   - 테스트 체크리스트:
     - 정상: PRD 표 #1~#6 입력 → 기대 출력과 문자열 완전 일치
@@ -201,16 +201,16 @@ Phase 0 (완료)
     - 오류: `validateTagLabel("  ")` 실패, `("a\nb")` 실패 / `tagLabelKey(" 화장실  정리 ") === tagLabelKey("화장실 정리")`
     - 정상: `canEdit(본인 기록, manager) → true`, `canEdit(타인 기록, admin) → true`
     - 오류: `canEdit(타인 기록, manager) → false`, `canEdit(본인 기록, pending) → false`, `canEdit(기록, null) → false`
-  - 테스트 결과: (미수행)
+  - 테스트 결과: 임시 스크립트(Node 24 `node check.ts`, 커밋 안 함) 44케이스 통과 — PRD 복사 문구 표 6건, 메모 공백·탭·전각 공백·줄바꿈 엣지, 좌석 파싱·추가·이동, 태그 문구, 권한 판정 + `TZ=UTC`·`TZ=America/New_York` 동일 결과. `npm run check`(typecheck·lint·format:check) 통과.
 
-- **Task 005: 내부 경로 검증·안내 문구·`/logs` 공개 경로 설정**
+- ✅ **Task 005: 내부 경로 검증·안내 문구·`/logs` 공개 경로 설정**
   - 관련 기능: F01
   - 설명: 공통 `next` 검증 함수와 권한 안내(`notice`) 문구 매핑을 만들고, `proxy`의 공개 경로에 `/logs*`를 추가한다. 역할 조회가 필요한 DAL(`getViewer`/`requireStaff`/`requireAdmin`)은 DB 이후 Task 016에서 만든다.
   - 관련 파일: `lib/auth/safe-next.ts`(신규), `lib/auth/notice.ts`(신규), `lib/supabase/proxy.ts`, `app/auth/callback/route.ts`
   - 구현 사항:
-    - [ ] `getSafeNextPath(value, fallback = "/logs")`: `/`로 시작하고 `//`, `/\`, 스킴(`:`) 포함 경로 거부, 기존 callback의 인라인 검증을 이 함수로 교체
-    - [ ] `lib/auth/notice.ts`: `notice` 코드(`login-required`, `pending`, `admin-required`)와 한국어 문구 매핑("관리자 승인이 완료되지 않아 작성할 수 없습니다", "관리자 권한이 필요합니다" 등), 알 수 없는 코드는 `null`
-    - [ ] `lib/supabase/proxy.ts`: 공개 경로 조건에 `/logs` 추가, 로그인 리디렉션 시 `next=<pathname+search>` 부여(`getClaims()` 이후 위치에서만 수정, `supabaseResponse` 반환 규칙 유지). `CLAUDE.md`의 공개 경로 설명 갱신
+    - [x] `getSafeNextPath(value, fallback = "/logs")`: `/`로 시작하고 `//`, `/\`, 스킴(`:`) 포함 경로 거부, 기존 callback의 인라인 검증을 이 함수로 교체
+    - [x] `lib/auth/notice.ts`: `notice` 코드(`login-required`, `pending`, `admin-required`)와 한국어 문구 매핑("관리자 승인이 완료되지 않아 작성할 수 없습니다", "관리자 권한이 필요합니다" 등), 알 수 없는 코드는 `null`
+    - [x] `lib/supabase/proxy.ts`: 공개 경로 조건에 `/logs` 추가, 로그인 리디렉션 시 `next=<pathname+search>` 부여(`getClaims()` 이후 위치에서만 수정, `supabaseResponse` 반환 규칙 유지). `CLAUDE.md`의 공개 경로 설명 갱신
   - 완료 기준: 비로그인으로 `/logs`가 열리고, `/protected/*` 접근 시 `next`가 붙은 로그인 URL로 이동. `npm run check` 통과.
   - 테스트 체크리스트:
     - 정상: `browser_navigate → /logs (비로그인) → 200, 리디렉션 없음`
@@ -218,7 +218,8 @@ Phase 0 (완료)
     - 오류: `browser_navigate → /auth/callback?code=x&next=//evil.com → 외부 이동 없이 /auth/error 또는 /logs`
     - 엣지: `getSafeNextPath("/\\evil.com")`, `("https://evil.com")`, `("javascript:alert(1)")` → `/logs` (임시 스크립트)
     - 엣지: `getNoticeMessage("unknown") → null` (임시 스크립트)
-  - 테스트 결과: (미수행)
+  - 테스트 결과: 임시 스크립트(Node 24 `node check.ts`, 커밋 안 함)로 `getSafeNextPath`(`/\evil.com`, `https://evil.com`, `javascript:alert(1)`, `//evil.com`, 개행 포함, 비문자열 → `/logs` / `/protected/patrol?x=1` 통과)와 `getNoticeMessage("unknown")`·`undefined` → `null` 확인. Playwright MCP: 비로그인 `/logs` 200(리디렉션 없음), `/protected/patrol` → `/auth/login?next=%2Fprotected%2Fpatrol`, `/auth/callback?code=x&next=//evil.com` → 외부 이동 없이 `/auth/error`, 콘솔 에러·경고 0건. curl: `/logsfoo` → `/auth/login?next=%2Flogsfoo`. `npm run check` 통과.
+  - 후속 과제: `app/auth/confirm/route.ts`(검증 없이 `redirect(next)`), `components/login-form.tsx`(`/protected` 고정 이동), `components/google-login-button.tsx`(`next=/protected` 고정)는 아직 `getSafeNextPath`를 쓰지 않는다(CLAUDE.md 서술과 불일치, 인증 UI Task에서 처리).
 
 ### Phase 3: UI/UX 완성 (더미 데이터 활용)
 
