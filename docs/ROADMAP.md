@@ -219,7 +219,7 @@ Phase 0 (완료)
     - 엣지: `getSafeNextPath("/\\evil.com")`, `("https://evil.com")`, `("javascript:alert(1)")` → `/logs` (임시 스크립트)
     - 엣지: `getNoticeMessage("unknown") → null` (임시 스크립트)
   - 테스트 결과: 임시 스크립트(Node 24 `node check.ts`, 커밋 안 함)로 `getSafeNextPath`(`/\evil.com`, `https://evil.com`, `javascript:alert(1)`, `//evil.com`, 개행 포함, 비문자열 → `/logs` / `/protected/patrol?x=1` 통과)와 `getNoticeMessage("unknown")`·`undefined` → `null` 확인. Playwright MCP: 비로그인 `/logs` 200(리디렉션 없음), `/protected/patrol` → `/auth/login?next=%2Fprotected%2Fpatrol`, `/auth/callback?code=x&next=//evil.com` → 외부 이동 없이 `/auth/error`, 콘솔 에러·경고 0건. curl: `/logsfoo` → `/auth/login?next=%2Flogsfoo`. `npm run check` 통과.
-  - 후속 과제: `app/auth/confirm/route.ts`(검증 없이 `redirect(next)`), `components/login-form.tsx`(`/protected` 고정 이동), `components/google-login-button.tsx`(`next=/protected` 고정)는 아직 `getSafeNextPath`를 쓰지 않는다(CLAUDE.md 서술과 불일치, 인증 UI Task에서 처리).
+  - 후속 과제: `app/auth/confirm/route.ts`는 `getSafeNextPath`로 교체 완료(open redirect 차단). `components/login-form.tsx`(`/protected` 고정 이동), `components/google-login-button.tsx`(`next=/protected` 고정)는 아직 `getSafeNextPath`를 쓰지 않는다(CLAUDE.md 서술과 불일치, 인증 UI Task에서 처리).
 
 ### Phase 3: UI/UX 완성 (더미 데이터 활용)
 
