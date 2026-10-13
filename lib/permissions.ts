@@ -7,6 +7,11 @@ export function canWrite(viewer: Viewer): boolean {
   return viewer?.role === "manager" || viewer?.role === "admin";
 }
 
+/** 승인 대기 사용자 여부 (pending). */
+export function isPending(viewer: Viewer): boolean {
+  return viewer?.role === "pending";
+}
+
 export function isAdmin(viewer: Viewer): boolean {
   return viewer?.role === "admin";
 }
