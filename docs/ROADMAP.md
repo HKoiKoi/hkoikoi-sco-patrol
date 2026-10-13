@@ -168,11 +168,11 @@ Phase 0 (완료)
   - 설명: 화면 표시와 날짜 이동 기본값용 영업일 계산. 서버 기본 시간대에 의존하지 않고 `Asia/Seoul`을 명시한다(최종 기준은 DB).
   - 관련 파일: `lib/business-date.ts`
   - 구현 사항:
-    - [x] `getBusinessDate(at: Date): string` — `Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" })`로 `at - 4h`의 KST 날짜를 `YYYY-MM-DD`로 반환
-    - [x] `parseBusinessDateParam(value: string | string[] | undefined): string | null` — `^\d{4}-\d{2}-\d{2}$` 형식과 실제 존재 날짜(2월 30일 등 거부) 검증
-    - [x] `shiftBusinessDate(date: string, days: number): string` — UTC 기준 날짜 산술로 월말·연말 처리
-    - [x] `formatKstTime(iso: string): string` — `HH:mm`, `hourCycle: "h23"`, `timeZone: "Asia/Seoul"`(서버·클라이언트 동일 결과)
-    - [x] `formatBusinessDateLabel(date)` — 화면용 `YYYY. MM. DD (요일)` 표기
+    - ✅ `getBusinessDate(at: Date): string` — `Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" })`로 `at - 4h`의 KST 날짜를 `YYYY-MM-DD`로 반환
+    - ✅ `parseBusinessDateParam(value: string | string[] | undefined): string | null` — `^\d{4}-\d{2}-\d{2}$` 형식과 실제 존재 날짜(2월 30일 등 거부) 검증
+    - ✅ `shiftBusinessDate(date: string, days: number): string` — UTC 기준 날짜 산술로 월말·연말 처리
+    - ✅ `formatKstTime(iso: string): string` — `HH:mm`, `hourCycle: "h23"`, `timeZone: "Asia/Seoul"`(서버·클라이언트 동일 결과)
+    - ✅ `formatBusinessDateLabel(date)` — 화면용 `YYYY. MM. DD (요일)` 표기
   - 완료 기준: PRD 영업일 경계표 7건과 날짜 파싱/이동 케이스를 임시 스크립트로 모두 통과. `TZ=UTC`와 `TZ=America/New_York` 환경에서 같은 결과.
   - 테스트 체크리스트:
     - 정상: 경계표 7건 (예: `2026-10-12T03:59:59+09:00 → 2026-10-11`, `04:00:00 → 2026-10-12`)
@@ -186,11 +186,11 @@ Phase 0 (완료)
   - 설명: 복사 문구 생성(`lib/patrol-format.ts`)과 클라이언트·서버가 공유하는 입력 정규화 함수, 화면의 버튼 노출에 쓰는 권한 판정 함수를 만든다.
   - 관련 파일: `lib/patrol-format.ts`, `lib/seat-numbers.ts`, `lib/quick-tag-label.ts`, `lib/permissions.ts`
   - 구현 사항:
-    - [x] `formatPatrolLine({ patrolledAt, memo, drowsy }): string` — `HH:mm 순찰 → 완료[ (상세)]`. 메모를 `\r\n`/`\n`으로 분리, 탭·전각 공백(U+3000)을 공백 한 칸으로, 각 줄 트림, 빈 줄 제거 후 `", "` 연결. 졸음/딴짓 오름차순 `", "` 연결 + `"번 졸아서 깨움"`. 스탠딩·카페존·자리비움 미포함. 결과에 개행·탭 없음 보장
-    - [x] `lib/seat-numbers.ts`: `parseSeatInput(text): number | null`(양의 정수만, 상한 없음), `addSeat(list, n)`(카테고리 내 중복 거부 결과 반환), `removeSeat`, `normalizeSeats(list)`(정렬·중복 제거), `moveAwaySeat(seats, n, target)`(대상에 이미 있으면 자리비움에서 제거만)
-    - [x] `lib/quick-tag-label.ts`: `normalizeTagLabel`(트림, 연속 공백 한 칸), `tagLabelKey`(소문자화), `validateTagLabel`(필수, 개행 불가) — DB 유일 인덱스 규칙과 일치
-    - [x] 메모 최대 길이 상수 `MEMO_MAX_LENGTH = 2000` 공유
-    - [x] `lib/permissions.ts`: `canEdit(log, viewer)`(로그인 + 역할이 `manager`/`admin`이고 `log.authorId === viewer.userId`, 또는 `admin`이면 true. `pending`·비로그인은 false), `canWrite(viewer)`(`manager`/`admin`), `isAdmin(viewer)`. Task 002 `PatrolLog`·`Viewer` 타입만 사용하며 화면의 버튼 노출 판정은 이 함수들로만 한다(최종 방어선은 RLS)
+    - ✅ `formatPatrolLine({ patrolledAt, memo, drowsy }): string` — `HH:mm 순찰 → 완료[ (상세)]`. 메모를 `\r\n`/`\n`으로 분리, 탭·전각 공백(U+3000)을 공백 한 칸으로, 각 줄 트림, 빈 줄 제거 후 `", "` 연결. 졸음/딴짓 오름차순 `", "` 연결 + `"번 졸아서 깨움"`. 스탠딩·카페존·자리비움 미포함. 결과에 개행·탭 없음 보장
+    - ✅ `lib/seat-numbers.ts`: `parseSeatInput(text): number | null`(양의 정수만, 상한 없음), `addSeat(list, n)`(카테고리 내 중복 거부 결과 반환), `removeSeat`, `normalizeSeats(list)`(정렬·중복 제거), `moveAwaySeat(seats, n, target)`(대상에 이미 있으면 자리비움에서 제거만)
+    - ✅ `lib/quick-tag-label.ts`: `normalizeTagLabel`(트림, 연속 공백 한 칸), `tagLabelKey`(소문자화), `validateTagLabel`(필수, 개행 불가) — DB 유일 인덱스 규칙과 일치
+    - ✅ 메모 최대 길이 상수 `MEMO_MAX_LENGTH = 2000` 공유
+    - ✅ `lib/permissions.ts`: `canEdit(log, viewer)`(로그인 + 역할이 `manager`/`admin`이고 `log.authorId === viewer.userId`, 또는 `admin`이면 true. `pending`·비로그인은 false), `canWrite(viewer)`(`manager`/`admin`), `isAdmin(viewer)`. Task 002 `PatrolLog`·`Viewer` 타입만 사용하며 화면의 버튼 노출 판정은 이 함수들로만 한다(최종 방어선은 RLS)
   - 완료 기준: PRD "복사 문구 형식" 표 6건이 정확히 일치. 좌석·태그·권한 규칙 케이스 통과.
   - 테스트 체크리스트:
     - 정상: PRD 표 #1~#6 입력 → 기대 출력과 문자열 완전 일치
@@ -208,9 +208,9 @@ Phase 0 (완료)
   - 설명: 공통 `next` 검증 함수와 권한 안내(`notice`) 문구 매핑을 만들고, `proxy`의 공개 경로에 `/logs*`를 추가한다. 역할 조회가 필요한 DAL(`getViewer`/`requireStaff`/`requireAdmin`)은 DB 이후 Task 016에서 만든다.
   - 관련 파일: `lib/auth/safe-next.ts`(신규), `lib/auth/notice.ts`(신규), `lib/supabase/proxy.ts`, `app/auth/callback/route.ts`
   - 구현 사항:
-    - [x] `getSafeNextPath(value, fallback = "/logs")`: `/`로 시작하고 `//`, `/\`, 스킴(`:`) 포함 경로 거부, 기존 callback의 인라인 검증을 이 함수로 교체
-    - [x] `lib/auth/notice.ts`: `notice` 코드(`login-required`, `pending`, `admin-required`)와 한국어 문구 매핑("관리자 승인이 완료되지 않아 작성할 수 없습니다", "관리자 권한이 필요합니다" 등), 알 수 없는 코드는 `null`
-    - [x] `lib/supabase/proxy.ts`: 공개 경로 조건에 `/logs` 추가, 로그인 리디렉션 시 `next=<pathname+search>` 부여(`getClaims()` 이후 위치에서만 수정, `supabaseResponse` 반환 규칙 유지). `CLAUDE.md`의 공개 경로 설명 갱신
+    - ✅ `getSafeNextPath(value, fallback = "/logs")`: `/`로 시작하고 `//`, `/\`, 스킴(`:`) 포함 경로 거부, 기존 callback의 인라인 검증을 이 함수로 교체
+    - ✅ `lib/auth/notice.ts`: `notice` 코드(`login-required`, `pending`, `admin-required`)와 한국어 문구 매핑("관리자 승인이 완료되지 않아 작성할 수 없습니다", "관리자 권한이 필요합니다" 등), 알 수 없는 코드는 `null`
+    - ✅ `lib/supabase/proxy.ts`: 공개 경로 조건에 `/logs` 추가, 로그인 리디렉션 시 `next=<pathname+search>` 부여(`getClaims()` 이후 위치에서만 수정, `supabaseResponse` 반환 규칙 유지). `CLAUDE.md`의 공개 경로 설명 갱신
   - 완료 기준: 비로그인으로 `/logs`가 열리고, `/protected/*` 접근 시 `next`가 붙은 로그인 URL로 이동. `npm run check` 통과.
   - 테스트 체크리스트:
     - 정상: `browser_navigate → /logs (비로그인) → 200, 리디렉션 없음`
@@ -250,13 +250,13 @@ Phase 0 (완료)
   - 설명: `/logs` 타임라인, 날짜 이동, 항목별 복사·수정·삭제·자리비움 액션, [순찰 기록 작성] 버튼의 UI를 완성한다.
   - 관련 파일: `app/logs/page.tsx`, `app/logs/_components/date-nav.tsx`, `app/logs/_components/patrol-log-list.tsx`, `app/logs/_components/patrol-log-item.tsx`, `app/logs/_components/edit-log-dialog.tsx`, `app/logs/_components/away-seat-actions.tsx`, `app/logs/_components/write-patrol-button.tsx`, `components/patrol/copy-button.tsx`, `components/patrol/seat-chips.tsx`, `lib/dummy/patrol-logs.ts`
   - 구현 사항:
-    - [x] 날짜 표시와 이전/다음 이동(`?date=YYYY-MM-DD` 링크), 기본값 현재 영업일, 형식이 틀리면 현재 영업일로 대체
-    - [x] 기록 카드: 시각(`HH:mm`), 작성자 이름, 4종 좌석 칩(라벨 구분), 메모(줄바꿈 유지), 빈 상태 문구("이 영업일에는 순찰 기록이 없습니다")
-    - [x] `lib/dummy/patrol-logs.ts`: Task 002 `PatrolLog[]`로 작성하고 Phase 3 공통 엣지 데이터(빈 배열, 여러 줄 메모, 2,000자 메모, 03:59·04:00 완료 기록, 강등된 작성자)를 포함
-    - [x] `components/patrol/copy-button.tsx`: 클릭 핸들러에서 `await` 없이 즉시 `navigator.clipboard.writeText` 호출, 실패/미지원 시 문구가 전체 선택된 읽기 전용 입력란을 다이얼로그로 표시
-    - [x] 권한별 버튼 노출: `canEdit(log, viewer)`가 true인 기록만 수정/삭제와 자리비움 칩별 "스탠딩으로 이동 / 카페존으로 이동 / 삭제" 메뉴 표시. 컴포넌트는 `viewer` prop만 받고 역할 문자열을 직접 비교하지 않음
-    - [x] 수정 다이얼로그(좌석 4종 칩 편집 + 메모), 삭제 확인(`alert-dialog`)
-    - [x] [순찰 기록 작성] 버튼: 비로그인 → "로그인이 필요합니다" 안내 후 `/auth/login?next=/protected/patrol`, pending → 승인 대기 메시지(이동 없음), 매니저·관리자 → `/protected/patrol`
+    - ✅ 날짜 표시와 이전/다음 이동(`?date=YYYY-MM-DD` 링크), 기본값 현재 영업일, 형식이 틀리면 현재 영업일로 대체
+    - ✅ 기록 카드: 시각(`HH:mm`), 작성자 이름, 4종 좌석 칩(라벨 구분), 메모(줄바꿈 유지), 빈 상태 문구("이 영업일에는 순찰 기록이 없습니다")
+    - ✅ `lib/dummy/patrol-logs.ts`: Task 002 `PatrolLog[]`로 작성하고 Phase 3 공통 엣지 데이터(빈 배열, 여러 줄 메모, 2,000자 메모, 03:59·04:00 완료 기록, 강등된 작성자)를 포함
+    - ✅ `components/patrol/copy-button.tsx`: 클릭 핸들러에서 `await` 없이 즉시 `navigator.clipboard.writeText` 호출, 실패/미지원 시 문구가 전체 선택된 읽기 전용 입력란을 다이얼로그로 표시
+    - ✅ 권한별 버튼 노출: `canEdit(log, viewer)`가 true인 기록만 수정/삭제와 자리비움 칩별 "스탠딩으로 이동 / 카페존으로 이동 / 삭제" 메뉴 표시. 컴포넌트는 `viewer` prop만 받고 역할 문자열을 직접 비교하지 않음
+    - ✅ 수정 다이얼로그(좌석 4종 칩 편집 + 메모), 삭제 확인(`alert-dialog`)
+    - ✅ [순찰 기록 작성] 버튼: 비로그인 → "로그인이 필요합니다" 안내 후 `/auth/login?next=/protected/patrol`, pending → 승인 대기 메시지(이동 없음), 매니저·관리자 → `/protected/patrol`
   - 완료 기준: 더미 데이터로 모든 상호작용이 화면상 동작(저장은 토스트로 흉내). 복사 버튼이 PRD 형식 문자열을 클립보드에 넣는다. 엣지 데이터가 레이아웃을 깨지 않는다.
   - 테스트 체크리스트:
     - 정상: `browser_click → 22:57 기록의 [복사] → browser_evaluate(navigator.clipboard.readText()) → "22:57 순찰 → 완료 (퇴실자 탭 디스플레이 종료)"`
