@@ -245,15 +245,15 @@ Phase 0 (완료)
     - 엣지: `browser_navigate → /logs?notice=unknown → 배너 없음`
   - 테스트 결과: `npm run check`·`npm run build` 통과. Playwright(dev 서버, 더미 viewer 교체): admin은 일지 조회·순찰 기록·퀵 태그 관리 노출, manager·pending·비로그인은 퀵 태그 관리 없음. 승인 대기 배너는 pending에서만 표시, 비로그인은 로그인·가입 링크 표시. 375x812에서 햄버거 드롭다운(admin: 3개 항목)으로 접힘, 768px에서 가로 링크 표시. `/logs?notice=pending` 문구 배너 표시, `?notice=unknown` 배너 없음. 콘솔 에러·경고 0(hydration 경고 없음). `ACTIVE_DUMMY_VIEWER`는 검증 후 기본값 admin으로 원복. 순찰 기록 클릭 시 권한 안내 처리는 Task 007·018 범위
 
-- **Task 007: 일지 조회 페이지 UI 구현 (더미 데이터)**
+- ✅ **Task 007: 일지 조회 페이지 UI 구현 (더미 데이터)**
   - 관련 기능: F06, F08, F09, F10, F01
   - 설명: `/logs` 타임라인, 날짜 이동, 항목별 복사·수정·삭제·자리비움 액션, [순찰 기록 작성] 버튼의 UI를 완성한다.
   - 관련 파일: `app/logs/page.tsx`, `app/logs/_components/date-nav.tsx`, `app/logs/_components/patrol-log-list.tsx`, `app/logs/_components/patrol-log-item.tsx`, `app/logs/_components/edit-log-dialog.tsx`, `app/logs/_components/away-seat-actions.tsx`, `app/logs/_components/write-patrol-button.tsx`, `components/patrol/copy-button.tsx`, `components/patrol/seat-chips.tsx`, `lib/dummy/patrol-logs.ts`
   - 구현 사항:
     - [x] 날짜 표시와 이전/다음 이동(`?date=YYYY-MM-DD` 링크), 기본값 현재 영업일, 형식이 틀리면 현재 영업일로 대체
     - [x] 기록 카드: 시각(`HH:mm`), 작성자 이름, 4종 좌석 칩(라벨 구분), 메모(줄바꿈 유지), 빈 상태 문구("이 영업일에는 순찰 기록이 없습니다")
-    - [ ] `lib/dummy/patrol-logs.ts`: Task 002 `PatrolLog[]`로 작성하고 Phase 3 공통 엣지 데이터(빈 배열, 여러 줄 메모, 2,000자 메모, 03:59·04:00 완료 기록, 강등된 작성자)를 포함
-    - [ ] `components/patrol/copy-button.tsx`: 클릭 핸들러에서 `await` 없이 즉시 `navigator.clipboard.writeText` 호출, 실패/미지원 시 문구가 전체 선택된 읽기 전용 입력란을 다이얼로그로 표시
+    - [x] `lib/dummy/patrol-logs.ts`: Task 002 `PatrolLog[]`로 작성하고 Phase 3 공통 엣지 데이터(빈 배열, 여러 줄 메모, 2,000자 메모, 03:59·04:00 완료 기록, 강등된 작성자)를 포함
+    - [x] `components/patrol/copy-button.tsx`: 클릭 핸들러에서 `await` 없이 즉시 `navigator.clipboard.writeText` 호출, 실패/미지원 시 문구가 전체 선택된 읽기 전용 입력란을 다이얼로그로 표시
     - [x] 권한별 버튼 노출: `canEdit(log, viewer)`가 true인 기록만 수정/삭제와 자리비움 칩별 "스탠딩으로 이동 / 카페존으로 이동 / 삭제" 메뉴 표시. 컴포넌트는 `viewer` prop만 받고 역할 문자열을 직접 비교하지 않음
     - [x] 수정 다이얼로그(좌석 4종 칩 편집 + 메모), 삭제 확인(`alert-dialog`)
     - [x] [순찰 기록 작성] 버튼: 비로그인 → "로그인이 필요합니다" 안내 후 `/auth/login?next=/protected/patrol`, pending → 승인 대기 메시지(이동 없음), 매니저·관리자 → `/protected/patrol`
@@ -267,7 +267,7 @@ Phase 0 (완료)
     - 엣지: 2,000자 메모·여러 줄 메모 카드 → 줄바꿈 유지, 가로 스크롤 없음 / 기록 없는 날짜 → 빈 상태 문구
     - 엣지: 03:59 완료 더미 기록은 전일 날짜, 04:00 기록은 당일 날짜에서 표시 / 강등된 작성자 이름 표시
     - 엣지: `browser_resize → 375px → 좌석 칩이 줄바꿈되고 버튼 높이 48px 이상`
-  - 테스트 결과(부분, Task 007 미완료): `npm run check` 통과. Playwright 375px·1280px(더미 viewer): manager는 본인 기록 3건에만 수정 버튼·자리비움 칩, admin은 전체, pending·비로그인은 미표시. 날짜 선택 시 즉시 이동, `?date=2026-02-30`은 현재 영업일 표시. 자리비움 칩 메뉴(카페존/스탠딩 이동·취소)와 수정·삭제 다이얼로그 동작, 이동 토스트 표시. [순찰 기록 작성] 비로그인은 안내 후 로그인 이동, pending은 안내만 표시(manager·admin의 `/protected/patrol` 도착은 세션 없이 미확인). 카드 구성 변경: 일지 번호 배지, 카테고리 2열(모바일 1열), 메모 별도 섹션, 카페존 13개 더미 기록. 미수행: 복사 클립보드 검증·복사 실패 다이얼로그, 03:59·04:00 경계, 2,000자 메모 스크린샷, 라이트 모드 전체 확인
+  - 테스트 결과(2026-10-13): `npm run check` 통과. Playwright 375px·1280px(더미 viewer): manager는 본인 기록 3건에만 수정 버튼·자리비움 칩, admin은 전체, pending·비로그인은 미표시. 날짜 선택 시 즉시 이동, `?date=2026-02-30`은 현재 영업일 표시. 자리비움 칩 메뉴(카페존/스탠딩 이동·취소)와 수정·삭제 다이얼로그 동작, 이동 토스트 표시. [순찰 기록 작성] admin은 `/protected/patrol` 링크(375px 높이 48px), pending은 승인 대기 토스트만 표시(URL 변화 없음), 비로그인은 안내 후 `/auth/login?next=%2Fprotected%2Fpatrol` 이동. 복사: `writeText`를 가로채 22:57 기록이 `22:57 순찰 → 완료 (퇴실자 탭 디스플레이 종료)`로 일치함을 확인, reject 시 전체 선택된 읽기 전용 입력란 다이얼로그 표시. 03:59·04:00 경계는 10/13 03:59→10/12, 10/14 03:59→10/13, 10/14 04:00→10/14에 표시, 10/15는 빈 상태 문구, 강등된 작성자(대기 사용자) 표시, 2,000자 메모는 `pre-wrap`으로 가로 스크롤 없이 표시. 다크 모드 확인, 콘솔 에러·경고 0. `ACTIVE_DUMMY_VIEWER`는 검증 후 admin으로 원복. 카드 구성 변경: 일지 번호 배지, 카테고리 2열(모바일 1열), 메모 별도 섹션, 카페존 13개 더미 기록. 미확인: 실제 클립보드 읽기(`readText`), 라이트 모드 전체 확인, manager·admin의 `/protected/patrol` 도착(세션 없이 href만 확인, Task 018 이후 확인)
 
 - **Task 008: 순찰 기록 페이지 UI 구현 (더미 데이터, 가짜 저장 어댑터)**
   - 관련 기능: F02, F03, F04, F05, F06, F07(표시)
