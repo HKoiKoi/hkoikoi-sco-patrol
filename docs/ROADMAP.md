@@ -250,16 +250,16 @@ Phase 0 (완료)
   - 설명: `/logs` 타임라인, 날짜 이동, 항목별 복사·수정·삭제·자리비움 액션, [순찰 기록 작성] 버튼의 UI를 완성한다.
   - 관련 파일: `app/logs/page.tsx`, `app/logs/_components/date-nav.tsx`, `app/logs/_components/patrol-log-list.tsx`, `app/logs/_components/patrol-log-item.tsx`, `app/logs/_components/edit-log-dialog.tsx`, `app/logs/_components/away-seat-actions.tsx`, `app/logs/_components/write-patrol-button.tsx`, `components/patrol/copy-button.tsx`, `components/patrol/seat-chips.tsx`, `lib/dummy/patrol-logs.ts`
   - 구현 사항:
-    - [ ] 날짜 표시와 이전/다음 이동(`?date=YYYY-MM-DD` 링크), 기본값 현재 영업일, 형식이 틀리면 현재 영업일로 대체
-    - [ ] 기록 카드: 시각(`HH:mm`), 작성자 이름, 4종 좌석 칩(라벨 구분), 메모(줄바꿈 유지), 빈 상태 문구("이 영업일에는 순찰 기록이 없습니다")
+    - [x] 날짜 표시와 이전/다음 이동(`?date=YYYY-MM-DD` 링크), 기본값 현재 영업일, 형식이 틀리면 현재 영업일로 대체
+    - [x] 기록 카드: 시각(`HH:mm`), 작성자 이름, 4종 좌석 칩(라벨 구분), 메모(줄바꿈 유지), 빈 상태 문구("이 영업일에는 순찰 기록이 없습니다")
     - [ ] `lib/dummy/patrol-logs.ts`: Task 002 `PatrolLog[]`로 작성하고 Phase 3 공통 엣지 데이터(빈 배열, 여러 줄 메모, 2,000자 메모, 03:59·04:00 완료 기록, 강등된 작성자)를 포함
     - [ ] `components/patrol/copy-button.tsx`: 클릭 핸들러에서 `await` 없이 즉시 `navigator.clipboard.writeText` 호출, 실패/미지원 시 문구가 전체 선택된 읽기 전용 입력란을 다이얼로그로 표시
-    - [ ] 권한별 버튼 노출: `canEdit(log, viewer)`가 true인 기록만 수정/삭제와 자리비움 칩별 "스탠딩으로 이동 / 카페존으로 이동 / 삭제" 메뉴 표시. 컴포넌트는 `viewer` prop만 받고 역할 문자열을 직접 비교하지 않음
-    - [ ] 수정 다이얼로그(좌석 4종 칩 편집 + 메모), 삭제 확인(`alert-dialog`)
-    - [ ] [순찰 기록 작성] 버튼: 비로그인 → "로그인이 필요합니다" 안내 후 `/auth/login?next=/protected/patrol`, pending → 승인 대기 메시지(이동 없음), 매니저·관리자 → `/protected/patrol`
+    - [x] 권한별 버튼 노출: `canEdit(log, viewer)`가 true인 기록만 수정/삭제와 자리비움 칩별 "스탠딩으로 이동 / 카페존으로 이동 / 삭제" 메뉴 표시. 컴포넌트는 `viewer` prop만 받고 역할 문자열을 직접 비교하지 않음
+    - [x] 수정 다이얼로그(좌석 4종 칩 편집 + 메모), 삭제 확인(`alert-dialog`)
+    - [x] [순찰 기록 작성] 버튼: 비로그인 → "로그인이 필요합니다" 안내 후 `/auth/login?next=/protected/patrol`, pending → 승인 대기 메시지(이동 없음), 매니저·관리자 → `/protected/patrol`
   - 완료 기준: 더미 데이터로 모든 상호작용이 화면상 동작(저장은 토스트로 흉내). 복사 버튼이 PRD 형식 문자열을 클립보드에 넣는다. 엣지 데이터가 레이아웃을 깨지 않는다.
   - 테스트 체크리스트:
-    - 정상: `browser_click → 첫 기록 [복사] → browser_evaluate(navigator.clipboard.readText()) → "22:57 순찰 → 완료 (퇴실자 탭 디스플레이 종료)"`
+    - 정상: `browser_click → 22:57 기록의 [복사] → browser_evaluate(navigator.clipboard.readText()) → "22:57 순찰 → 완료 (퇴실자 탭 디스플레이 종료)"`
     - 정상: `browser_click → [순찰 기록 작성] (더미 pending) → 승인 대기 메시지, URL 변화 없음`
     - 정상: 더미 manager → 본인 기록에만 수정/삭제 표시, 더미 admin → 모든 기록에 표시, 더미 pending·비로그인 → 표시 없음
     - 오류: `browser_evaluate(navigator.clipboard.writeText = () => Promise.reject()) → [복사] → 전체 선택된 입력란 다이얼로그 표시`
@@ -267,7 +267,7 @@ Phase 0 (완료)
     - 엣지: 2,000자 메모·여러 줄 메모 카드 → 줄바꿈 유지, 가로 스크롤 없음 / 기록 없는 날짜 → 빈 상태 문구
     - 엣지: 03:59 완료 더미 기록은 전일 날짜, 04:00 기록은 당일 날짜에서 표시 / 강등된 작성자 이름 표시
     - 엣지: `browser_resize → 375px → 좌석 칩이 줄바꿈되고 버튼 높이 48px 이상`
-  - 테스트 결과: (미수행)
+  - 테스트 결과(부분, Task 007 미완료): `npm run check` 통과. Playwright 375px·1280px(더미 viewer): manager는 본인 기록 3건에만 수정 버튼·자리비움 칩, admin은 전체, pending·비로그인은 미표시. 날짜 선택 시 즉시 이동, `?date=2026-02-30`은 현재 영업일 표시. 자리비움 칩 메뉴(카페존/스탠딩 이동·취소)와 수정·삭제 다이얼로그 동작, 이동 토스트 표시. [순찰 기록 작성] 비로그인은 안내 후 로그인 이동, pending은 안내만 표시(manager·admin의 `/protected/patrol` 도착은 세션 없이 미확인). 카드 구성 변경: 일지 번호 배지, 카테고리 2열(모바일 1열), 메모 별도 섹션, 카페존 13개 더미 기록. 미수행: 복사 클립보드 검증·복사 실패 다이얼로그, 03:59·04:00 경계, 2,000자 메모 스크린샷, 라이트 모드 전체 확인
 
 - **Task 008: 순찰 기록 페이지 UI 구현 (더미 데이터, 가짜 저장 어댑터)**
   - 관련 기능: F02, F03, F04, F05, F06, F07(표시)
@@ -488,7 +488,7 @@ Phase 0 (완료)
   - 관련 파일: `app/logs/page.tsx`, `lib/queries/patrol-logs.ts`(신규, 서버 전용), `components/layout/app-header.tsx`, `lib/dummy/patrol-logs.ts`(삭제), `lib/dummy/viewers.ts`(삭제)
   - 구현 사항:
     - [ ] 페이지: `<Suspense>` 안의 비동기 컴포넌트에서 `await searchParams` → `await io()` 후 현재 시각으로 `getBusinessDate` 계산 → `?date` 검증 결과 적용 (`04-functions/io.md` 확인)
-    - [ ] `getPatrolLogsByDate(date)`: `patrol_logs` select `id, business_date, patrolled_at, author_id, standing, cafe_zone, drowsy, away, memo, staff_names(full_name)` + `eq("business_date", date)` + `order("patrolled_at")`, 비로그인 키로 동작 확인
+    - [ ] `getPatrolLogsByDate(date)`: `patrol_logs` select `id, business_date, patrolled_at, author_id, standing, cafe_zone, drowsy, away, memo, staff_names(full_name)` + `eq("business_date", date)` + `order("patrolled_at", { ascending: false })`(최신순), 비로그인 키로 동작 확인
     - [ ] 헤더와 페이지의 더미 viewer를 `getViewer()`로 교체: pending 배너, 관리자 메뉴, 기록별 수정/삭제 노출은 `canEdit(log, viewer)` 그대로 사용(pending 본인은 미노출). 교체 후 `lib/dummy/patrol-logs.ts`, `lib/dummy/viewers.ts` 삭제
     - [ ] 조회 실패 시 에러 경계(`app/logs/error.tsx`)와 재시도 버튼, 로딩 스켈레톤(`loading` fallback)
     - [ ] 다음 날짜 이동은 현재 영업일 다음 날까지만 활성(미래 이동 제한)
@@ -561,7 +561,7 @@ Phase 0 (완료)
     - [ ] 네트워크 오류로 응답을 못 받은 경우 같은 요청 ID로 재시도 버튼 제공
   - 완료 기준: 중복 탭·재시도에도 기록은 1건만 생기고, 완료 직후 복사 문구가 서버 시각과 일치한다.
   - 테스트 체크리스트:
-    - 정상: `browser_click → 졸음 23, 메모 입력 후 [순찰 완료] → 입력 초기화, [복사] 활성 → [복사] → clipboard "HH:mm 순찰 → 완료 (메모 23번 졸아서 깨움)"`
+    - 정상: `browser_click → 졸음 23, 메모 입력 후 [순찰 완료] → 입력 초기화, [복사] 활성 → [복사] → clipboard "HH:mm 순찰 → 완료 (메모, 23번 졸아서 깨움)"`
     - 정상: 완료 후 `/logs`에 기록 1건, `business_date`가 현재 영업일
     - 정상: 빈 초안으로 완료 → `HH:mm 순찰 → 완료` 기록 생성
     - 오류(멱등): `browser_evaluate → 완료 요청을 같은 요청 ID로 2회 전송 → execute_sql로 기록 1건, 초안 revision 1회만 증가`
