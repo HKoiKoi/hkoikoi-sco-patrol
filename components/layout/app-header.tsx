@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { Suspense } from "react";
 
@@ -16,14 +17,25 @@ export function AppHeader({ viewer }: AppHeaderProps) {
   return (
     <header className="sticky top-0 z-40 border-b bg-background">
       <div className="mx-auto flex min-h-14 w-full max-w-5xl items-center gap-2 px-4">
-        <NavMenu viewer={viewer} />
         <Link
           href="/logs"
-          className="min-w-0 flex-1 truncate text-base font-semibold md:flex-none md:pr-4"
+          className="order-2 flex min-w-0 items-center gap-2 md:order-1 md:flex-1"
         >
-          SCO 순찰 일지
+          <Image
+            src="/logo.png"
+            alt=""
+            width={32}
+            height={32}
+            className="size-8 shrink-0 rounded-full border object-cover"
+          />
+          <span className="truncate text-base font-semibold">
+            SCO 순찰 일지
+          </span>
         </Link>
-        <div className="ml-auto flex shrink-0 items-center gap-1 md:ml-auto">
+        <div className="order-1 md:order-2 md:flex md:flex-none md:justify-center">
+          <NavMenu viewer={viewer} />
+        </div>
+        <div className="order-3 ml-auto flex shrink-0 items-center justify-end gap-1 md:ml-0 md:flex-1">
           <ThemeSwitcher />
           <Suspense fallback={<Skeleton className="h-9 w-24" />}>
             <AuthButton viewer={viewer} />

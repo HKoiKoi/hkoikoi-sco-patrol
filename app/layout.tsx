@@ -3,6 +3,7 @@ import { Geist } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { Suspense } from "react";
 
+import { AppFooter } from "@/components/layout/app-footer";
 import { AppHeader } from "@/components/layout/app-header";
 import { NoticeBanner } from "@/components/layout/notice-banner";
 import { PendingBanner } from "@/components/layout/pending-banner";
@@ -39,7 +40,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko" suppressHydrationWarning>
-      <body className={`${geistSans.className} antialiased`}>
+      <body
+        className={`${geistSans.className} flex min-h-screen flex-col antialiased`}
+      >
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
@@ -52,7 +55,9 @@ export default function RootLayout({
           <Suspense fallback={null}>
             <NoticeBanner />
           </Suspense>
-          {children}
+          {/* 페이지가 자체 main을 가지므로 div로 감싸 푸터를 하단에 고정 */}
+          <div className="flex-1">{children}</div>
+          <AppFooter />
           <Toaster position="top-center" />
         </ThemeProvider>
       </body>
