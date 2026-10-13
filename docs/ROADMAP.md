@@ -228,13 +228,15 @@ Phase 0 (완료)
 - **Task 006: 공통 레이아웃·내비게이션·안내 배너 구현** ✅ - 완료
   - 관련 기능: F01
   - 설명: 모든 페이지가 공유하는 상단 내비게이션과 역할별 메뉴, 승인 대기 배너, `notice` 안내 표시를 만든다. 필요한 shadcn 컴포넌트를 추가한다.
-  - 관련 파일: `app/layout.tsx`, `components/layout/app-header.tsx`, `components/layout/nav-menu.tsx`, `components/layout/notice-banner.tsx`, `components/layout/pending-banner.tsx`, `components/auth-button.tsx`, `components/logout-button.tsx`, `components/ui/*`, `lib/dummy/viewers.ts`(신규)
+  - 관련 파일: `app/layout.tsx`, `components/layout/app-header.tsx`, `components/layout/app-footer.tsx`, `components/layout/nav-menu.tsx`, `components/layout/notice-banner.tsx`, `components/layout/pending-banner.tsx`, `components/auth-button.tsx`, `components/logout-button.tsx`, `components/ui/*`, `lib/dummy/viewers.ts`(신규)
   - 구현 사항:
     - ✅ `npx shadcn@latest add sonner skeleton separator` (textarea, dialog, alert-dialog, switch는 사용 시점인 Task 007 이후에 추가)
     - ✅ 헤더: 앱 이름, "일지 조회"(항상), "순찰 기록"(항상 노출, 권한 처리는 클릭 시), "퀵 태그 관리"(`isAdmin(viewer)`일 때만), 로그인/로그아웃 버튼, 테마 전환. 모바일에서는 드롭다운 메뉴
     - ✅ 헤더의 사용자 영역은 `<Suspense fallback={<Skeleton/>}>` 안에서 `viewer` prop을 받는 구조. 이 Task에서는 `lib/dummy/viewers.ts`의 더미 viewer 4종 상수 중 하나를 넘기고, 실제 `getViewer()` 연결은 Task 018에서 한다
     - ✅ `notice` 쿼리 파라미터 배너(`login-required`/`pending`/`admin-required`, 문구는 Task 005의 `lib/auth/notice.ts`)와 pending 사용자용 상단 승인 대기 배너
     - ✅ 전역 토스트(`sonner`) 설치, 한국어 문구로 통일
+    - ✅ 헤더 로고 추가(`public/logo.png`, 32px 원형)와 배치 순서 조정: 모바일은 메뉴 → 로고·앱 이름 → 테마·인증 버튼, 데스크톱(md 이상)은 로고·앱 이름(좌) / 내비 링크(중앙) / 테마·인증 버튼(우)
+    - ✅ 전역 푸터 `components/layout/app-footer.tsx`: 로고, 앱 이름, "30분 간격 순찰 기록" 설명, `© 연도 HKOIKOI`(연도는 `await io()` 후 `<Suspense>` 안에서 계산). `app/layout.tsx`의 `body`를 `flex min-h-screen flex-col`로 바꾸고 `children`을 `flex-1` div로 감싸 푸터를 하단에 고정
   - 완료 기준: 더미 viewer 4종(비로그인/pending/manager/admin)에서 메뉴 노출 규칙이 PRD "메뉴 구조"와 일치. 375px·768px 폭에서 레이아웃이 깨지지 않음.
   - 테스트 체크리스트:
     - 정상: 더미 viewer를 admin/manager/pending/비로그인으로 바꿔 가며 `browser_snapshot` → "퀵 태그 관리"는 admin에서만, 승인 대기 배너는 pending에서만 표시
