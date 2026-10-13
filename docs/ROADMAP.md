@@ -4,9 +4,9 @@
 
 ## 개요
 
-SCO 순찰 일지는 SCO 관리형 독서실에서 순찰하는 매니저와 이를 관리하는 관리자를 위한 앱입니다. 순찰 입력, 자동 저장, 확정, 복사를 한 화면에서 처리하며 다음 기능을 제공합니다.
+SCO 순찰 일지는 SCO 관리형 독서실에서 순찰하는 매니저와 이를 관리하는 관리자를 위한 앱입니다. 순찰 입력, 자동 저장, 확정은 순찰 기록 화면에서, 복사는 일지 조회 화면에서 처리하며 다음 기능을 제공합니다.
 
-- **순찰 기록 작성 (F02, F03, F04)**: 좌석 상태 4종(스탠딩/카페존/졸음·딴짓/자리비움)을 숫자 키패드와 칩으로 입력하고, 퀵 태그와 자유 메모를 함께 기록
+- **순찰 기록 작성 (F02, F03, F04)**: 좌석 상태 4종(스탠딩/카페존/졸음·딴짓/자리비움)을 숫자 입력란과 칩으로 입력하고, 퀵 태그와 자유 메모를 함께 기록
 - **자동 저장과 순찰 완료 (F05, F07)**: 약 1초 디바운스로 서버 초안에 저장(`revision` 기반 충돌 방지)하고, 멱등 완료 RPC로 서버 시각 기준 확정 기록 생성(영업일 경계 04:00 KST)
 - **결과 복사 (F06)**: `HH:mm 순찰 → 완료 (상세)` 형식의 한 줄 문자열을 클립보드에 복사
 - **일지 조회와 사후 정정 (F08, F09, F10)**: 로그인 없이 영업일별 전체 타임라인을 열람하고, 권한자는 기록 수정/삭제와 자리비움 번호 이동/삭제
@@ -77,7 +77,7 @@ SCO 순찰 일지는 SCO 관리형 독서실에서 순찰하는 매니저와 이
 | F03     | 퀵 태그             | 008, 011, 013, 020, 022                                    |
 | F04     | 특이사항 메모       | 004, 008, 011, 013, 020                                    |
 | F05     | 순찰 완료           | 003, 008, 011, 014, 021, 023                               |
-| F06     | 결과 복사           | 004, 007, 008, 011, 018, 021, 023, 024                     |
+| F06     | 결과 복사           | 004, 007, 011, 018, 023, 024                               |
 | F07     | 자동 저장/초안 복원 | 002, 008, 011, 013, 014, 015, 020, 023, 024                |
 | F08     | 일지 타임라인 조회  | 003, 007, 011, 012, 013, 018, 023                          |
 | F09     | 기록 수정/삭제      | 004, 007, 011, 013, 019, 023                               |
@@ -98,7 +98,7 @@ Phase 0 (완료)
   Phase 4 (DB): 012 profiles·역할 → 013 테이블·RLS → 014 RPC → 015 cron·타입 생성·QA 계정 → 016 DAL
                         │
   Phase 5 (기능): 017 인증 흐름 → 018 조회 → 019 수정/자리비움
-                                → 020 자동 저장(가짜 어댑터 교체, lib/dummy 삭제) → 021 완료/복사
+                                → 020 자동 저장(가짜 어댑터 교체, lib/dummy 삭제) → 021 완료
                                 → 022 태그 관리 → 023 통합 테스트
                         │
   Phase 6: 024 실기기·환경 검증 · 025 품질/성능/보안 · 026 배포
@@ -269,31 +269,31 @@ Phase 0 (완료)
     - 엣지: `browser_resize → 375px → 좌석 칩이 줄바꿈되고 버튼 높이 48px 이상`
   - 테스트 결과(2026-10-13): `npm run check` 통과. Playwright 375px·1280px(더미 viewer): manager는 본인 기록 3건에만 수정 버튼·자리비움 칩, admin은 전체, pending·비로그인은 미표시. 날짜 선택 시 즉시 이동, `?date=2026-02-30`은 현재 영업일 표시. 자리비움 칩 메뉴(카페존/스탠딩 이동·취소)와 수정·삭제 다이얼로그 동작, 이동 토스트 표시. [순찰 기록 작성] admin은 `/protected/patrol` 링크(375px 높이 48px), pending은 승인 대기 토스트만 표시(URL 변화 없음), 비로그인은 안내 후 `/auth/login?next=%2Fprotected%2Fpatrol` 이동. 복사: `writeText`를 가로채 22:57 기록이 `22:57 순찰 → 완료 (퇴실자 탭 디스플레이 종료)`로 일치함을 확인, reject 시 전체 선택된 읽기 전용 입력란 다이얼로그 표시. 03:59·04:00 경계는 10/13 03:59→10/12, 10/14 03:59→10/13, 10/14 04:00→10/14에 표시, 10/15는 빈 상태 문구, 강등된 작성자(대기 사용자) 표시, 2,000자 메모는 `pre-wrap`으로 가로 스크롤 없이 표시. 다크 모드 확인, 콘솔 에러·경고 0. `ACTIVE_DUMMY_VIEWER`는 검증 후 admin으로 원복. 카드 구성 변경: 일지 번호 배지, 카테고리 2열(모바일 1열), 메모 별도 섹션, 카페존 13개 더미 기록. 미확인: 실제 클립보드 읽기(`readText`), 라이트 모드 전체 확인, manager·admin의 `/protected/patrol` 도착(세션 없이 href만 확인, Task 018 이후 확인)
 
-- **Task 008: 순찰 기록 페이지 UI 구현 (더미 데이터, 가짜 저장 어댑터)**
+- **Task 008: 순찰 기록 페이지 UI 구현 (더미 데이터, 가짜 저장 어댑터)** ✅ - 완료
   - 관련 기능: F02, F03, F04, F05, F06, F07(표시)
-  - 설명: 모바일 우선·태블릿 2열·하단 고정 액션바 구조로 입력 화면을 완성한다. 상태는 처음부터 Phase 5와 같은 형태(`revision` + 저장 상태 6종)의 `useReducer`로 관리하고, 저장·완료는 Task 002 RPC 응답 타입을 그대로 돌려주는 가짜 어댑터로 흉내 낸다. Task 020에서 어댑터만 RPC 호출로 교체한다.
+  - 설명: 모바일 우선(좌석 4종 1열)·태블릿 2x2·하단 고정 [순찰 완료] 바 구조로 입력 화면을 완성한다. 상태는 처음부터 Phase 5와 같은 형태(`revision` + 저장 상태 6종)의 `useReducer`로 관리하고, 저장·완료는 Task 002 RPC 응답 타입을 그대로 돌려주는 가짜 어댑터로 흉내 낸다. Task 020에서 어댑터만 RPC 호출로 교체한다.
   - 관련 파일: `app/protected/patrol/page.tsx`, `app/protected/patrol/_components/patrol-form.tsx`, `_components/seat-category-input.tsx`, `_components/number-keypad.tsx`, `_components/quick-tag-bar.tsx`, `_components/memo-input.tsx`, `_components/save-status.tsx`, `_components/patrol-action-bar.tsx`, `_components/conflict-dialog.tsx`, `lib/patrol-form-reducer.ts`, `lib/types/patrol.ts`, `lib/dummy/quick-tags.ts`, `lib/dummy/patrol-draft-adapter.ts`(신규)
   - 구현 사항:
-    - [ ] `lib/patrol-form-reducer.ts`: 상태에 `content`(Task 002 `PatrolContent`), `revision`, 저장 상태 `clean / dirty / saving / saved / offline / conflict` 6종, 마지막 저장 시각, 완료 결과를 처음부터 포함. 액션(입력 변경, 저장 시작/성공/충돌/실패, 충돌 해결, 완료 성공, 다음 순찰)별 전이를 순수 함수로 정의
-    - [ ] 어댑터 인터페이스 `PatrolDraftAdapter { saveDraft(baseRevision, content): Promise<SaveDraftResult>; completePatrol(requestId, expectedRevision): Promise<CompletePatrolResult> }`를 `lib/types/patrol.ts`에 추가하고 폼은 이 인터페이스에만 의존
-    - [ ] `lib/dummy/patrol-draft-adapter.ts`: 메모리 내 서버 초안·`revision`을 두고 지연(300~800ms) 후 Task 002 `SaveDraftResult`·`CompletePatrolResult` 형태 그대로 응답. 같은 요청 ID 재호출 시 `duplicate`, 흉내 모드(`ok`/`conflict`/`offline`)는 모듈 상수와 개발 환경 전용 `window.__fakePatrolAdapter.setMode()`로 전환(`offline`은 네트워크 오류 throw)
-    - [ ] 카테고리 4종 탭/섹션 + 숫자 키패드(0~9, 지우기, 추가) + 칩(탭하여 삭제). `lib/seat-numbers.ts`로 양의 정수·카테고리 내 중복 거부, 거부 시 짧은 안내
-    - [ ] 퀵 태그 버튼(활성 태그만, `lib/dummy/quick-tags.ts`는 Task 002 `QuickTag[]`이며 0개 경우 포함): 탭하면 메모 끝에 새 줄로 추가(같은 태그 반복 허용). 메모 `textarea`(2,000자 카운터), 퀵 태그 문구도 자유 편집
-    - [ ] 저장 상태 표시 컴포넌트: `저장 중` / `저장됨 HH:mm` / `오프라인(기기에 임시 저장)` / `충돌`. 입력 후 1초 디바운스로 가짜 어댑터 `saveDraft` 호출(동시 요청 1개 제한·로컬 백업·포커스 재조회는 Task 020)
-    - [ ] 하단 고정 액션바: [순찰 완료](처리 중 비활성화, 가짜 어댑터 `completePatrol` 호출), [복사](완료 응답의 `patrolledAt`으로 `formatPatrolLine`, 완료 직후 활성), [다음 순찰]. 충돌 선택 다이얼로그 "다른 기기에서 수정됨, 어느 쪽을 쓸까요?"(이 기기 내용 / 서버 내용)
-    - [ ] 페이지와 폼은 `viewer` prop만 받고 권한 판정은 `lib/permissions.ts`로만 한다. 768px 이상에서 좌석 입력 | 태그·메모 2열 배치
-  - 완료 기준: reducer가 `revision`과 저장 상태 6종을 모두 표현하고, 가짜 어댑터의 `ok`/`conflict`/`duplicate`/`offline` 응답에 따라 화면이 기대 상태로 전이한다. 입력 → 저장 → 완료 → 복사 → 다음 순찰이 끊김 없이 동작하고 키패드 버튼이 48px 이상이다. 폼 코드에 `lib/dummy` 직접 의존은 어댑터 주입 지점 한 곳뿐이다.
+    - ✅ `lib/patrol-form-reducer.ts`: 상태에 `content`(Task 002 `PatrolContent`), `revision`, 저장 상태 `clean / dirty / saving / saved / offline / conflict` 6종, 마지막 저장 시각, 완료 결과를 처음부터 포함. 액션(입력 변경, 저장 시작/성공/충돌/실패, 충돌 해결, 완료 성공, 다음 순찰)별 전이를 순수 함수로 정의
+    - ✅ 어댑터 인터페이스 `PatrolDraftAdapter { saveDraft(baseRevision, content): Promise<SaveDraftResult>; completePatrol(requestId, expectedRevision): Promise<CompletePatrolResult> }`를 `lib/types/patrol.ts`에 추가하고 폼은 이 인터페이스에만 의존
+    - ✅ `lib/dummy/patrol-draft-adapter.ts`: 메모리 내 서버 초안·`revision`을 두고 지연(300~800ms) 후 Task 002 `SaveDraftResult`·`CompletePatrolResult` 형태 그대로 응답. 같은 요청 ID 재호출 시 `duplicate`, 흉내 모드(`ok`/`conflict`/`offline`)는 모듈 상수와 개발 환경 전용 `window.__fakePatrolAdapter.setMode()`로 전환(`offline`은 네트워크 오류 throw)
+    - ✅ 카테고리 4종 섹션(모바일 1열, 768px 이상 2x2: 스탠딩 | 카페존 / 졸음·딴짓 | 자리비움) + 섹션별 숫자 입력란(숫자만, Enter·추가) 아래에 칩(탭하여 삭제). `lib/seat-numbers.ts`로 양의 정수·카테고리 내 중복 거부, 거부 시 짧은 안내
+    - ✅ 퀵 태그 버튼(활성 태그만, `lib/dummy/quick-tags.ts`는 Task 002 `QuickTag[]`이며 0개 경우 포함): 탭하면 메모 끝에 새 줄로 추가(같은 태그 반복 허용). 메모 `textarea`(2,000자 카운터), 퀵 태그 문구도 자유 편집
+    - ✅ 저장 상태 표시 컴포넌트: `저장 중` / `저장됨 HH:mm` / `오프라인(기기에 임시 저장)` / `충돌`. 입력 후 1초 디바운스로 가짜 어댑터 `saveDraft` 호출(동시 요청 1개 제한·로컬 백업·포커스 재조회는 Task 020)
+    - ✅ 하단 고정 액션바에는 [순찰 완료](처리 중 비활성화, 가짜 어댑터 `completePatrol` 호출)만 두고, 완료 응답 후 곧바로 `NEXT_PATROL`로 다음 순찰 입력 상태로 돌아간다(복사는 `/logs`에서). 충돌 선택 다이얼로그 "다른 기기에서 수정됨, 어느 쪽을 쓸까요?"(이 기기 내용 / 서버 내용)
+    - ✅ 페이지와 폼은 `viewer` prop만 받고 권한 판정은 `lib/permissions.ts`로만 한다. 좌석 섹션은 모바일 1열·768px 이상 2x2, 메모 영역은 라벨 → 퀵 태그 → 입력창 순서
+  - 완료 기준: reducer가 `revision`과 저장 상태 6종을 모두 표현하고, 가짜 어댑터의 `ok`/`conflict`/`duplicate`/`offline` 응답에 따라 화면이 기대 상태로 전이한다. 입력 → 저장 → 완료 → 다음 순찰 입력이 끊김 없이 동작하고 키패드 버튼이 48px 이상이다. 폼 코드에 `lib/dummy` 직접 의존은 어댑터 주입 지점 한 곳뿐이다.
   - 테스트 체크리스트:
     - 정상: `browser_click → 졸음/딴짓 탭, 2·3·[추가] → 칩 "23" 표시 → 1초 뒤 "저장 중" → "저장됨 HH:mm"`
     - 정상: `browser_click → 퀵 태그 "화장실 정리" 2회 → 메모에 두 줄 추가`
-    - 정상: `[순찰 완료] → 입력 초기화, [복사] 활성 → [복사] → clipboard가 PRD 형식 한 줄`
+    - 정상: `[순찰 완료] → 입력 초기화, 바로 다음 순찰 입력 가능(복사는 /logs에서)`
     - 오류: 같은 카테고리에 23 재입력 → 거부 안내, 칩 1개 유지 / `0` 입력 → 추가 버튼 비활성 또는 거부
     - 오류: `browser_evaluate(window.__fakePatrolAdapter.setMode("conflict")) → 입력 → 충돌 다이얼로그 표시, 선택 결과대로 반영`
     - 오류: `browser_evaluate(setMode("offline")) → 입력 → "오프라인" 표시 → setMode("ok") 후 입력 → "저장됨"`
     - 엣지: 같은 요청 ID로 완료 2회 → 두 번째 응답 `duplicate`에도 화면은 완료 상태 1회만 반영
     - 엣지: 스탠딩 5와 자리비움 5 동시 입력 → 둘 다 허용 / 퀵 태그 0개 → 태그 영역 빈 상태 표시
-    - 엣지: `browser_resize → 1024x768 → 2열 배치, 액션바 하단 고정`
-  - 테스트 결과: (미수행)
+    - 엣지: `browser_resize → 1024x768 → 좌석 2x2 배치, 액션바 하단 고정`
+  - 테스트 결과(2026-10-13): `npm run check` 통과. Playwright 375px·1024x768(dev 서버, Supabase env를 비워 로그인 우회): 졸음/딴짓 2·3·[추가] → 칩 `23`, 입력 직후 "저장 대기 중" → 1초 뒤 "저장 중" → "저장됨 19:57". 23 재입력은 "이미 입력된 번호입니다"로 거부되고 칩 1개 유지, `0`만 입력하면 [추가] 비활성. 퀵 태그 "화장실 정리" 2회 → 메모 두 줄. 스탠딩 5·자리비움 5 동시 허용. [순찰 완료] → 입력·메모 초기화, [복사]·[다음 순찰] 활성, [순찰 완료] 비활성, 클립보드 `19:58 순찰 → 완료 (화장실 정리, 화장실 정리, 23번 졸아서 깨움)`(PRD 형식, 스탠딩·자리비움 제외). `setMode('offline')` → "오프라인 (기기에 임시 저장)", `setMode('ok')` 후 입력 → "저장됨". `setMode('conflict')` → 충돌 다이얼로그("다른 기기에서 수정됨, 어느 쪽을 쓸까요?") 표시, [서버 내용]·[이 기기 내용] 선택 모두 다이얼로그가 닫히고 "저장됨"으로 전이. 입력란·액션바 버튼 높이 48px, 1024px에서 좌석 입력 | 태그·메모 2열, 액션바 `fixed` 하단 고정(스크롤 후에도 bottom 0). 임시 `tsx` 스크립트: 같은 요청 ID 완료 2회 → 어댑터 `ok`/`duplicate`(같은 logId), reducer는 `COMPLETE_OK` 2회에도 1회만 반영, 퀵 태그 0개 → "표시할 퀵 태그가 없습니다". 새로 로드 후 콘솔 에러·경고 0(hydration 경고 없음). 구현 중 수정: 함수가 든 어댑터를 서버 컴포넌트 `page.tsx`에서 클라이언트로 넘기면 오류라서 클라이언트 경계 `_components/patrol-form-host.tsx`에서 주입(어댑터 import 지점은 이 파일 한 곳), reducer에 `COMPLETE_FAILED` 액션 추가. 미확인: 실제 로그인 세션에서의 접근(Task 016·018), 라이트·다크 전체 시각 확인 **후속 변경(2026-10-13)**: 사용자 요청으로 화면을 바꿨다 — 좌석 4종은 모바일 1열·768px 이상 2x2, 칩은 입력란 아래, 메모 영역은 라벨 → 퀵 태그 → 입력창 순서, 하단 바는 [순찰 완료]만 두고 완료 즉시 다음 순찰 입력 상태로 초기화(복사·다음 순찰 버튼 제거, 복사는 `/logs`). 위 복사·2열 결과는 변경 전 기준이며 변경 후에는 375px에서 레이아웃·메모 순서·퀵 태그 입력·완료 후 초기화만 확인(1024px 재확인과 복사 흐름 재검증은 하지 않음)
 
 - **Task 009: 퀵 태그 관리 페이지 UI 구현 (더미 데이터)**
   - 관련 기능: F11
@@ -339,7 +339,7 @@ Phase 0 (완료)
   - 완료 기준: "검토 결과"의 모든 항목이 반영 또는 보류로 처리되고, PRD·타입·Phase 4 명세 대조에서 불일치가 0건이다. 프로젝트 공통 완료 조건(`npm run check` 통과, Playwright MCP 시나리오 통과, 콘솔 에러·hydration 경고 없음)을 만족한다.
   - 테스트 체크리스트:
     - 정상: 더미 viewer 4종 × 각 화면 `browser_snapshot` → 메뉴·버튼 노출이 PRD 권한 규칙과 일치
-    - 정상: 375x812와 1024x768에서 순찰 흐름(입력 → 저장 상태 표시 → 완료 → 복사 → 다음 순찰) 끊김 없음
+    - 정상: 375x812와 1024x768에서 순찰 흐름(입력 → 저장 상태 표시 → 완료 → 다음 순찰 입력) 끊김 없음
     - 오류: 가짜 어댑터 `conflict`/`offline` 모드와 같은 요청 ID 재완료(`duplicate`) → 다이얼로그·상태 표시가 PRD "자동 저장 규칙"과 일치
     - 엣지: Phase 3 공통 엣지 더미 데이터(빈 배열, 여러 줄 메모, 2,000자 메모, 03:59·04:00 완료 기록, 강등된 작성자)가 모든 화면에서 깨지지 않음, 다크 모드 포함
     - 엣지: `browser_console_messages → 전 화면 에러·hydration 경고 없음`
@@ -548,20 +548,18 @@ Phase 0 (완료)
     - 엣지: 탭 A가 dirty인 상태에서 포커스 복귀 → 서버 내용으로 덮어쓰지 않음
   - 테스트 결과: (미수행)
 
-- **Task 021: 순찰 완료 및 결과 복사 구현**
-  - 관련 기능: F05, F06
-  - 설명: 대기 중인 저장을 먼저 보내고 `complete_patrol`을 멱등 호출한 뒤, 서버 완료 시각으로 복사 문구를 만든다.
-  - 관련 파일: `hooks/use-patrol-draft.ts`, `app/protected/patrol/_components/patrol-action-bar.tsx`, `components/patrol/copy-button.tsx`
+- **Task 021: 순찰 완료 구현**
+  - 관련 기능: F05
+  - 설명: 대기 중인 저장을 먼저 보내고 `complete_patrol`을 멱등 호출한 뒤, 입력을 초기화해 다음 순찰 입력 상태로 돌아간다. 복사는 순찰 기록 화면에 두지 않고 `/logs`의 기록 항목에서만 한다.
+  - 관련 파일: `hooks/use-patrol-draft.ts`, `app/protected/patrol/_components/patrol-action-bar.tsx`
   - 구현 사항:
     - [ ] [순찰 완료]: 버튼 비활성화 → 대기 중 저장 즉시 flush 후 완료 대기 → `crypto.randomUUID()` 요청 ID 생성(같은 시도의 재시도에는 같은 ID 재사용) → `complete_patrol(id, revision)`
-    - [ ] `ok`/`duplicate` 응답: 로컬 입력 초기화, `revision`을 응답값으로 갱신, `draft:{user_id}` 백업 삭제, 완료 기록(`patrolled_at`, 메모, 졸음/딴짓) 보관 → [복사] 활성
+    - [ ] `ok`/`duplicate` 응답: 로컬 입력 초기화, `revision`을 응답값으로 갱신, `draft:{user_id}` 백업 삭제, 곧바로 다음 순찰 입력 상태로 전환
     - [ ] `conflict` 응답: 기록 미생성 안내 후 서버 초안을 다시 불러와 충돌 다이얼로그로 연결
-    - [ ] [복사]: 완료 응답의 `patrolled_at`으로 `formatPatrolLine` 생성, 클릭 즉시 `writeText`(완료 후 자동 복사 금지), 실패 시 선택 입력란 대체
-    - [ ] [다음 순찰]: 복사 상태 해제, 빈 입력으로 시작
     - [ ] 네트워크 오류로 응답을 못 받은 경우 같은 요청 ID로 재시도 버튼 제공
-  - 완료 기준: 중복 탭·재시도에도 기록은 1건만 생기고, 완료 직후 복사 문구가 서버 시각과 일치한다.
+  - 완료 기준: 중복 탭·재시도에도 기록은 1건만 생기고, 완료한 기록을 `/logs`에서 복사하면 문구가 서버 시각과 일치한다.
   - 테스트 체크리스트:
-    - 정상: `browser_click → 졸음 23, 메모 입력 후 [순찰 완료] → 입력 초기화, [복사] 활성 → [복사] → clipboard "HH:mm 순찰 → 완료 (메모, 23번 졸아서 깨움)"`
+    - 정상: `browser_click → 졸음 23, 메모 입력 후 [순찰 완료] → 입력 초기화 → `/logs`에서 해당 기록 [복사] → clipboard "HH:mm 순찰 → 완료 (메모, 23번 졸아서 깨움)"`
     - 정상: 완료 후 `/logs`에 기록 1건, `business_date`가 현재 영업일
     - 정상: 빈 초안으로 완료 → `HH:mm 순찰 → 완료` 기록 생성
     - 오류(멱등): `browser_evaluate → 완료 요청을 같은 요청 ID로 2회 전송 → execute_sql로 기록 1건, 초안 revision 1회만 증가`
@@ -597,7 +595,7 @@ Phase 0 (완료)
   - 구현 사항:
     - [ ] 비로그인 여정: `/logs` 열람 → 복사 → [순찰 기록 작성] → 로그인 안내 → 로그인 → `/protected/patrol` 복귀
     - [ ] pending 여정: 승인 대기 배너, 작성 버튼 메시지, `/protected/patrol`·`/protected/admin/tags` 직접 접근 시 `/logs`로 돌아오며 안내
-    - [ ] manager 여정: 입력 → 자동 저장 → 다른 탭 이어쓰기 → 완료 → 복사 → 다음 순찰 → `/logs`에서 본인 기록 수정·자리비움 이동 → 로그아웃 후 `draft:` 백업 없음
+    - [ ] manager 여정: 입력 → 자동 저장 → 다른 탭 이어쓰기 → 완료 → 다음 순찰 입력 → `/logs`에서 복사·본인 기록 수정·자리비움 이동 → 로그아웃 후 `draft:` 백업 없음
     - [ ] admin 여정: 태그 추가/숨김/순서 변경 → 순찰 화면 반영 → 타인 기록 수정·삭제
     - [ ] 강등 시나리오: manager를 대시보드에서 pending으로 변경 → 작성·수정 차단, 과거 기록 작성자 이름 유지
     - [ ] 보안 재확인: anon 키로 REST에서 `profiles` 조회, `patrol_logs` insert, RPC 호출이 모두 거부됨(curl)
@@ -620,7 +618,7 @@ Phase 0 (완료)
     - [ ] 카카오톡 인앱 브라우저: Google 로그인 차단 시 안내 노출, 이메일 확인 링크 동작 확인
     - [ ] Google 가입자의 `full_name` 수신 재확인(현재 확인됨)
     - [ ] `pg_cron` 실제 실행 이력(`cron.job_run_details`) 확인
-    - [ ] 태블릿 가로/세로, 키패드 터치 타깃 48px, 하단 액션바가 가상 키보드에 가려지지 않는지 확인
+    - [ ] 태블릿 가로/세로, 입력란·버튼 터치 타깃 48px, 하단 액션바가 가상 키보드에 가려지지 않는지 확인
   - 완료 기준: 모든 확인 항목의 결과(기기/OS/브라우저 버전 포함)가 기록되고 실패 항목은 수정 Task로 등록된다.
   - 테스트 체크리스트:
     - 정상: iOS Safari [복사] → 시트 붙여넣기 → 한 줄
@@ -641,7 +639,7 @@ Phase 0 (완료)
   - 완료 기준: advisors 경고 0(또는 수용 사유 기록), Lighthouse 모바일 접근성 90 이상, `npm run check`와 `npm run build` 통과.
   - 테스트 체크리스트:
     - 정상: `browser_navigate → /없는경로 → 한국어 404`
-    - 엣지: 키보드만으로 순찰 입력 → 완료 → 복사 가능
+    - 엣지: 키보드만으로 순찰 입력 → 완료, `/logs`에서 복사 가능
   - 테스트 결과: (미수행)
 
 - **Task 026: 운영 배포 및 출시 준비**
@@ -654,7 +652,7 @@ Phase 0 (완료)
     - [ ] 마이그레이션 원격 적용 상태(`list_migrations`)와 로컬 파일 일치 확인, 퀵 태그 seed 확인
     - [ ] 첫 관리자 지정(대시보드에서 `profiles.role = 'admin'`) 및 매니저 승격 절차를 README에 정리, QA 계정 정리
     - [ ] 운영 도메인에서 Task 023 핵심 여정 스모크 테스트
-  - 완료 기준: 운영 URL에서 로그인 → 순찰 완료 → 복사 → 일지 조회가 동작한다.
+  - 완료 기준: 운영 URL에서 로그인 → 순찰 완료 → 일지 조회 → 복사가 동작한다.
   - 테스트 체크리스트:
     - 정상: `browser_navigate → 운영 URL/logs → 200, 기록 표시`
     - 정상: 운영에서 Google 로그인 → `/logs` 복귀
