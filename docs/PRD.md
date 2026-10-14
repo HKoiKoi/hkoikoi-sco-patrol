@@ -124,7 +124,8 @@ HH:mm 순찰 → 완료[ (상세)]
 - 탭 포커스 복귀 시 로컬에 저장 안 된 변경이 있거나 저장 중이면 서버 초안으로 덮어쓰지 않는다. 깨끗한 상태에서만 서버 `revision`이 더 클 때 교체한다.
 - 네트워크 실패 시 `localStorage`(키 `draft:{user_id}`, 값 `{revision, savedAt, payload}`)에 임시 백업한다. 온라인 복귀 시 `base_revision`과 함께 재전송하고, 충돌하면 "다른 기기에서 수정됨, 어느 쪽을 쓸까요?"를 묻는다. 완료 성공 또는 로그아웃 시 백업을 삭제한다(공용 태블릿 보호).
 - 순찰 완료 전 클라이언트는 대기 중인 저장을 즉시 보내고 끝나기를 기다린다. 완료 RPC(`complete_patrol(client_request_id, expected_revision)`)는 클라이언트가 보낸 값이 아니라 **서버에 저장된 초안**을 사용하며, 완료 후 초안을 삭제하지 않고 빈 값과 `revision + 1`로 초기화해 늦게 도착한 옛 저장을 거부한다.
-- 완료 RPC의 처리 순서: ① 초안 행이 없으면 만들고 잠금(`for update`) → ② 같은 `client_request_id`의 기록이 있으면 **초안은 건드리지 않고** 그 기록을 그대로 반환 → ③ `expected_revision`이 다르면 충돌 응답 → ④ 기록 생성 → ⑤ 초안 초기화(`revision + 1`). 응답은 `status`(`ok` / 재요청이면 `duplicate` / 불일치면 `conflict`)와 기록 ID, 완료 시각, 새 `revision`을 담아 완료 직후 [복사]가 서버 시각으로 문구를 만든다. 저장 RPC의 충돌 응답은 `server_revision`과 서버 초안을 함께 돌려준다.
+- 완료 RPC의 처리 순서: ① 초안 행이 없으면 만들고 잠금(`for update`) → ② 같은 `client_request_id`의 기록이 있으면 **초안은 건드리지 않고** 그 기록을 그대로 반환 → ③ `expected_revision`이 다르면 충돌 응답 → ④ 기록 생성 → ⑤ 초안 초기화(`revision + 1`). 응답은 `status`(`ok` / 재요청이면 `duplicate` / 불일치면 `conflict`)와 기록 ID, 완료 시각, 새 `revision`을 담아 완료 직후 [복사]가 서버 시각으로 문구를 만든다. 저장 RPC와 완료 RPC의 충돌 응답은 모두 `server_revision`과 서버 초안(`server_draft`)을 함께 돌려준다. 완료 충돌 시 기록은 만들지 않고, 클라이언트는 응답의 서버 초안으로 충돌 다이얼로그를 띄운다("서버 내용"을 고르면 화면을 서버 초안으로 교체하고, "이 기기 내용"을 고르면 `server_revision` 기준으로 다시 저장한다).
+- **RPC 응답 키 규칙**: RPC의 jsonb 응답은 DB 관례대로 snake_case(`status`, `revision`, `server_revision`, `server_draft`, `log_id`, `patrolled_at`)로 돌려주고, 서버 초안은 `{revision, updated_at, standing, cafe_zone, drowsy, away, memo}` 평평한 형태다. 클라이언트의 Supabase 어댑터(`lib/patrol-draft-rpc.ts`)가 이를 camelCase TS 타입(`SaveDraftResult`·`CompletePatrolResult`, 서버 초안은 `PatrolDraft`의 `content` 중첩)으로 변환한다.
 - 완료 요청에는 클라이언트가 만든 요청 ID(UUID)를 실어 보내고, 완료 버튼은 처리 중 비활성화한다.
 - **방치된 초안 정리**: 주기 작업(`pg_cron`, 30분마다)이 마지막 저장으로부터 2시간 이상 지난 **비어 있지 않은** 초안을 **빈 값 + `revision + 1`로 초기화**한다(행 삭제 없음). 이미 빈 초안은 건드리지 않아 `revision`이 불필요하게 올라가지 않는다. 영업일 경계(04:00)를 넘겨 작성 중인 초안은 최근에 저장되므로 유지된다. 초안의 영업일 비교로 복원을 막지 않는다.
 
@@ -256,6 +257,7 @@ HH:mm 순찰 → 완료[ (상세)]
 | label      | 메모에 들어갈 문구 (개행 불가, 공백·대소문자 무시 유일) |      |
 | sort_order | 버튼 표시 순서                                          |      |
 | is_active  | 순찰 기록 화면 노출 여부                                |      |
+| created_at | 생성 시각 (DB 전용, 앱 미사용)                          |      |
 
 초기 데이터 5종: 퇴실자 탭 디스플레이 종료 / 화장실 정리 / 제빙기 물 보충 / 정수기 및 커피머신 청소 / 전 열람실 에어컨 종료.
 
@@ -279,6 +281,8 @@ HH:mm 순찰 → 완료[ (상세)]
 | standing / cafe_zone / drowsy / away / memo | patrol_logs와 동일 구조·제약                                                   |               |
 | revision                                    | 저장 순서 판별용 번호 (저장·완료·정리 시 증가, 행을 삭제하지 않아 재사용 없음) |               |
 | updated_at                                  | 마지막 저장 시각 (서버 시각)                                                   |               |
+
+- **TS 타입 노출 범위**: 화면이 쓰지 않는 DB 전용 컬럼(`profiles.avatar_url`·`updated_at`, `patrol_logs.client_request_id`, `quick_tags.created_at`, `patrol_logs.created_at`)은 TS 타입(`Viewer`, `PatrolLog`, `QuickTag`)에 일부러 담지 않는다. 필요해지면 PRD와 타입을 함께 바꾼다.
 
 ### 데이터 접근 규칙 (RLS)
 

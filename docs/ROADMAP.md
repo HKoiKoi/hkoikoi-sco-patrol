@@ -150,7 +150,7 @@ Phase 0 (완료)
     - ✅ `Role = "pending" | "manager" | "admin"`, `Viewer`(비로그인 | `{ userId, fullName, role }`) 타입
     - ✅ `SeatCategory = "standing" | "cafe_zone" | "drowsy" | "away"`, `SeatSet`(카테고리별 `number[]`), `PatrolContent = SeatSet & { memo: string }`
     - ✅ `PatrolLog`(id, businessDate, patrolledAt, authorId, authorName, 좌석 4종, memo), `PatrolDraft`(revision, updatedAt, content), `QuickTag`(id, label, sortOrder, isActive)
-    - ✅ RPC 응답 판별 유니온: `SaveDraftResult = { status: "ok"; revision } | { status: "conflict"; serverRevision; serverDraft }`, `CompletePatrolResult = { status: "ok" | "duplicate"; logId; patrolledAt; revision } | { status: "conflict"; serverRevision }`
+    - ✅ RPC 응답 판별 유니온: `SaveDraftResult = { status: "ok"; revision } | { status: "conflict"; serverRevision; serverDraft }`, `CompletePatrolResult = { status: "ok" | "duplicate"; logId; patrolledAt; revision } | { status: "conflict"; serverRevision; serverDraft }`
     - ✅ Server Action 공통 결과 타입 `ActionResult<T> = { ok: true; data: T } | { ok: false; error: string }`
     - ✅ 로컬 백업 타입 `DraftBackup = { revision; savedAt; payload: PatrolContent }`
   - 완료 기준: 타입 파일이 런타임 코드 없이 export되고 `npm run typecheck` 통과. PRD 데이터 모델의 모든 필드가 타입에 대응된다.
@@ -331,16 +331,45 @@ Phase 0 (완료)
     - forgot-password·update-password·error(`?error=` 유무)·sign-up-success: 영어 문구 0건(브랜드명 제외), 콘솔 에러·hydration 경고 0건
     - 다크 모드 스크린샷 확인, 카카오톡 인앱 UA 컨텍스트에서 안내 문구에 경고색(amber) 강조 클래스 적용 확인
 
-- **Task 011: UI 검토·보완 및 PRD·데이터 모델 확정**
+- **Task 011: UI 검토·보완 및 PRD·데이터 모델 확정** ✅ - 완료
   - 관련 기능: F01~F11
   - 설명: Phase 3 화면을 4개 역할과 모바일/태블릿에서 실제로 사용해 보며 보완점을 모으고 반영한다. 요구사항이 바뀌면 PRD를 먼저 고치고 Phase 4 DB Task(012~016) 명세를 그에 맞춰 갱신한다. 스키마가 확정된 뒤에만 Phase 4로 진입한다.
   - 관련 파일: `docs/PRD.md`, `docs/ROADMAP.md`, `lib/types/*`, `lib/dummy/*`, `lib/patrol-form-reducer.ts`, `components/*`, `app/**/_components/*`
   - 구현 사항:
-    - [ ] 더미 viewer 4종(admin/manager/pending/비로그인) × 375x812(폰)·768x1024(태블릿 세로)·1024x768(태블릿 가로)에서 `/logs`, `/protected/patrol`, `/protected/admin/tags`, `/auth/*`를 훑고 보완점을 이 Task 아래 "검토 결과" 목록에 기록(분류: UI 수정 / 요구사항 변경 / MVP 이후 보류)
-    - [ ] UI 수정 항목을 반영하고 해당 Phase 3 Task의 수락 기준이 여전히 충족되는지 재확인
-    - [ ] 요구사항 변경 항목: PRD를 먼저 수정 → Task 002 타입·더미 데이터·가짜 어댑터 반영 → Task 012~016 명세(컬럼, 제약, RLS, RPC 시그니처·응답, 테스트 체크리스트)와 기능 ID 매핑 표 갱신
-    - [ ] 데이터 모델 대조: PRD 데이터 모델, Task 002 타입, 가짜 어댑터 응답, Task 012~014 명세의 필드명·nullable·기본값·제약·RPC 응답 키가 일치하는지 대조표로 확인하고 불일치를 해소
-    - [ ] 보류 항목은 이 문서의 "MVP 이후" 절에 기록, 확정 결과를 사용자에게 보고하고 Phase 4 진입 확인을 받음
+    - [x] 더미 viewer 4종(admin/manager/pending/비로그인) × 375x812(폰)·768x1024(태블릿 세로)·1024x768(태블릿 가로)에서 `/logs`, `/protected/patrol`, `/protected/admin/tags`, `/auth/*`를 훑고 보완점을 이 Task 아래 "검토 결과" 목록에 기록(분류: UI 수정 / 요구사항 변경 / MVP 이후 보류)
+    - [x] UI 수정 항목을 반영하고 해당 Phase 3 Task의 수락 기준이 여전히 충족되는지 재확인
+    - [x] 요구사항 변경 항목: PRD를 먼저 수정 → Task 002 타입·더미 데이터·가짜 어댑터 반영 → Task 012~016 명세(컬럼, 제약, RLS, RPC 시그니처·응답, 테스트 체크리스트)와 기능 ID 매핑 표 갱신
+    - [x] 데이터 모델 대조: PRD 데이터 모델, Task 002 타입, 가짜 어댑터 응답, Task 012~014 명세의 필드명·nullable·기본값·제약·RPC 응답 키가 일치하는지 대조표로 확인하고 불일치를 해소
+    - [x] 보류 항목은 이 문서의 "MVP 이후" 절에 기록, 확정 결과를 사용자에게 보고하고 Phase 4 진입 확인을 받음(진입 확인은 보고 후 사용자 응답 대기)
+  - 검토 결과 (2026-10-14, Supabase env를 비운 dev 서버, 더미 viewer 전환):
+    - 점검 범위: viewer 4종 × 3개 뷰포트 × `/logs`·`/protected/patrol`·`/protected/admin/tags`·`/auth/login`(admin·비로그인은 `/auth/sign-up`까지, admin은 `/auth/forgot-password`도). 가로 넘침·메뉴/버튼 노출·배너는 DOM 수집으로, 레이아웃은 admin 스크린샷(375·768, 다크/라이트 일부)으로 확인
+    - 통과: 전 조합 가로 넘침 없음, 콘솔 에러·경고(hydration 포함) 0건. 메뉴·버튼 노출이 PRD 권한 규칙과 일치(admin: 메뉴 3종·수정/삭제 전체 / manager: 퀵 태그 관리 메뉴 없음, 수정·삭제는 본인 기록만 / pending: 승인 대기 배너, 복사만, 작성 버튼 탭 시 안내 / 비로그인: 로그인·가입 버튼). 엣지 더미(03:59·04:00, 2,000자 메모, 여러 줄 메모, 빈 메모·빈 좌석, 빈 날짜, 강등된 작성자, 잘못된 `?date`)는 깨지지 않음. 768px 이상 레이아웃(메뉴 노출, 2열 좌석 카드)과 라이트 모드 정상
+    - 발견 사항:
+      1. [UI 수정] 상단 중앙 토스트(`position="top-center"`)가 768px 이상에서 헤더 메뉴와 승인 대기 배너를 가린다(pending이 [새 순찰 일지 작성] 탭 시 확인). 대상: `app/layout.tsx`, `components/ui/sonner.tsx` ([x] 반영: `position="bottom-center"`, offset 96으로 하단 액션바 위에 표시)
+      2. [UI 수정] 일지 카드의 복사/수정/삭제 버튼 아래 여백이 위쪽보다 커 보인다(약 30px, 원인 미확정). 대상: `app/logs/_components/patrol-log-item.tsx` ([x] 반영: 원인은 `CardContent` 기본 `pb-6`, `pb-0` 지정으로 위 18px·아래 17px)
+      3. [MVP 이후 보류] 2,000자 메모 기록은 375px에서 카드 높이가 약 3,000px로 길어진다. 메모 접기/더 보기는 MVP 이후 검토. 대상: `app/logs/_components/patrol-log-item.tsx`
+      4. [조치 없음] 순찰 기록 화면의 제목 아래 빈 영역과 좌석 카드 하단 빈 공간은 저장 상태 줄(`SaveStatus`, `min-h-6`)과 좌석 칩 영역 예약으로 확인됨(1024x768에서 저장 상태 줄과 칩 표시 확인). 대상: `app/protected/patrol/_components/*`
+      5. [조치 없음] 더미 단계에서 권한 미달 접근은 리디렉션 대신 인라인 안내를 표시하고, `/auth/*`에서도 더미 viewer 헤더가 보인다. Task 018에서 `requireStaff()`/`requireAdmin()`과 `getViewer()`로 교체되므로 수정하지 않는다
+      6. [요구사항 변경] 완료 요청이 `conflict`일 때 응답에 서버 초안이 없어(`CompletePatrolResult`는 `serverRevision`만) 다이얼로그의 "서버 내용"을 골라도 화면은 로컬 내용 그대로 "저장됨"이 된다(재현: 저장 후 `conflict` 모드에서 [순찰 완료] → [서버 내용] → 스탠딩 `[3]` 유지, 서버 초안은 다른 내용). `complete_patrol`은 서버에 저장된 초안으로 기록을 만들므로 화면과 다른 내용이 기록될 수 있다. 사용자 결정 필요: (A, 권장) `complete_patrol`의 `conflict` 응답에도 `server_draft`를 포함해 저장 RPC와 맞춤 / (B) 충돌 후 서버 초안을 다시 조회. 대상: PRD "자동 저장 규칙", Task 014, `lib/types/patrol.ts`, `lib/dummy/patrol-draft-adapter.ts`, `patrol-form.tsx` ([x] 결정: A안(사용자 확정, 2026-10-14). PRD 자동 저장 규칙, `CompletePatrolResult`, 가짜 어댑터, `COMPLETE_CONFLICT` 액션(`serverDraft` 필수), `patrol-form.tsx`, Task 014 명세 반영)
+      7. [UI 수정] 순찰 완료 성공 시 결과 화면 없이 곧바로 빈 폼으로 돌아가며 완료 안내가 없다. offline 상태에서 [순찰 완료]를 눌러도 아무 안내 없이 입력만 유지된다. 권장: Sonner 토스트로 "순찰 완료 기록됨"과 "오프라인이라 완료할 수 없음"을 안내. 대상: `app/protected/patrol/_components/patrol-form.tsx` ([x] 반영: 완료 시 "순찰 완료 기록됨", offline 완료 시도 시 "오프라인이라 완료할 수 없음" 토스트)
+      8. [조치 없음] offline 상태 문구가 "기기에 임시 저장"이지만 `localStorage` `draft:{user_id}` 백업은 아직 없다. Task 020(ROADMAP `localStorage` 백업 항목)에서 구현하므로 더미 단계에서는 수정하지 않는다
+    - 순찰 흐름·가짜 어댑터 검증 (Task 011-2, 375x812·1024x768, admin viewer): ok(입력 → "저장 대기 중" → "저장됨 HH:mm" → 완료 → 빈 폼)와 offline 후 복귀(오프라인 표시, 입력 유지, 복귀 후 [순찰 완료] 한 번으로 저장·완료)는 PRD와 일치. `conflict` 모드는 저장·완료 모두 "충돌" 표시와 "다른 기기에서 수정됨, 어느 쪽을 쓸까요?" 다이얼로그(둘 중 하나를 골라야 닫힘)가 뜨고, 저장 충돌의 "서버 내용"·"이 기기 내용"은 PRD대로 동작(6번 제외). 같은 요청 ID 재완료(`crypto.randomUUID` 고정으로 재현)는 `duplicate`가 성공으로 처리되어 한 번만 반영되고 폼이 초기화됨. 이어지는 `conflict`는 같은 ID를 일부러 재사용한 테스트의 부산물(실제 재시도에서는 서버 초안이 이미 초기화됨). 콘솔 에러·경고 0건, 가로 넘침 없음
+    - 요구사항 변경 반영 검증 (Task 011-4): `npm run check` 통과. 375x812에서 저장 후 `conflict` 모드로 [순찰 완료] → 충돌 다이얼로그 → [서버 내용] 선택 시 스탠딩 `7`·메모 "다른 기기에서 저장한 내용"으로 화면이 교체됨(6번 해소). 콘솔 경고·에러 0건
+    - 데이터 모델 대조 (Task 011-5, 2026-10-14): 결정 — RPC는 snake_case를 반환하고 Supabase 어댑터(Task 020 `lib/patrol-draft-rpc.ts`)가 camelCase TS 타입으로 변환한다(사용자 확정). 대조 결과 불일치 5건을 해소해 잔여 0건
+      | 항목                                   | PRD                              | TS 타입(Task 002)                                    | 가짜 어댑터    | Task 012~014 명세                                                    | 결과                                                     |
+      | -------------------------------------- | -------------------------------- | ---------------------------------------------------- | -------------- | -------------------------------------------------------------------- | -------------------------------------------------------- |
+      | RPC 응답 키                            | snake_case 규칙 명시             | `serverRevision`·`serverDraft`·`logId`·`patrolledAt` | TS 타입 그대로 | `server_revision`·`server_draft`·`log_id`·`patrolled_at`             | 해소: PRD "RPC 응답 키 규칙"과 Task 020 어댑터 변환 명시 |
+      | `server_draft` 형태                    | 평평한 형태 정의                 | `PatrolDraft{revision, updatedAt, content}`          | 같음           | 형태 미정 → Task 014에 `{revision, updated_at, 좌석 4종, memo}` 명시 | 해소                                                     |
+      | 완료 `conflict` 응답                   | `server_revision`+`server_draft` | `serverDraft` 포함                                   | 포함           | Task 014 반영                                                        | 해소(011-4)                                              |
+      | `quick_tags.created_at`                | 행 없음 → 추가(DB 전용)          | 미노출                                               | -              | `timestamptz default now()`                                          | 해소                                                     |
+      | `id` 타입                              | "고유 식별자"                    | `string`                                             | `string`       | `quick_tags`·`patrol_logs`에 `uuid default gen_random_uuid()` 명시   | 해소                                                     |
+      | `client_request_id`                    | `patrol_logs` 유일               | `PatrolLog` 미노출(의도)                             | 어댑터 내부 맵 | `uuid not null unique`                                               | 해소: PRD "TS 타입 노출 범위" 한 줄 명시                 |
+      | `avatar_url`·`updated_at`·`created_at` | DB 컬럼                          | 미노출(의도)                                         | -              | 012 기존 컬럼 유지                                                   | 일치: 위 "TS 타입 노출 범위"에 명시                      |
+      | `revision`                             | bigint                           | `number`                                             | `number`       | `bigint`(JSON 숫자, 2^53 미만)                                       | 일치                                                     |
+      | 좌석 4종·`memo`                        | int[] 양수·중복 불가, 2,000자    | `SeatSet`·`PatrolContent`                            | 동일           | `not null default '{}'` + check                                      | 일치                                                     |
+      | `business_date`·`patrolled_at`         | 04:00 KST 경계, 서버 시각        | `string`(날짜·ISO)                                   | 문자열         | `date`·`timestamptz`                                                 | 일치                                                     |
+      | `role`·`full_name`                     | `pending/manager/admin`, 이름    | `Role`, `AuthenticatedViewer`                        | 더미 viewer    | `check`·`default 'pending'`                                          | 일치                                                     |
+    - 미확인: manager·pending·비로그인 viewer의 스크린샷 육안 확인과 1024x768 스크린샷(DOM 수치로만 확인), 다크 모드의 `/auth/*`
   - 완료 기준: "검토 결과"의 모든 항목이 반영 또는 보류로 처리되고, PRD·타입·Phase 4 명세 대조에서 불일치가 0건이다. 프로젝트 공통 완료 조건(`npm run check` 통과, Playwright MCP 시나리오 통과, 콘솔 에러·hydration 경고 없음)을 만족한다.
   - 테스트 체크리스트:
     - 정상: 더미 viewer 4종 × 각 화면 `browser_snapshot` → 메뉴·버튼 노출이 PRD 권한 규칙과 일치
@@ -348,7 +377,7 @@ Phase 0 (완료)
     - 오류: 가짜 어댑터 `conflict`/`offline` 모드와 같은 요청 ID 재완료(`duplicate`) → 다이얼로그·상태 표시가 PRD "자동 저장 규칙"과 일치
     - 엣지: Phase 3 공통 엣지 더미 데이터(빈 배열, 여러 줄 메모, 2,000자 메모, 03:59·04:00 완료 기록, 강등된 작성자)가 모든 화면에서 깨지지 않음, 다크 모드 포함
     - 엣지: `browser_console_messages → 전 화면 에러·hydration 경고 없음`
-  - 테스트 결과: (미수행)
+  - 테스트 결과(2026-10-14): `npm run check` 통과. Playwright(Supabase env를 비운 dev 서버): `/logs`, `/protected/patrol`, `/protected/admin/tags`, `/auth/login`, `/auth/sign-up` 콘솔 에러·경고(hydration 포함) 0건. 검토 결과 8건 중 UI 수정 3건(1·2·7) 반영, 요구사항 변경 1건(6) A안 반영, 보류 1건(3)은 "MVP 이후"에 기록, 조치 없음 3건(4·5·8). 데이터 모델 대조 불일치 잔여 0건. `git diff`에 임시 viewer 전환·env 변경 없음(`ACTIVE_DUMMY_VIEWER`는 admin 그대로). 미확인(manager·pending·비로그인 스크린샷 육안, 다크 모드 `/auth/*`)은 DOM 수치와 권한 규칙 점검으로 갈음
 
 ### Phase 4: 데이터베이스 스키마·RLS·RPC·DAL
 
@@ -383,8 +412,8 @@ Phase 0 (완료)
   - 구현 사항:
     - [ ] `alter database postgres set timezone to 'Asia/Seoul'` (SQL 함수에서는 그래도 `at time zone 'Asia/Seoul'`을 명시)
     - [ ] 좌석 배열 검증 함수 `private.is_valid_seats(int[])`(`immutable`): 모든 원소 > 0, 중복 없음, null 원소 없음. 4개 배열 컬럼 `not null default '{}'` + `check`
-    - [ ] `quick_tags(id, label, sort_order int, is_active bool default true, created_at)`: `label` check(트림 후 비어 있지 않음, `\r`/`\n` 불포함), 유일 인덱스 `lower(regexp_replace(btrim(label), '\s+', ' ', 'g'))`. 정책: `anon` select `is_active`, `authenticated` select `is_active or private.is_admin()`, insert/update/delete는 `private.is_admin()`. 초기 데이터 5종(퇴실자 탭 디스플레이 종료 / 화장실 정리 / 제빙기 물 보충 / 정수기 및 커피머신 청소 / 전 열람실 에어컨 종료) seed
-    - [ ] `patrol_logs(id, client_request_id uuid unique, business_date date, patrolled_at timestamptz, author_id uuid, standing, cafe_zone, drowsy, away int[], memo text check (char_length(memo) <= 2000))`: `author_id`가 `profiles(id)`와 `staff_names(id)`를 모두 참조(작성자 이름 embed용), 인덱스 `(business_date, patrolled_at)`, `(author_id)`
+    - [ ] `quick_tags(id uuid default gen_random_uuid(), label, sort_order int, is_active bool default true, created_at timestamptz default now())`: `label` check(트림 후 비어 있지 않음, `\r`/`\n` 불포함), 유일 인덱스 `lower(regexp_replace(btrim(label), '\s+', ' ', 'g'))`. 정책: `anon` select `is_active`, `authenticated` select `is_active or private.is_admin()`, insert/update/delete는 `private.is_admin()`. 초기 데이터 5종(퇴실자 탭 디스플레이 종료 / 화장실 정리 / 제빙기 물 보충 / 정수기 및 커피머신 청소 / 전 열람실 에어컨 종료) seed
+    - [ ] `patrol_logs(id uuid default gen_random_uuid(), client_request_id uuid not null unique, business_date date, patrolled_at timestamptz, author_id uuid, standing, cafe_zone, drowsy, away int[], memo text check (char_length(memo) <= 2000))`: `author_id`가 `profiles(id)`와 `staff_names(id)`를 모두 참조(작성자 이름 embed용), 인덱스 `(business_date, patrolled_at)`, `(author_id)`
     - [ ] `patrol_logs` 권한: `anon`/`authenticated` select(정책 `using (true)`), insert 권한 없음, `grant update (standing, cafe_zone, drowsy, away, memo)`과 `grant delete`를 `authenticated`에 부여, update/delete 정책 `(author_id = auth.uid() and private.is_staff()) or private.is_admin()`
     - [ ] `patrol_drafts(user_id pk references profiles(id), 좌석 4종, memo, revision bigint not null default 0, updated_at timestamptz default now())`: 본인 행 select만, 쓰기 권한 없음(RPC 전용)
   - 완료 기준: 테이블·제약·정책이 적용되고, PostgREST에서 `patrol_logs?select=*,staff_names(full_name)`이 비로그인 키로 동작한다(구현 전 확인 항목). `get_advisors(security, performance)` 신규 경고 없음.
@@ -407,8 +436,8 @@ Phase 0 (완료)
   - 관련 파일: `supabase/migrations/<ts>_create_patrol_rpcs.sql`, `<ts>_create_swap_quick_tag_order.sql`
   - 구현 사항:
     - [ ] 공통: `set search_path = ''`, 본문 첫 줄에서 `private.is_staff()`(태그는 `private.is_admin()`) 검사 후 위반 시 예외, `revoke execute ... from public, anon` + `grant execute ... to authenticated`
-    - [ ] `save_patrol_draft(base_revision bigint, standing int[], cafe_zone int[], drowsy int[], away int[], memo text)` → `jsonb`: 행이 없으면 `base_revision = 0`일 때만 생성(그 외 충돌), 있으면 `for update` 잠금 후 `revision = base_revision`일 때만 저장하고 `revision + 1`, `updated_at = now()`. 좌석은 양의 정수만 남기고 카테고리 내 중복 제거·정렬, 메모 2,000자 초과는 오류. 충돌 시 `{status:"conflict", server_revision, server_draft}`
-    - [ ] `complete_patrol(client_request_id uuid, expected_revision bigint)` → `jsonb`, PRD 순서 그대로: ① 초안 행 보장 후 `for update` ② 같은 `client_request_id`의 기록(작성자 본인)이 있으면 초안을 건드리지 않고 `{status:"duplicate", log_id, patrolled_at, revision}` ③ `expected_revision` 불일치 시 `{status:"conflict", server_revision}` ④ 서버 초안 내용으로 `patrol_logs` insert(`patrolled_at = now()`, `business_date = ((now() at time zone 'Asia/Seoul') - interval '4 hours')::date`, `author_id = auth.uid()`) ⑤ 초안을 빈 값 + `revision + 1`로 초기화. 응답 `{status:"ok", log_id, patrolled_at, revision}`
+    - [ ] `save_patrol_draft(base_revision bigint, standing int[], cafe_zone int[], drowsy int[], away int[], memo text)` → `jsonb`: 행이 없으면 `base_revision = 0`일 때만 생성(그 외 충돌), 있으면 `for update` 잠금 후 `revision = base_revision`일 때만 저장하고 `revision + 1`, `updated_at = now()`. 좌석은 양의 정수만 남기고 카테고리 내 중복 제거·정렬, 메모 2,000자 초과는 오류. 충돌 시 `{status:"conflict", server_revision, server_draft}`, 성공 시 `{status:"ok", revision}`. 응답 키는 snake_case이고 `server_draft`는 `{revision, updated_at, standing, cafe_zone, drowsy, away, memo}` 평평한 형태(camelCase·`content` 중첩 변환은 Task 020 어댑터가 담당, PRD "RPC 응답 키 규칙")
+    - [ ] `complete_patrol(client_request_id uuid, expected_revision bigint)` → `jsonb`, PRD 순서 그대로: ① 초안 행 보장 후 `for update` ② 같은 `client_request_id`의 기록(작성자 본인)이 있으면 초안을 건드리지 않고 `{status:"duplicate", log_id, patrolled_at, revision}` ③ `expected_revision` 불일치 시 `{status:"conflict", server_revision, server_draft}`(저장 RPC와 같은 형태) ④ 서버 초안 내용으로 `patrol_logs` insert(`patrolled_at = now()`, `business_date = ((now() at time zone 'Asia/Seoul') - interval '4 hours')::date`, `author_id = auth.uid()`) ⑤ 초안을 빈 값 + `revision + 1`로 초기화. 응답 `{status:"ok", log_id, patrolled_at, revision}`
     - [ ] 빈 초안이라도 `revision`이 일치하면 완료 허용
     - [ ] `swap_quick_tag_order(tag_a uuid, tag_b uuid)`: 두 행 잠금 후 `sort_order` 맞바꿈(한 트랜잭션), 존재하지 않으면 예외
     - [ ] SQL 영업일 경계값 검증용으로 계산식을 `private.business_date_of(timestamptz)` 함수로 분리해 재사용
@@ -419,7 +448,7 @@ Phase 0 (완료)
     - 정상(멱등): `complete_patrol(uuid A, 2) 재호출 → status duplicate, 같은 log_id, 기록 1건 유지, 초안 revision 3 그대로`
     - 오류: `save_patrol_draft(1, ...)`(서버는 3) → `status conflict, server_revision 3`
     - 오류: 초안 행 없음 + `save_patrol_draft(5, ...)` → conflict
-    - 오류: `complete_patrol(uuid B, 1)`(서버 3) → conflict, 기록 미생성
+    - 오류: `complete_patrol(uuid B, 1)`(서버 3) → `status conflict`, `server_revision 3`, `server_draft` 포함, 기록 미생성
     - 오류: `execute_sql(qa-pending) → save_patrol_draft/complete_patrol → 예외` / `execute_sql(anon) → permission denied`
     - 오류: `execute_sql(qa-manager) → swap_quick_tag_order → 예외`
     - 엣지: `private.business_date_of` 경계표 7건(03:59:59 → 전일, 04:00:00 → 당일, 00:00:00 → 전일, 월말 03:59:59 → 말일, 월초 04:00:00 → 1일, 12/31 23:59:59 → 12/31, 1/1 03:59:59 → 12/31) 일치
@@ -533,7 +562,7 @@ Phase 0 (완료)
   - 설명: PRD "자동 저장 규칙"을 클라이언트 훅으로 구현한다. Task 008의 가짜 어댑터를 RPC 호출로 교체하고 `lib/dummy`를 삭제한다. 저장은 브라우저 Supabase 클라이언트에서 `save_patrol_draft` RPC를 직접 호출한다(함수 내부 역할 검사가 방어선).
   - 관련 파일: `app/protected/patrol/page.tsx`, `hooks/use-patrol-draft.ts`(신규), `lib/patrol-draft-rpc.ts`(신규), `lib/draft-backup.ts`(신규), `lib/queries/patrol-draft.ts`, `lib/queries/quick-tags.ts`, `app/protected/patrol/_components/*`, `app/protected/admin/tags/page.tsx`, `lib/dummy/*`(삭제)
   - 구현 사항:
-    - [ ] 가짜 어댑터 교체: `PatrolDraftAdapter`의 실제 구현 `lib/patrol-draft-rpc.ts`(브라우저 클라이언트로 `save_patrol_draft`/`complete_patrol` 호출 후 snake_case 응답을 Task 002 `SaveDraftResult`·`CompletePatrolResult`로 변환)를 주입하고 `lib/dummy/patrol-draft-adapter.ts`·`window.__fakePatrolAdapter` 제거
+    - [ ] 가짜 어댑터 교체: `PatrolDraftAdapter`의 실제 구현 `lib/patrol-draft-rpc.ts`(브라우저 클라이언트로 `save_patrol_draft`/`complete_patrol` 호출 후 snake_case 응답을 Task 002 `SaveDraftResult`·`CompletePatrolResult`로 변환. `server_revision`→`serverRevision`, `log_id`→`logId`, `patrolled_at`→`patrolledAt`, 평평한 `server_draft`→`PatrolDraft{revision, updatedAt, content}`)를 주입하고 `lib/dummy/patrol-draft-adapter.ts`·`window.__fakePatrolAdapter` 제거
     - [ ] 페이지: Task 016의 `requireStaff()` 호출 뒤 본인 초안(`revision`, 내용, `updated_at`)과 활성 퀵 태그(`sort_order` 순)를 서버에서 조회해 초기값으로 전달(초안 행이 없으면 `revision 0`)
     - [ ] `lib/dummy` 디렉터리 삭제: 남은 더미 참조(태그 관리 페이지의 목록 조회)는 `lib/queries/quick-tags.ts` 조회로 교체(조작 Action은 Task 022). `grep -r "lib/dummy" app components lib hooks` 결과 없음
     - [ ] 디바운스 1초 저장, 기기당 동시 요청 1개, 대기 중 변경은 최신 상태 하나로 합침. 상태는 Task 008 reducer의 `clean / dirty / saving / saved / offline / conflict` 그대로 사용
@@ -560,7 +589,7 @@ Phase 0 (완료)
   - 구현 사항:
     - [ ] [순찰 완료]: 버튼 비활성화 → 대기 중 저장 즉시 flush 후 완료 대기 → `crypto.randomUUID()` 요청 ID 생성(같은 시도의 재시도에는 같은 ID 재사용) → `complete_patrol(id, revision)`
     - [ ] `ok`/`duplicate` 응답: 로컬 입력 초기화, `revision`을 응답값으로 갱신, `draft:{user_id}` 백업 삭제, 곧바로 다음 순찰 입력 상태로 전환
-    - [ ] `conflict` 응답: 기록 미생성 안내 후 서버 초안을 다시 불러와 충돌 다이얼로그로 연결
+    - [ ] `conflict` 응답: 기록 미생성 안내 후 응답의 `server_draft`로 충돌 다이얼로그를 연결(재조회 없음)
     - [ ] 네트워크 오류로 응답을 못 받은 경우 같은 요청 ID로 재시도 버튼 제공
   - 완료 기준: 중복 탭·재시도에도 기록은 1건만 생기고, 완료한 기록을 `/logs`에서 복사하면 문구가 서버 시각과 일치한다.
   - 테스트 체크리스트:
@@ -685,3 +714,4 @@ Phase 0 (완료)
 - 통계/리포트, 다중 지점, 30분 리마인더 알림, 좌석 배치도 UI, 실시간 공동 편집
 - 관리자 역할 지정 화면(현재는 Supabase 대시보드에서 수동 승격)
 - 자동화 테스트 러너(Vitest/Playwright Test) 및 CI 파이프라인 도입
+- 긴 메모(2,000자) 기록 카드의 접기/더 보기 (Task 011 검토 3번: 375px에서 카드 높이 약 3,000px)
