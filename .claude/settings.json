@@ -7,7 +7,8 @@
       "WebFetch",
       "WebSearch",
       "mcp__playwright",
-      "mcp__sequential-thinking"
+      "mcp__sequential-thinking",
+      "mcp__shrimp_task_manager"
     ]
   },
   "hooks": {

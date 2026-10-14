@@ -21,8 +21,9 @@ const ThemeSwitcher = () => {
   );
   const { theme, setTheme } = useTheme();
 
+  // 마운트 전에는 같은 크기의 자리 표시로 레이아웃 시프트를 막는다.
   if (!mounted) {
-    return null;
+    return <div className="size-9" aria-hidden="true" />;
   }
 
   const ICON_SIZE = 16;
@@ -30,7 +31,12 @@ const ThemeSwitcher = () => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size={"sm"}>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-9"
+          aria-label="테마 전환"
+        >
           {theme === "light" ? (
             <Sun
               key="light"
@@ -52,22 +58,22 @@ const ThemeSwitcher = () => {
           )}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-content" align="start">
+      <DropdownMenuContent className="w-content" align="end">
         <DropdownMenuRadioGroup
           value={theme}
           onValueChange={(e) => setTheme(e)}
         >
           <DropdownMenuRadioItem className="flex gap-2" value="light">
             <Sun size={ICON_SIZE} className="text-muted-foreground" />{" "}
-            <span>Light</span>
+            <span>라이트</span>
           </DropdownMenuRadioItem>
           <DropdownMenuRadioItem className="flex gap-2" value="dark">
             <Moon size={ICON_SIZE} className="text-muted-foreground" />{" "}
-            <span>Dark</span>
+            <span>다크</span>
           </DropdownMenuRadioItem>
           <DropdownMenuRadioItem className="flex gap-2" value="system">
             <Laptop size={ICON_SIZE} className="text-muted-foreground" />{" "}
-            <span>System</span>
+            <span>시스템</span>
           </DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
       </DropdownMenuContent>

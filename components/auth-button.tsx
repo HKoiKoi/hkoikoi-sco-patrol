@@ -1,29 +1,34 @@
 import Link from "next/link";
-import { Button } from "./ui/button";
-import { createClient } from "@/lib/supabase/server";
-import { LogoutButton } from "./logout-button";
 
-export async function AuthButton() {
-  const supabase = await createClient();
+import { LogoutButton } from "@/components/logout-button";
+import { Button } from "@/components/ui/button";
+import type { Viewer } from "@/lib/types/auth";
 
-  // You can also use getUser() which will be slower.
-  const { data } = await supabase.auth.getClaims();
+interface AuthButtonProps {
+  viewer: Viewer;
+}
 
-  const user = data?.claims;
+// 로그인 상태에 따른 인증 버튼 (viewer는 상위에서 주입)
+export function AuthButton({ viewer }: AuthButtonProps) {
+  if (!viewer) {
+    return (
+      <div className="flex items-center gap-2">
+        <Button asChild size="sm" variant="outline">
+          <Link href="/auth/login">로그인</Link>
+        </Button>
+        <Button asChild size="sm" variant="default">
+          <Link href="/auth/sign-up">가입</Link>
+        </Button>
+      </div>
+    );
+  }
 
-  return user ? (
-    <div className="flex items-center gap-4">
-      Hey, {user.email}!
+  return (
+    <div className="flex items-center gap-2">
+      <span className="hidden max-w-32 truncate text-sm sm:inline">
+        {viewer.fullName}
+      </span>
       <LogoutButton />
-    </div>
-  ) : (
-    <div className="flex gap-2">
-      <Button asChild size="sm" variant={"outline"}>
-        <Link href="/auth/login">Sign in</Link>
-      </Button>
-      <Button asChild size="sm" variant={"default"}>
-        <Link href="/auth/sign-up">Sign up</Link>
-      </Button>
     </div>
   );
 }
