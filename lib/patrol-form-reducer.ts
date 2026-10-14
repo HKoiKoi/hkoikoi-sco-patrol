@@ -51,8 +51,7 @@ export type PatrolFormAction =
   | {
       type: "COMPLETE_CONFLICT";
       serverRevision: number;
-      /** 응답에 서버 초안이 있으면 전달한다. 없으면 로컬 내용 기준으로 revision만 맞춘다. */
-      serverDraft?: PatrolDraft;
+      serverDraft: PatrolDraft;
     }
   /** 완료 요청이 네트워크 오류 등으로 응답 없이 끝난 경우. 같은 요청 ID로 다시 시도할 수 있게 풀어 준다. */
   | { type: "COMPLETE_FAILED" }
@@ -227,11 +226,7 @@ export function patrolFormReducer(
         completing: false,
         status: "conflict",
         savingContent: null,
-        conflictDraft: action.serverDraft ?? {
-          revision: action.serverRevision,
-          updatedAt: "",
-          content: state.content,
-        },
+        conflictDraft: action.serverDraft,
       };
     case "COMPLETE_FAILED":
       if (!state.completing) return state;

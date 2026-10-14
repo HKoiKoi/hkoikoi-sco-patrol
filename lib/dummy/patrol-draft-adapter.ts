@@ -80,7 +80,11 @@ export const fakePatrolAdapter: PatrolDraftAdapter & {
     if (previous) return { ...previous, status: "duplicate" };
     if (mode === "conflict" || expectedRevision !== serverDraft.revision) {
       if (mode === "conflict") makeConflictDraft();
-      return { status: "conflict", serverRevision: serverDraft.revision };
+      return {
+        status: "conflict",
+        serverRevision: serverDraft.revision,
+        serverDraft,
+      };
     }
     // 완료 시 서버 초안은 빈 값 + revision+1로 초기화된다.
     serverDraft = {

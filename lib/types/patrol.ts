@@ -46,7 +46,7 @@ export type CompletePatrolResult =
       patrolledAt: string;
       revision: number;
     }
-  | { status: "conflict"; serverRevision: number };
+  | { status: "conflict"; serverRevision: number; serverDraft: PatrolDraft };
 
 /** 초안 저장·순찰 완료 어댑터. 더미(가짜)와 Supabase RPC 구현이 같은 계약을 따른다. */
 export interface PatrolDraftAdapter {

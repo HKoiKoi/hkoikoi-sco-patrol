@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import { toast } from "sonner";
 
 import {
   createInitialPatrolFormState,
@@ -99,7 +100,12 @@ export function PatrolForm({ adapter, quickTags }: PatrolFormProps) {
         }
       }
       const current = stateRef.current;
-      if (current.status !== "saved" && current.status !== "clean") return;
+      if (current.status !== "saved" && current.status !== "clean") {
+        if (current.status === "offline") {
+          toast.error("오프라인이라 완료할 수 없음");
+        }
+        return;
+      }
 
       dispatch({ type: "COMPLETE_START" });
       requestIdRef.current ??= crypto.randomUUID();
@@ -114,6 +120,7 @@ export function PatrolForm({ adapter, quickTags }: PatrolFormProps) {
           dispatch({
             type: "COMPLETE_CONFLICT",
             serverRevision: result.serverRevision,
+            serverDraft: result.serverDraft,
           });
         } else {
           requestIdRef.current = null;
@@ -125,6 +132,7 @@ export function PatrolForm({ adapter, quickTags }: PatrolFormProps) {
           });
           // 복사·다음 순찰 버튼이 없으므로 완료 즉시 다음 순찰 입력 상태로 돌아간다.
           dispatch({ type: "NEXT_PATROL" });
+          toast.success("순찰 완료 기록됨");
         }
       } catch {
         dispatch({ type: "COMPLETE_FAILED" });
