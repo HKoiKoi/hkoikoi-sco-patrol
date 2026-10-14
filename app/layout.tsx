@@ -58,7 +58,7 @@ export default function RootLayout({
           {/* 페이지가 자체 main을 가지므로 div로 감싸 푸터를 하단에 고정 */}
           <div className="flex-1">{children}</div>
           <AppFooter />
-          <Toaster position="top-center" />
+          <Toaster position="bottom-center" offset={96} mobileOffset={96} />
         </ThemeProvider>
       </body>
     </html>

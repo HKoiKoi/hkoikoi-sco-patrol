@@ -25,7 +25,7 @@ export function PatrolLogItem({ log, viewer, serial }: PatrolLogItemProps) {
 
   return (
     <Card className="min-w-0 py-4">
-      <CardContent className="min-w-0 space-y-3 px-4">
+      <CardContent className="min-w-0 space-y-3 px-4 pb-0">
         {/* 일지 번호 배지 */}
         <span
           role="img"
