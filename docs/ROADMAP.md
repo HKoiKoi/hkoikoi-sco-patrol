@@ -44,7 +44,7 @@ SCO 순찰 일지는 SCO 관리형 독서실에서 순찰하는 매니저와 이
    - 각 단계 완료 후 중단하고 추가 지시를 기다림
 
 4. **로드맵 업데이트**
-   - 로드맵에서 완료된 작업을 ✅로 표시
+   - 로드맵에서 완료된 작업은 Task 제목 끝에 ✅를 붙이고(`- **Task NNN: 제목** ✅`), 하위 항목은 `- ✅ 항목`으로 표시(미완료는 `- [ ]`)
 
 ### 공통 규약 (모든 Task에 적용)
 
@@ -112,7 +112,7 @@ Phase 0 (완료)
 
 ### Phase 0: 기반 환경 구축 ✅
 
-- **Task 000: 스타터 기반 환경 및 Google 로그인 구축** ✅ - 완료
+- **Task 000: 스타터 기반 환경 및 Google 로그인 구축** ✅
   - 관련 기능: F01(일부)
   - ✅ Next.js 16 + Supabase 스타터 생성, `proxy.ts` 기반 세션 갱신, `cacheComponents: true`
   - ✅ `profiles` 테이블 마이그레이션(`20261012060813_create_profiles_table.sql`, `20261012060832_restrict_profiles_grants.sql`) — 스타터 구조(`username`, `website`, 전체 공개 조회 정책)이며 Task 012에서 재정비
@@ -122,9 +122,9 @@ Phase 0 (완료)
   - ✅ `next` 16.4.0, `@supabase/ssr` 0.12.7, `@supabase/supabase-js` 2.117.3 정확한 버전 고정(작업 트리 반영, 커밋 필요)
   - 테스트 결과: Google 로그인 후 `/protected` 진입 확인(기존 PR #2). 이후 리디렉션 대상은 Task 017에서 `/logs`로 변경
 
-### Phase 1: 애플리케이션 골격 구축
+### Phase 1: 애플리케이션 골격 구축 ✅
 
-- **Task 001: 스타터 잔재 정리 및 라우트 골격 생성** ✅ - 완료
+- **Task 001: 스타터 잔재 정리 및 라우트 골격 생성** ✅
   - 관련 기능: F01, F08 (구조)
   - 설명: 스타터 데모 화면을 걷어내고 PRD의 4개 페이지 라우트를 빈 껍데기로 만든다. `.claude/agents/dev/starter-cleaner.md` 지침을 참고한다.
   - 관련 파일: `app/page.tsx`, `app/protected/page.tsx`, `app/protected/layout.tsx`, `app/layout.tsx`, `app/logs/page.tsx`(신규), `app/protected/patrol/page.tsx`(신규), `app/protected/admin/tags/page.tsx`(신규), `components/tutorial/*`, `components/hero.tsx`, `components/deploy-button.tsx`, `components/next-logo.tsx`, `components/supabase-logo.tsx`
@@ -142,7 +142,7 @@ Phase 0 (완료)
     - 엣지: `browser_console_messages → 각 페이지 로드 → 에러·hydration 경고 없음`
   - 테스트 결과: 구현 완료(커밋 `2a0fe02`). Phase 1 통합 검증(2026-10-12): `npm run check` 통과(기존 `components/google-login-button.tsx`의 Prettier 줄바꿈 1건만 수정), `npm run build` 통과, `grep -r "tutorial\|DeployButton\|Hero" app components` 결과 없음. Playwright: `/` → `/logs` 이동, 비로그인 `/protected/patrol` → `/auth/login` 이동, `/logs` 렌더링 확인, 세 페이지 콘솔 에러·경고 0. 로그인 계정으로 `/protected` → `/logs` 이동은 사용자가 직접 확인(통과)
 
-- **Task 002: 도메인 타입 및 인터페이스 정의** ✅ - 완료
+- **Task 002: 도메인 타입 및 인터페이스 정의** ✅
   - 관련 기능: F01~F11 (타입 계약)
   - 설명: DB 스키마와 RPC 응답을 TypeScript 타입으로 먼저 정의해 UI 작업(Phase 3)과 DB 작업(Phase 4)이 같은 계약을 쓰도록 한다. Phase 3의 더미 데이터와 가짜 어댑터는 이 타입으로만 작성하고, Task 015에서 생성한 DB 타입과 교차 확인한다.
   - 관련 파일: `lib/types/patrol.ts`(신규), `lib/types/auth.ts`(신규)
@@ -159,11 +159,11 @@ Phase 0 (완료)
     - 엣지: 유니온 분기에서 `switch (result.status)`의 `never` 검사로 누락 분기 컴파일 에러 확인
   - 테스트 결과: `npm run typecheck` 에러 0, `npm run lint` 통과. 임시 파일에서 `switch (result.status)` + `never` 검사로 `SaveDraftResult`의 `conflict` 분기를 빼면 TS2322 컴파일 에러가 나는 것을 확인하고 파일 삭제. 비로그인 `Viewer`는 `null`로 표현, `client_request_id`는 `PatrolLog`에서 제외(요청 입력 타입은 RPC 호출 Task에서 추가). Phase 1 통합 검증(2026-10-12): `npm run check`·`npm run build` 통과, 코드 리뷰에서 PRD 데이터 모델·RPC 응답과 일치, `lib/types`에 런타임 코드 없음 확인
 
-### Phase 2: 공통 모듈 구현 (DB 독립)
+### Phase 2: 공통 모듈 구현 (DB 독립) ✅
 
 > 순수 함수 검증은 테스트 러너 대신 스크래치 디렉터리의 임시 스크립트(Node 24 타입 스트리핑, `node check.ts`)로 PRD 표의 케이스를 assert 한 뒤 삭제한다. 스크립트는 커밋하지 않는다. 이 Phase의 Task는 DB 스키마에 의존하지 않는다.
 
-- ✅ **Task 003: 영업일·시각 유틸리티 구현 (`lib/business-date.ts`)**
+- **Task 003: 영업일·시각 유틸리티 구현 (`lib/business-date.ts`)** ✅
   - 관련 기능: F05, F08
   - 설명: 화면 표시와 날짜 이동 기본값용 영업일 계산. 서버 기본 시간대에 의존하지 않고 `Asia/Seoul`을 명시한다(최종 기준은 DB).
   - 관련 파일: `lib/business-date.ts`
@@ -181,7 +181,7 @@ Phase 0 (완료)
     - 엣지: `formatKstTime("2026-10-11T15:05:00Z") → "00:05"`(`24:05` 아님)
   - 테스트 결과: 임시 스크립트(Node 24 `node check.ts`, 커밋 안 함) 21케이스 통과 — 경계표 7건, 파싱 6건(정상 2·오류 4), 이동 3건, formatKstTime 2건, 라벨 2건 + `TZ=UTC`·`TZ=America/New_York` 2종 모두 동일 결과. `npm run check`(typecheck·lint·format:check) 통과.
 
-- ✅ **Task 004: 복사 문구·좌석·태그 문구·권한 판정 순수 함수 구현**
+- **Task 004: 복사 문구·좌석·태그 문구·권한 판정 순수 함수 구현** ✅
   - 관련 기능: F02, F04, F06, F09, F10, F11
   - 설명: 복사 문구 생성(`lib/patrol-format.ts`)과 클라이언트·서버가 공유하는 입력 정규화 함수, 화면의 버튼 노출에 쓰는 권한 판정 함수를 만든다.
   - 관련 파일: `lib/patrol-format.ts`, `lib/seat-numbers.ts`, `lib/quick-tag-label.ts`, `lib/permissions.ts`
@@ -203,7 +203,7 @@ Phase 0 (완료)
     - 오류: `canEdit(타인 기록, manager) → false`, `canEdit(본인 기록, pending) → false`, `canEdit(기록, null) → false`
   - 테스트 결과: 임시 스크립트(Node 24 `node check.ts`, 커밋 안 함) 44케이스 통과 — PRD 복사 문구 표 6건, 메모 공백·탭·전각 공백·줄바꿈 엣지, 좌석 파싱·추가·이동, 태그 문구, 권한 판정 + `TZ=UTC`·`TZ=America/New_York` 동일 결과. `npm run check`(typecheck·lint·format:check) 통과.
 
-- ✅ **Task 005: 내부 경로 검증·안내 문구·`/logs` 공개 경로 설정**
+- **Task 005: 내부 경로 검증·안내 문구·`/logs` 공개 경로 설정** ✅
   - 관련 기능: F01
   - 설명: 공통 `next` 검증 함수와 권한 안내(`notice`) 문구 매핑을 만들고, `proxy`의 공개 경로에 `/logs*`를 추가한다. 역할 조회가 필요한 DAL(`getViewer`/`requireStaff`/`requireAdmin`)은 DB 이후 Task 016에서 만든다.
   - 관련 파일: `lib/auth/safe-next.ts`(신규), `lib/auth/notice.ts`(신규), `lib/supabase/proxy.ts`, `app/auth/callback/route.ts`
@@ -221,11 +221,11 @@ Phase 0 (완료)
   - 테스트 결과: 임시 스크립트(Node 24 `node check.ts`, 커밋 안 함)로 `getSafeNextPath`(`/\evil.com`, `https://evil.com`, `javascript:alert(1)`, `//evil.com`, 개행 포함, 비문자열 → `/logs` / `/protected/patrol?x=1` 통과)와 `getNoticeMessage("unknown")`·`undefined` → `null` 확인. Playwright MCP: 비로그인 `/logs` 200(리디렉션 없음), `/protected/patrol` → `/auth/login?next=%2Fprotected%2Fpatrol`, `/auth/callback?code=x&next=//evil.com` → 외부 이동 없이 `/auth/error`, 콘솔 에러·경고 0건. curl: `/logsfoo` → `/auth/login?next=%2Flogsfoo`. `npm run check` 통과.
   - 후속 과제: `app/auth/confirm/route.ts`는 `getSafeNextPath`로 교체 완료(open redirect 차단). `components/login-form.tsx`(`/protected` 고정 이동), `components/google-login-button.tsx`(`next=/protected` 고정)는 아직 `getSafeNextPath`를 쓰지 않는다(CLAUDE.md 서술과 불일치, 인증 UI Task에서 처리).
 
-### Phase 3: UI/UX 완성 (더미 데이터 활용)
+### Phase 3: UI/UX 완성 (더미 데이터 활용) ✅
 
 > 이 Phase의 화면은 `lib/dummy/*.ts`의 하드코딩 데이터를 사용하며 DB에 접근하지 않는다. 더미 데이터와 가짜 어댑터는 Task 002 타입(`Viewer`, `PatrolLog`, `QuickTag`, `PatrolDraft`, `SaveDraftResult`, `CompletePatrolResult`)으로만 작성하고(`as` 단언 금지) 다음 엣지 데이터를 포함한다: 빈 배열(기록 없는 날짜, 좌석 4종이 모두 빈 기록, 퀵 태그 0개), 여러 줄 메모, 2,000자 메모, 03:59·04:00(KST) 완료 기록(각각 전일·당일 영업일), 강등된 작성자(현재 `pending`이지만 이름이 표시되는 기록). 더미 viewer는 `lib/dummy/viewers.ts`의 4종 상수(admin/manager/pending/비로그인)를 바꿔 가며 확인한다. 컴포넌트는 Task 002 타입과 `viewer` prop을 받고 버튼 노출은 Task 004의 `lib/permissions.ts`로만 판정한다. 더미는 Phase 5의 Task 018(조회)과 Task 020(자동 저장)에서 삭제한다. 모바일 우선, 터치 타깃 48px 이상, 다크 모드 확인.
 
-- **Task 006: 공통 레이아웃·내비게이션·안내 배너 구현** ✅ - 완료
+- **Task 006: 공통 레이아웃·내비게이션·안내 배너 구현** ✅
   - 관련 기능: F01
   - 설명: 모든 페이지가 공유하는 상단 내비게이션과 역할별 메뉴, 승인 대기 배너, `notice` 안내 표시를 만든다. 필요한 shadcn 컴포넌트를 추가한다.
   - 관련 파일: `app/layout.tsx`, `components/layout/app-header.tsx`, `components/layout/app-footer.tsx`, `components/layout/nav-menu.tsx`, `components/layout/notice-banner.tsx`, `components/layout/pending-banner.tsx`, `components/auth-button.tsx`, `components/logout-button.tsx`, `components/ui/*`, `lib/dummy/viewers.ts`(신규)
@@ -245,7 +245,7 @@ Phase 0 (완료)
     - 엣지: `browser_navigate → /logs?notice=unknown → 배너 없음`
   - 테스트 결과: `npm run check`·`npm run build` 통과. Playwright(dev 서버, 더미 viewer 교체): admin은 일지 조회·순찰 기록·퀵 태그 관리 노출, manager·pending·비로그인은 퀵 태그 관리 없음. 승인 대기 배너는 pending에서만 표시, 비로그인은 로그인·가입 링크 표시. 375x812에서 햄버거 드롭다운(admin: 3개 항목)으로 접힘, 768px에서 가로 링크 표시. `/logs?notice=pending` 문구 배너 표시, `?notice=unknown` 배너 없음. 콘솔 에러·경고 0(hydration 경고 없음). `ACTIVE_DUMMY_VIEWER`는 검증 후 기본값 admin으로 원복. 순찰 기록 클릭 시 권한 안내 처리는 Task 007·018 범위
 
-- ✅ **Task 007: 일지 조회 페이지 UI 구현 (더미 데이터)**
+- **Task 007: 일지 조회 페이지 UI 구현 (더미 데이터)** ✅
   - 관련 기능: F06, F08, F09, F10, F01
   - 설명: `/logs` 타임라인, 날짜 이동, 항목별 복사·수정·삭제·자리비움 액션, [순찰 기록 작성] 버튼의 UI를 완성한다.
   - 관련 파일: `app/logs/page.tsx`, `app/logs/_components/date-nav.tsx`, `app/logs/_components/patrol-log-list.tsx`, `app/logs/_components/patrol-log-item.tsx`, `app/logs/_components/edit-log-dialog.tsx`, `app/logs/_components/away-seat-actions.tsx`, `app/logs/_components/write-patrol-button.tsx`, `components/patrol/copy-button.tsx`, `components/patrol/seat-chips.tsx`, `lib/dummy/patrol-logs.ts`
@@ -269,7 +269,7 @@ Phase 0 (완료)
     - 엣지: `browser_resize → 375px → 좌석 칩이 줄바꿈되고 버튼 높이 48px 이상`
   - 테스트 결과(2026-10-13): `npm run check` 통과. Playwright 375px·1280px(더미 viewer): manager는 본인 기록 3건에만 수정 버튼·자리비움 칩, admin은 전체, pending·비로그인은 미표시. 날짜 선택 시 즉시 이동, `?date=2026-02-30`은 현재 영업일 표시. 자리비움 칩 메뉴(카페존/스탠딩 이동·취소)와 수정·삭제 다이얼로그 동작, 이동 토스트 표시. [순찰 기록 작성] admin은 `/protected/patrol` 링크(375px 높이 48px), pending은 승인 대기 토스트만 표시(URL 변화 없음), 비로그인은 안내 후 `/auth/login?next=%2Fprotected%2Fpatrol` 이동. 복사: `writeText`를 가로채 22:57 기록이 `22:57 순찰 → 완료 (퇴실자 탭 디스플레이 종료)`로 일치함을 확인, reject 시 전체 선택된 읽기 전용 입력란 다이얼로그 표시. 03:59·04:00 경계는 10/13 03:59→10/12, 10/14 03:59→10/13, 10/14 04:00→10/14에 표시, 10/15는 빈 상태 문구, 강등된 작성자(대기 사용자) 표시, 2,000자 메모는 `pre-wrap`으로 가로 스크롤 없이 표시. 다크 모드 확인, 콘솔 에러·경고 0. `ACTIVE_DUMMY_VIEWER`는 검증 후 admin으로 원복. 카드 구성 변경: 일지 번호 배지, 카테고리 2열(모바일 1열), 메모 별도 섹션, 카페존 13개 더미 기록. 미확인: 실제 클립보드 읽기(`readText`), 라이트 모드 전체 확인, manager·admin의 `/protected/patrol` 도착(세션 없이 href만 확인, Task 018 이후 확인)
 
-- **Task 008: 순찰 기록 페이지 UI 구현 (더미 데이터, 가짜 저장 어댑터)** ✅ - 완료
+- **Task 008: 순찰 기록 페이지 UI 구현 (더미 데이터, 가짜 저장 어댑터)** ✅
   - 관련 기능: F02, F03, F04, F05, F06, F07(표시)
   - 설명: 모바일 우선(좌석 4종 1열)·태블릿 2x2·하단 고정 [순찰 완료] 바 구조로 입력 화면을 완성한다. 상태는 처음부터 Phase 5와 같은 형태(`revision` + 저장 상태 6종)의 `useReducer`로 관리하고, 저장·완료는 Task 002 RPC 응답 타입을 그대로 돌려주는 가짜 어댑터로 흉내 낸다. Task 020에서 어댑터만 RPC 호출로 교체한다.
   - 관련 파일: `app/protected/patrol/page.tsx`, `app/protected/patrol/_components/patrol-form.tsx`, `_components/seat-category-input.tsx`, `_components/number-keypad.tsx`, `_components/quick-tag-bar.tsx`, `_components/memo-input.tsx`, `_components/save-status.tsx`, `_components/patrol-action-bar.tsx`, `_components/conflict-dialog.tsx`, `lib/patrol-form-reducer.ts`, `lib/types/patrol.ts`, `lib/dummy/quick-tags.ts`, `lib/dummy/patrol-draft-adapter.ts`(신규)
@@ -295,7 +295,7 @@ Phase 0 (완료)
     - 엣지: `browser_resize → 1024x768 → 좌석 2x2 배치, 액션바 하단 고정`
   - 테스트 결과(2026-10-13): `npm run check` 통과. Playwright 375px·1024x768(dev 서버, Supabase env를 비워 로그인 우회): 졸음/딴짓 2·3·[추가] → 칩 `23`, 입력 직후 "저장 대기 중" → 1초 뒤 "저장 중" → "저장됨 19:57". 23 재입력은 "이미 입력된 번호입니다"로 거부되고 칩 1개 유지, `0`만 입력하면 [추가] 비활성. 퀵 태그 "화장실 정리" 2회 → 메모 두 줄. 스탠딩 5·자리비움 5 동시 허용. [순찰 완료] → 입력·메모 초기화, [복사]·[다음 순찰] 활성, [순찰 완료] 비활성, 클립보드 `19:58 순찰 → 완료 (화장실 정리, 화장실 정리, 23번 졸아서 깨움)`(PRD 형식, 스탠딩·자리비움 제외). `setMode('offline')` → "오프라인 (기기에 임시 저장)", `setMode('ok')` 후 입력 → "저장됨". `setMode('conflict')` → 충돌 다이얼로그("다른 기기에서 수정됨, 어느 쪽을 쓸까요?") 표시, [서버 내용]·[이 기기 내용] 선택 모두 다이얼로그가 닫히고 "저장됨"으로 전이. 입력란·액션바 버튼 높이 48px, 1024px에서 좌석 입력 | 태그·메모 2열, 액션바 `fixed` 하단 고정(스크롤 후에도 bottom 0). 임시 `tsx` 스크립트: 같은 요청 ID 완료 2회 → 어댑터 `ok`/`duplicate`(같은 logId), reducer는 `COMPLETE_OK` 2회에도 1회만 반영, 퀵 태그 0개 → "표시할 퀵 태그가 없습니다". 새로 로드 후 콘솔 에러·경고 0(hydration 경고 없음). 구현 중 수정: 함수가 든 어댑터를 서버 컴포넌트 `page.tsx`에서 클라이언트로 넘기면 오류라서 클라이언트 경계 `_components/patrol-form-host.tsx`에서 주입(어댑터 import 지점은 이 파일 한 곳), reducer에 `COMPLETE_FAILED` 액션 추가. 미확인: 실제 로그인 세션에서의 접근(Task 016·018), 라이트·다크 전체 시각 확인 **후속 변경(2026-10-13)**: 사용자 요청으로 화면을 바꿨다 — 좌석 4종은 모바일 1열·768px 이상 2x2, 칩은 입력란 아래, 메모 영역은 라벨 → 퀵 태그 → 입력창 순서, 하단 바는 [순찰 완료]만 두고 완료 즉시 다음 순찰 입력 상태로 초기화(복사·다음 순찰 버튼 제거, 복사는 `/logs`). 위 복사·2열 결과는 변경 전 기준이며 변경 후에는 375px에서 레이아웃·메모 순서·퀵 태그 입력·완료 후 초기화만 확인(1024px 재확인과 복사 흐름 재검증은 하지 않음)
 
-- **Task 009: 퀵 태그 관리 페이지 UI 구현 (더미 데이터)** ✅ - 완료
+- **Task 009: 퀵 태그 관리 페이지 UI 구현 (더미 데이터)** ✅
   - 관련 기능: F11
   - 설명: 관리자용 전체 태그 목록(숨김 포함)과 추가/수정/순서/노출/삭제 UI를 만든다.
   - 관련 파일: `app/protected/admin/tags/page.tsx`, `app/protected/admin/tags/_components/tag-list.tsx`, `_components/tag-row.tsx`, `_components/add-tag-form.tsx`, `lib/dummy/quick-tags.ts`
@@ -331,16 +331,16 @@ Phase 0 (완료)
     - forgot-password·update-password·error(`?error=` 유무)·sign-up-success: 영어 문구 0건(브랜드명 제외), 콘솔 에러·hydration 경고 0건
     - 다크 모드 스크린샷 확인, 카카오톡 인앱 UA 컨텍스트에서 안내 문구에 경고색(amber) 강조 클래스 적용 확인
 
-- **Task 011: UI 검토·보완 및 PRD·데이터 모델 확정** ✅ - 완료
+- **Task 011: UI 검토·보완 및 PRD·데이터 모델 확정** ✅
   - 관련 기능: F01~F11
   - 설명: Phase 3 화면을 4개 역할과 모바일/태블릿에서 실제로 사용해 보며 보완점을 모으고 반영한다. 요구사항이 바뀌면 PRD를 먼저 고치고 Phase 4 DB Task(012~016) 명세를 그에 맞춰 갱신한다. 스키마가 확정된 뒤에만 Phase 4로 진입한다.
   - 관련 파일: `docs/PRD.md`, `docs/ROADMAP.md`, `lib/types/*`, `lib/dummy/*`, `lib/patrol-form-reducer.ts`, `components/*`, `app/**/_components/*`
   - 구현 사항:
-    - [x] 더미 viewer 4종(admin/manager/pending/비로그인) × 375x812(폰)·768x1024(태블릿 세로)·1024x768(태블릿 가로)에서 `/logs`, `/protected/patrol`, `/protected/admin/tags`, `/auth/*`를 훑고 보완점을 이 Task 아래 "검토 결과" 목록에 기록(분류: UI 수정 / 요구사항 변경 / MVP 이후 보류)
-    - [x] UI 수정 항목을 반영하고 해당 Phase 3 Task의 수락 기준이 여전히 충족되는지 재확인
-    - [x] 요구사항 변경 항목: PRD를 먼저 수정 → Task 002 타입·더미 데이터·가짜 어댑터 반영 → Task 012~016 명세(컬럼, 제약, RLS, RPC 시그니처·응답, 테스트 체크리스트)와 기능 ID 매핑 표 갱신
-    - [x] 데이터 모델 대조: PRD 데이터 모델, Task 002 타입, 가짜 어댑터 응답, Task 012~014 명세의 필드명·nullable·기본값·제약·RPC 응답 키가 일치하는지 대조표로 확인하고 불일치를 해소
-    - [x] 보류 항목은 이 문서의 "MVP 이후" 절에 기록, 확정 결과를 사용자에게 보고하고 Phase 4 진입 확인을 받음(진입 확인은 보고 후 사용자 응답 대기)
+    - ✅ 더미 viewer 4종(admin/manager/pending/비로그인) × 375x812(폰)·768x1024(태블릿 세로)·1024x768(태블릿 가로)에서 `/logs`, `/protected/patrol`, `/protected/admin/tags`, `/auth/*`를 훑고 보완점을 이 Task 아래 "검토 결과" 목록에 기록(분류: UI 수정 / 요구사항 변경 / MVP 이후 보류)
+    - ✅ UI 수정 항목을 반영하고 해당 Phase 3 Task의 수락 기준이 여전히 충족되는지 재확인
+    - ✅ 요구사항 변경 항목: PRD를 먼저 수정 → Task 002 타입·더미 데이터·가짜 어댑터 반영 → Task 012~016 명세(컬럼, 제약, RLS, RPC 시그니처·응답, 테스트 체크리스트)와 기능 ID 매핑 표 갱신
+    - ✅ 데이터 모델 대조: PRD 데이터 모델, Task 002 타입, 가짜 어댑터 응답, Task 012~014 명세의 필드명·nullable·기본값·제약·RPC 응답 키가 일치하는지 대조표로 확인하고 불일치를 해소
+    - ✅ 보류 항목은 이 문서의 "MVP 이후" 절에 기록, 확정 결과를 사용자에게 보고하고 Phase 4 진입 확인을 받음(진입 확인은 보고 후 사용자 응답 대기)
   - 검토 결과 (2026-10-14, Supabase env를 비운 dev 서버, 더미 viewer 전환):
     - 점검 범위: viewer 4종 × 3개 뷰포트 × `/logs`·`/protected/patrol`·`/protected/admin/tags`·`/auth/login`(admin·비로그인은 `/auth/sign-up`까지, admin은 `/auth/forgot-password`도). 가로 넘침·메뉴/버튼 노출·배너는 DOM 수집으로, 레이아웃은 admin 스크린샷(375·768, 다크/라이트 일부)으로 확인
     - 통과: 전 조합 가로 넘침 없음, 콘솔 에러·경고(hydration 포함) 0건. 메뉴·버튼 노출이 PRD 권한 규칙과 일치(admin: 메뉴 3종·수정/삭제 전체 / manager: 퀵 태그 관리 메뉴 없음, 수정·삭제는 본인 기록만 / pending: 승인 대기 배너, 복사만, 작성 버튼 탭 시 안내 / 비로그인: 로그인·가입 버튼). 엣지 더미(03:59·04:00, 2,000자 메모, 여러 줄 메모, 빈 메모·빈 좌석, 빈 날짜, 강등된 작성자, 잘못된 `?date`)는 깨지지 않음. 768px 이상 레이아웃(메뉴 노출, 2열 좌석 카드)과 라이트 모드 정상
