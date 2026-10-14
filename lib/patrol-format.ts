@@ -47,5 +47,5 @@ export function formatPatrolLine({
   }
 
   const base = `${time} 순찰 → 완료`;
-  return parts.length > 0 ? `${base} (${parts.join(" ")})` : base;
+  return parts.length > 0 ? `${base} (${parts.join(", ")})` : base;
 }

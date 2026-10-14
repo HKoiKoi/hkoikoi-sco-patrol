@@ -2,6 +2,10 @@
 
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
+import {
+  AuthErrorMessage,
+  getAuthErrorMessage,
+} from "@/components/auth-error-message";
 import { useState } from "react";
 
 export function GoogleLoginButton({ label }: { label: string }) {
@@ -22,7 +26,7 @@ export function GoogleLoginButton({ label }: { label: string }) {
 
     // 성공 시 브라우저가 구글로 이동하므로 에러일 때만 상태를 되돌린다
     if (error) {
-      setError(error.message);
+      setError(getAuthErrorMessage(error));
       setIsLoading(false);
     }
   };
@@ -54,9 +58,9 @@ export function GoogleLoginButton({ label }: { label: string }) {
             d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1A11 11 0 0 0 2.18 7.06l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38z"
           />
         </svg>
-        {isLoading ? "Redirecting..." : label}
+        {isLoading ? "리디렉션 중..." : label}
       </Button>
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      <AuthErrorMessage message={error} />
     </div>
   );
 }
