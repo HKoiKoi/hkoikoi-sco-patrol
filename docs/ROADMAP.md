@@ -456,23 +456,23 @@ Phase 0 (완료)
     - 엣지: 좌석 입력 `{3,3,-1,0,2}` → 저장값 `{2,3}`
   - 테스트 결과(2026-10-15): 마이그레이션 2개 적용(`20261015152500_create_patrol_rpcs`, `20261015152502_create_swap_quick_tag_order`, 로컬 파일명과 원격 version 일치). QA 계정은 Task 015 이후라 트랜잭션 안의 임시 사용자(admin 1·manager 2·pending 1)로 대체했고 `execute_sql` + `set local role`/`request.jwt.claims` + 예외로 롤백해 검증했다. 정상: `save(0)` → ok revision 1, `save(1, {3,3,-1,0,2}...)` → revision 2·저장값 `{2,3}`, `complete(A,2)` → ok·기록 1건(영업일 2026-10-15)·초안 빈 값 revision 3, 재호출 → duplicate·같은 `log_id`·기록 1건·revision 3 유지, 빈 초안 `complete(C,0)` → ok, 메모 2,000자 ok. 오류: `save(1)`(서버 3) → conflict `server_revision` 3·`server_draft` 포함, 초안 행 없음 + `save(5)` → conflict `server_revision` 0, `complete(B,1)` → conflict·`server_draft` 포함·기록 미생성, 메모 2,001자 → 22023, pending의 `save`/`complete` → 42501, anon의 RPC 3종 → `permission denied for function`, manager의 `swap_quick_tag_order` → 42501, 없는 태그 → P0002, 같은 태그 → 22023. admin `swap` → `sort_order` 1,2 → 2,1. `private.business_date_of` 경계표 7건 모두 일치. 롤백 후 `patrol_logs`·`patrol_drafts`·테스트 사용자 0건, `quick_tags` 순서 1~5 유지. `get_advisors`: security 신규 WARN 3건(`authenticated_security_definer_function_executable`: 3개 RPC, 설계상 의도이며 함수 본문의 역할 검사가 방어선이고 anon 노출은 없음), 기존 `auth_leaked_password_protection` 1건 유지. performance는 `patrol_logs_business_date_patrolled_at_idx` `unused_index`(INFO, 기존). `npm run check` 통과. 구현 메모: 초안 행이 없고 `base_revision`이 0이 아니면 빈 초안(revision 0)을 만든 뒤 conflict로 응답한다(`server_draft`를 항상 돌려주기 위함). 파라미터명이 컬럼명과 같아 본문은 `v_*` 변수만 쓴다. `private.draft_json`은 `timestamptz`의 jsonb 변환이 타임존에 의존해 `stable`이다. 미확인: 인증된 실제 세션의 REST `supabase.rpc` 호출(Task 015 이후), 동시 호출 경합(`for update` 잠금)
 
-- **Task 015: 방치 초안 정리 스케줄, DB 타입 생성, 테스트 계정 준비**
+- **Task 015: 방치 초안 정리 스케줄, DB 타입 생성, 테스트 계정 준비** ✅
   - 관련 기능: F07, F01
   - 설명: `pg_cron`으로 방치 초안을 비우고, 생성된 DB 타입을 Supabase 클라이언트에 연결한다. QA용 계정을 만든다.
   - 관련 파일: `supabase/migrations/<ts>_schedule_stale_draft_reset.sql`, `lib/supabase/database.types.ts`(생성), `lib/supabase/client.ts`, `lib/supabase/server.ts`
   - 구현 사항:
-    - [ ] `pg_cron` 확장 활성화 여부 확인(구현 전 확인 항목). 비활성 시 대시보드에서 활성화하거나 마이그레이션에 `create extension if not exists pg_cron`
-    - [ ] 정리 함수 `private.reset_stale_drafts()`: `updated_at < now() - interval '2 hours'`이고 내용이 비어 있지 않은 초안만 빈 값 + `revision + 1` + `updated_at = now()`(행 삭제 없음, 이미 빈 초안은 제외해 불필요한 revision 증가 방지)
-    - [ ] `cron.schedule('reset-stale-patrol-drafts', '*/30 * * * *', 'select private.reset_stale_drafts()')`
-    - [ ] Supabase MCP `generate_typescript_types`로 `lib/supabase/database.types.ts` 생성, `createBrowserClient<Database>`/`createServerClient<Database>` 제네릭 적용, Task 002 타입과 매핑 함수(`toPatrolLog` 등) 작성
-    - [ ] 테스트 계정 4종 생성 후 대시보드(Table Editor)에서 역할 지정, 첫 관리자 지정 절차를 README 운영 메모에 기록
+    - ✅ `pg_cron` 확장 활성화 여부 확인(구현 전 확인 항목). 비활성 시 대시보드에서 활성화하거나 마이그레이션에 `create extension if not exists pg_cron`
+    - ✅ 정리 함수 `private.reset_stale_drafts()`: `updated_at < now() - interval '2 hours'`이고 내용이 비어 있지 않은 초안만 빈 값 + `revision + 1` + `updated_at = now()`(행 삭제 없음, 이미 빈 초안은 제외해 불필요한 revision 증가 방지)
+    - ✅ `cron.schedule('reset-stale-patrol-drafts', '*/30 * * * *', 'select private.reset_stale_drafts()')`
+    - ✅ Supabase MCP `generate_typescript_types`로 `lib/supabase/database.types.ts` 생성, `createBrowserClient<Database>`/`createServerClient<Database>` 제네릭 적용, Task 002 타입과 매핑 함수(`toPatrolLog` 등) 작성
+    - ✅ 테스트 계정 4종 생성 후 대시보드(Table Editor)에서 역할 지정, 첫 관리자 지정 절차를 README 운영 메모에 기록
   - 완료 기준: `cron.job`에 작업이 등록되고 정리 함수를 수동 실행해 규칙대로 동작한다. 타입 생성 후 `npm run typecheck` 통과.
   - 테스트 체크리스트:
     - 정상: `execute_sql → 초안 updated_at을 3시간 전으로 바꾸고 reset_stale_drafts() → 내용 비고 revision +1`
     - 엣지: `updated_at` 1시간 전(영업일 04:00 경계를 넘긴 작성 중 초안) → 유지
     - 엣지: 이미 빈 초안 → revision 변화 없음
     - 정상: `execute_sql → select * from cron.job_run_details order by start_time desc limit 1 → 30분 뒤 succeeded`
-  - 테스트 결과: (미수행)
+  - 테스트 결과(2026-10-15): 마이그레이션 `20261015153727_schedule_stale_draft_reset` 적용(로컬 파일명과 원격 version 일치). `pg_cron` 1.6.4 활성, `cron.job`에 `reset-stale-patrol-drafts`(`*/30 * * * *`, active) 등록, `private.reset_stale_drafts()`는 anon·authenticated 모두 execute 불가. `execute_sql` 트랜잭션 + 예외 롤백으로 초안 3건을 만들어 실행: 3시간 전 비어 있지 않은 초안 → 빈 값·`revision` 5→6·`updated_at` 갱신, 1시간 전 초안 → 내용·`revision` 유지, 3시간 전이지만 이미 빈 초안 → `revision` 5 유지. 롤백 후 `patrol_drafts` 0행. 타입 생성: `lib/supabase/database.types.ts` 저장, `client.ts`/`server.ts`에 `Database` 제네릭 적용, `lib/supabase/mappers.ts`에 `toPatrolLog`·`toPatrolDraft`·`toQuickTag`·`toSaveDraftResult`·`toCompletePatrolResult` 작성. QA 계정 4종은 대시보드(Add user, Auto Confirm User)로 만들고 `profiles.role`을 `qa-admin`=`admin`, `qa-manager`·`qa-manager2`=`manager`, `qa-pending`=`pending`으로 지정(Gmail `+` 별칭 이메일, 조회로 확인). README 운영 메모에 첫 관리자 지정 절차, QA 계정 표, `cron.job`·`cron.job_run_details` 확인 쿼리를 추가했다. `get_advisors`: security는 `authenticated_security_definer_function_executable` WARN 3건(Task 014의 3개 RPC, 설계상 의도)과 기존 `auth_leaked_password_protection` 1건이고 신규 없음, performance는 `patrol_logs_business_date_patrolled_at_idx` `unused_index`(INFO, 기존). `npm run check`: `typecheck`·`lint`는 통과했고 `format:check`는 저장소 밖 로컬 파일 `.claude/settings.local.json`(전역 gitignore 대상)의 Prettier 경고 1건만 남았으며 이번 변경과 무관하다. 미확인: 30분 주기 첫 실행 결과(`cron.job_run_details`, 등록 직후 확인 시 실행 이력 0건이라 16:00 이후 재확인 필요), QA 계정으로 실제 로그인한 세션의 REST `supabase.rpc` 호출(Task 012~014에서 미확인으로 남긴 항목), 콘솔 에러·hydration 경고(화면 변경이 없어 Playwright 시나리오는 수행하지 않음)
 
 - **Task 016: 서버 권한 검증(DAL) 구현**
   - 관련 기능: F01
