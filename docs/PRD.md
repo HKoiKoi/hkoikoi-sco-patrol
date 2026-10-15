@@ -282,7 +282,7 @@ HH:mm 순찰 → 완료[ (상세)]
 | revision                                    | 저장 순서 판별용 번호 (저장·완료·정리 시 증가, 행을 삭제하지 않아 재사용 없음) |               |
 | updated_at                                  | 마지막 저장 시각 (서버 시각)                                                   |               |
 
-- **TS 타입 노출 범위**: 화면이 쓰지 않는 DB 전용 컬럼(`profiles.updated_at`, `patrol_logs.client_request_id`, `quick_tags.created_at`, `patrol_logs.created_at`)은 TS 타입(`Viewer`, `PatrolLog`, `QuickTag`)에 일부러 담지 않는다. 필요해지면 PRD와 타입을 함께 바꾼다.
+- **TS 타입 노출 범위**: 화면이 쓰지 않는 DB 전용 컬럼(`profiles.updated_at`, `patrol_logs.client_request_id`, `quick_tags.created_at`)은 TS 타입(`Viewer`, `PatrolLog`, `QuickTag`)에 일부러 담지 않는다. 필요해지면 PRD와 타입을 함께 바꾼다.
 
 ### 데이터 접근 규칙 (RLS)
 
