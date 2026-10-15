@@ -1,6 +1,7 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
+import { getSafeNextPath } from "@/lib/auth/safe-next";
 import { Button } from "@/components/ui/button";
 import {
   AuthErrorMessage,
@@ -8,7 +9,13 @@ import {
 } from "@/components/auth-error-message";
 import { useState } from "react";
 
-export function GoogleLoginButton({ label }: { label: string }) {
+export function GoogleLoginButton({
+  label,
+  next = "/logs",
+}: {
+  label: string;
+  next?: string;
+}) {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -20,7 +27,7 @@ export function GoogleLoginButton({ label }: { label: string }) {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback?next=/protected`,
+        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(getSafeNextPath(next))}`,
       },
     });
 

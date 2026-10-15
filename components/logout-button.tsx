@@ -12,7 +12,10 @@ export function LogoutButton() {
   const router = useRouter();
 
   const logout = async () => {
-    // localStorage 접근이 불가능해도 로그아웃은 진행한다.
+    const supabase = createClient();
+    await supabase.auth.signOut();
+
+    // localStorage 접근이 불가능해도 /logs 이동은 진행한다.
     try {
       const keys: string[] = [];
       for (let i = 0; i < localStorage.length; i += 1) {
@@ -24,8 +27,6 @@ export function LogoutButton() {
       // 무시
     }
 
-    const supabase = createClient();
-    await supabase.auth.signOut();
     router.push("/logs");
     router.refresh();
   };

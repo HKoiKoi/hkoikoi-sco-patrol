@@ -74,7 +74,9 @@ export function SignUpForm({
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/protected`,
+          // handle_new_user 트리거가 full_name만 읽고 role은 항상 pending으로 만든다
+          data: { full_name: name.trim() },
+          emailRedirectTo: `${window.location.origin}/auth/confirm?next=/logs`,
         },
       });
       if (error) throw error;
