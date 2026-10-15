@@ -81,6 +81,7 @@
 - 좌석 배치도 UI
 - 실시간 공동 편집
 - 관리자 역할 지정 화면 (승격은 Supabase 대시보드 수동)
+- 프로필 사진(아바타) 업로드와 Storage
 
 ## 📋 복사 문구 형식 (F06)
 
@@ -232,11 +233,10 @@ HH:mm 순찰 → 완료[ (상세)]
 | ---------- | ----------------------------------------------------- | --------------- |
 | id         | 사용자 식별자 (인증 계정과 동일)                      | → auth.users.id |
 | full_name  | 실제 이름 (Google 계정 이름 또는 이메일 가입 폼 입력) |                 |
-| avatar_url | 프로필 이미지 (기존 컬럼 유지)                        |                 |
 | role       | `pending` / `manager` / `admin` (기본 `pending`)      |                 |
 | updated_at | 수정 시각                                             |                 |
 
-- 기존 스타터의 `username`(unique)·`website` 컬럼과 관련 제약은 쓰지 않으므로 정리한다.
+- 기존 스타터의 `username`(unique)·`website`·`avatar_url` 컬럼과 관련 제약은 쓰지 않으므로 정리한다(프로필 사진 기능은 MVP 범위 밖).
 - 가입 시 트리거(`handle_new_user`)가 가입 정보의 `full_name`을 복사해 프로필을 만든다(비어 있으면 가입 정보의 `name`, 그것도 없으면 이메일 앞부분). 이메일 가입은 가입 폼의 이름을 같은 키(`options.data.full_name`)로 전달한다. 트리거는 가입 정보에서 `role`을 읽지 않으며 항상 `pending`으로 만든다.
 
 ### staff_names (작성자 이름 공개용, F08)
@@ -282,7 +282,7 @@ HH:mm 순찰 → 완료[ (상세)]
 | revision                                    | 저장 순서 판별용 번호 (저장·완료·정리 시 증가, 행을 삭제하지 않아 재사용 없음) |               |
 | updated_at                                  | 마지막 저장 시각 (서버 시각)                                                   |               |
 
-- **TS 타입 노출 범위**: 화면이 쓰지 않는 DB 전용 컬럼(`profiles.avatar_url`·`updated_at`, `patrol_logs.client_request_id`, `quick_tags.created_at`, `patrol_logs.created_at`)은 TS 타입(`Viewer`, `PatrolLog`, `QuickTag`)에 일부러 담지 않는다. 필요해지면 PRD와 타입을 함께 바꾼다.
+- **TS 타입 노출 범위**: 화면이 쓰지 않는 DB 전용 컬럼(`profiles.updated_at`, `patrol_logs.client_request_id`, `quick_tags.created_at`, `patrol_logs.created_at`)은 TS 타입(`Viewer`, `PatrolLog`, `QuickTag`)에 일부러 담지 않는다. 필요해지면 PRD와 타입을 함께 바꾼다.
 
 ### 데이터 접근 규칙 (RLS)
 
