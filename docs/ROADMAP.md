@@ -345,13 +345,13 @@ Phase 0 (완료)
     - 점검 범위: viewer 4종 × 3개 뷰포트 × `/logs`·`/protected/patrol`·`/protected/admin/tags`·`/auth/login`(admin·비로그인은 `/auth/sign-up`까지, admin은 `/auth/forgot-password`도). 가로 넘침·메뉴/버튼 노출·배너는 DOM 수집으로, 레이아웃은 admin 스크린샷(375·768, 다크/라이트 일부)으로 확인
     - 통과: 전 조합 가로 넘침 없음, 콘솔 에러·경고(hydration 포함) 0건. 메뉴·버튼 노출이 PRD 권한 규칙과 일치(admin: 메뉴 3종·수정/삭제 전체 / manager: 퀵 태그 관리 메뉴 없음, 수정·삭제는 본인 기록만 / pending: 승인 대기 배너, 복사만, 작성 버튼 탭 시 안내 / 비로그인: 로그인·가입 버튼). 엣지 더미(03:59·04:00, 2,000자 메모, 여러 줄 메모, 빈 메모·빈 좌석, 빈 날짜, 강등된 작성자, 잘못된 `?date`)는 깨지지 않음. 768px 이상 레이아웃(메뉴 노출, 2열 좌석 카드)과 라이트 모드 정상
     - 발견 사항:
-      1. [UI 수정] 상단 중앙 토스트(`position="top-center"`)가 768px 이상에서 헤더 메뉴와 승인 대기 배너를 가린다(pending이 [새 순찰 일지 작성] 탭 시 확인). 대상: `app/layout.tsx`, `components/ui/sonner.tsx` ([x] 반영: `position="bottom-center"`, offset 96으로 하단 액션바 위에 표시)
-      2. [UI 수정] 일지 카드의 복사/수정/삭제 버튼 아래 여백이 위쪽보다 커 보인다(약 30px, 원인 미확정). 대상: `app/logs/_components/patrol-log-item.tsx` ([x] 반영: 원인은 `CardContent` 기본 `pb-6`, `pb-0` 지정으로 위 18px·아래 17px)
+      1. [UI 수정] 상단 중앙 토스트(`position="top-center"`)가 768px 이상에서 헤더 메뉴와 승인 대기 배너를 가린다(pending이 [새 순찰 일지 작성] 탭 시 확인). 대상: `app/layout.tsx`, `components/ui/sonner.tsx` (✅ 반영: `position="bottom-center"`, offset 96으로 하단 액션바 위에 표시)
+      2. [UI 수정] 일지 카드의 복사/수정/삭제 버튼 아래 여백이 위쪽보다 커 보인다(약 30px, 원인 미확정). 대상: `app/logs/_components/patrol-log-item.tsx` (✅ 반영: 원인은 `CardContent` 기본 `pb-6`, `pb-0` 지정으로 위 18px·아래 17px)
       3. [MVP 이후 보류] 2,000자 메모 기록은 375px에서 카드 높이가 약 3,000px로 길어진다. 메모 접기/더 보기는 MVP 이후 검토. 대상: `app/logs/_components/patrol-log-item.tsx`
       4. [조치 없음] 순찰 기록 화면의 제목 아래 빈 영역과 좌석 카드 하단 빈 공간은 저장 상태 줄(`SaveStatus`, `min-h-6`)과 좌석 칩 영역 예약으로 확인됨(1024x768에서 저장 상태 줄과 칩 표시 확인). 대상: `app/protected/patrol/_components/*`
       5. [조치 없음] 더미 단계에서 권한 미달 접근은 리디렉션 대신 인라인 안내를 표시하고, `/auth/*`에서도 더미 viewer 헤더가 보인다. Task 018에서 `requireStaff()`/`requireAdmin()`과 `getViewer()`로 교체되므로 수정하지 않는다
-      6. [요구사항 변경] 완료 요청이 `conflict`일 때 응답에 서버 초안이 없어(`CompletePatrolResult`는 `serverRevision`만) 다이얼로그의 "서버 내용"을 골라도 화면은 로컬 내용 그대로 "저장됨"이 된다(재현: 저장 후 `conflict` 모드에서 [순찰 완료] → [서버 내용] → 스탠딩 `[3]` 유지, 서버 초안은 다른 내용). `complete_patrol`은 서버에 저장된 초안으로 기록을 만들므로 화면과 다른 내용이 기록될 수 있다. 사용자 결정 필요: (A, 권장) `complete_patrol`의 `conflict` 응답에도 `server_draft`를 포함해 저장 RPC와 맞춤 / (B) 충돌 후 서버 초안을 다시 조회. 대상: PRD "자동 저장 규칙", Task 014, `lib/types/patrol.ts`, `lib/dummy/patrol-draft-adapter.ts`, `patrol-form.tsx` ([x] 결정: A안(사용자 확정, 2026-10-14). PRD 자동 저장 규칙, `CompletePatrolResult`, 가짜 어댑터, `COMPLETE_CONFLICT` 액션(`serverDraft` 필수), `patrol-form.tsx`, Task 014 명세 반영)
-      7. [UI 수정] 순찰 완료 성공 시 결과 화면 없이 곧바로 빈 폼으로 돌아가며 완료 안내가 없다. offline 상태에서 [순찰 완료]를 눌러도 아무 안내 없이 입력만 유지된다. 권장: Sonner 토스트로 "순찰 완료 기록됨"과 "오프라인이라 완료할 수 없음"을 안내. 대상: `app/protected/patrol/_components/patrol-form.tsx` ([x] 반영: 완료 시 "순찰 완료 기록됨", offline 완료 시도 시 "오프라인이라 완료할 수 없음" 토스트)
+      6. [요구사항 변경] 완료 요청이 `conflict`일 때 응답에 서버 초안이 없어(`CompletePatrolResult`는 `serverRevision`만) 다이얼로그의 "서버 내용"을 골라도 화면은 로컬 내용 그대로 "저장됨"이 된다(재현: 저장 후 `conflict` 모드에서 [순찰 완료] → [서버 내용] → 스탠딩 `[3]` 유지, 서버 초안은 다른 내용). `complete_patrol`은 서버에 저장된 초안으로 기록을 만들므로 화면과 다른 내용이 기록될 수 있다. 사용자 결정 필요: (A, 권장) `complete_patrol`의 `conflict` 응답에도 `server_draft`를 포함해 저장 RPC와 맞춤 / (B) 충돌 후 서버 초안을 다시 조회. 대상: PRD "자동 저장 규칙", Task 014, `lib/types/patrol.ts`, `lib/dummy/patrol-draft-adapter.ts`, `patrol-form.tsx` (✅ 결정: A안(사용자 확정, 2026-10-14). PRD 자동 저장 규칙, `CompletePatrolResult`, 가짜 어댑터, `COMPLETE_CONFLICT` 액션(`serverDraft` 필수), `patrol-form.tsx`, Task 014 명세 반영)
+      7. [UI 수정] 순찰 완료 성공 시 결과 화면 없이 곧바로 빈 폼으로 돌아가며 완료 안내가 없다. offline 상태에서 [순찰 완료]를 눌러도 아무 안내 없이 입력만 유지된다. 권장: Sonner 토스트로 "순찰 완료 기록됨"과 "오프라인이라 완료할 수 없음"을 안내. 대상: `app/protected/patrol/_components/patrol-form.tsx` (✅ 반영: 완료 시 "순찰 완료 기록됨", offline 완료 시도 시 "오프라인이라 완료할 수 없음" 토스트)
       8. [조치 없음] offline 상태 문구가 "기기에 임시 저장"이지만 `localStorage` `draft:{user_id}` 백업은 아직 없다. Task 020(ROADMAP `localStorage` 백업 항목)에서 구현하므로 더미 단계에서는 수정하지 않는다
     - 순찰 흐름·가짜 어댑터 검증 (Task 011-2, 375x812·1024x768, admin viewer): ok(입력 → "저장 대기 중" → "저장됨 HH:mm" → 완료 → 빈 폼)와 offline 후 복귀(오프라인 표시, 입력 유지, 복귀 후 [순찰 완료] 한 번으로 저장·완료)는 PRD와 일치. `conflict` 모드는 저장·완료 모두 "충돌" 표시와 "다른 기기에서 수정됨, 어느 쪽을 쓸까요?" 다이얼로그(둘 중 하나를 골라야 닫힘)가 뜨고, 저장 충돌의 "서버 내용"·"이 기기 내용"은 PRD대로 동작(6번 제외). 같은 요청 ID 재완료(`crypto.randomUUID` 고정으로 재현)는 `duplicate`가 성공으로 처리되어 한 번만 반영되고 폼이 초기화됨. 이어지는 `conflict`는 같은 ID를 일부러 재사용한 테스트의 부산물(실제 재시도에서는 서버 초안이 이미 초기화됨). 콘솔 에러·경고 0건, 가로 넘침 없음
     - 요구사항 변경 반영 검증 (Task 011-4): `npm run check` 통과. 375x812에서 저장 후 `conflict` 모드로 [순찰 완료] → 충돌 다이얼로그 → [서버 내용] 선택 시 스탠딩 `7`·메모 "다른 기기에서 저장한 내용"으로 화면이 교체됨(6번 해소). 콘솔 경고·에러 0건
@@ -380,21 +380,21 @@ Phase 0 (완료)
     - 엣지: `browser_console_messages → 전 화면 에러·hydration 경고 없음`
   - 테스트 결과(2026-10-14): `npm run check` 통과. Playwright(Supabase env를 비운 dev 서버): `/logs`, `/protected/patrol`, `/protected/admin/tags`, `/auth/login`, `/auth/sign-up` 콘솔 에러·경고(hydration 포함) 0건. 검토 결과 8건 중 UI 수정 3건(1·2·7) 반영, 요구사항 변경 1건(6) A안 반영, 보류 1건(3)은 "MVP 이후"에 기록, 조치 없음 3건(4·5·8). 데이터 모델 대조 불일치 잔여 0건. `git diff`에 임시 viewer 전환·env 변경 없음(`ACTIVE_DUMMY_VIEWER`는 admin 그대로). 미확인(manager·pending·비로그인 스크린샷 육안, 다크 모드 `/auth/*`)은 DOM 수치와 권한 규칙 점검으로 갈음
 
-### Phase 4: 데이터베이스 스키마·RLS·RPC·DAL
+### Phase 4: 데이터베이스 스키마·RLS·RPC·DAL ✅
 
 > Task 011에서 PRD·데이터 모델이 확정된 뒤 시작한다. DB 검증은 Supabase MCP `execute_sql`에서 트랜잭션 안에 `set local role authenticated; set local request.jwt.claims = '{"sub":"<uuid>","role":"authenticated"}';`로 사용자를 흉내 내고 `rollback`하는 방식으로 한다. 비로그인은 `set local role anon`. Task 015 이전 시나리오의 `qa-*`는 트랜잭션 안에서 만든 같은 역할의 임시 사용자다. 각 Task 후 `get_advisors`(security)를 확인한다.
 
-- **Task 012: profiles 재정비, 역할 판별 함수, staff_names 동기화 구축**
+- **Task 012: profiles 재정비, 역할 판별 함수, staff_names 동기화 구축** ✅
   - 관련 기능: F01, F08
   - 설명: 스타터 `profiles`를 PRD 모델로 바꾸고 역할 판별 함수와 작성자 이름 공개용 `staff_names`를 만든다.
   - 관련 파일: `supabase/migrations/<ts>_reshape_profiles_roles.sql`, `supabase/migrations/<ts>_create_staff_names.sql`
   - 구현 사항:
-    - [ ] `profiles`: `username`(unique)·`website`·`avatar_url` 컬럼과 `username_length` 제약 제거, `role text not null default 'pending' check (role in ('pending','manager','admin'))` 추가, `updated_at` 기본값/갱신 트리거
-    - [ ] `handle_new_user` 재작성: `full_name` ← `raw_user_meta_data->>'full_name'` → 없으면 `->>'name'` → 없으면 이메일 앞부분. `role`은 메타데이터에서 읽지 않고 항상 `pending`. 기존 행 `full_name` 공백 backfill
-    - [ ] `profiles` 정책/권한 재설정: "누구나 조회" 정책과 insert 정책 삭제, 본인 행만 select(`authenticated`), `revoke all ... from anon, authenticated` 후 `grant select` + `grant update (full_name)`만 `authenticated`에 부여(컬럼 GRANT로 `role` 변경 차단)
-    - [ ] `create schema private` + `private.is_staff()`, `private.is_admin()`(`security definer`, `set search_path = ''`, `stable`, `auth.uid()` 기준). `revoke execute ... from public, anon`, `grant usage on schema private` 및 `grant execute`는 `authenticated`에만. `private` 스키마는 Data API 노출 스키마에 넣지 않는다
-    - [ ] `staff_names(id uuid pk references profiles(id), full_name text)`: RLS 켜고 `anon`, `authenticated`에 select만 부여(정책 `using (true)`), 쓰기 권한 없음
-    - [ ] 동기화 트리거 `sync_staff_name`(`security definer`): `profiles` insert/update(`role`, `full_name`) 시 역할이 `manager`/`admin`이면 upsert, 강등 시 행 유지(이름 변경은 기존 행이 있으면 반영)
+    - ✅ `profiles`: `username`(unique)·`website`·`avatar_url` 컬럼과 `username_length` 제약 제거, `role text not null default 'pending' check (role in ('pending','manager','admin'))` 추가, `updated_at` 기본값/갱신 트리거
+    - ✅ `handle_new_user` 재작성: `full_name` ← `raw_user_meta_data->>'full_name'` → 없으면 `->>'name'` → 없으면 이메일 앞부분. `role`은 메타데이터에서 읽지 않고 항상 `pending`. 기존 행 `full_name` 공백 backfill
+    - ✅ `profiles` 정책/권한 재설정: "누구나 조회" 정책과 insert 정책 삭제, 본인 행만 select(`authenticated`), `revoke all ... from anon, authenticated` 후 `grant select` + `grant update (full_name)`만 `authenticated`에 부여(컬럼 GRANT로 `role` 변경 차단)
+    - ✅ `create schema private` + `private.is_staff()`, `private.is_admin()`(`security definer`, `set search_path = ''`, `stable`, `auth.uid()` 기준). `revoke execute ... from public, anon`, `grant usage on schema private` 및 `grant execute`는 `authenticated`에만. `private` 스키마는 Data API 노출 스키마에 넣지 않는다
+    - ✅ `staff_names(id uuid pk references profiles(id), full_name text)`: RLS 켜고 `anon`, `authenticated`에 select만 부여(정책 `using (true)`), 쓰기 권한 없음
+    - ✅ 동기화 트리거 `sync_staff_name`(`security definer`): `profiles` insert/update(`role`, `full_name`) 시 역할이 `manager`/`admin`이면 upsert, 강등 시 행 유지(이름 변경은 기존 행이 있으면 반영)
   - 완료 기준: 마이그레이션이 원격 DB에 적용되고 아래 SQL 시나리오가 모두 기대대로 동작한다. `get_advisors(security)`에 신규 경고 없음.
   - 테스트 체크리스트:
     - 정상: `execute_sql → auth.users에 메타데이터 {full_name:"홍길동"}인 사용자 insert(트랜잭션) → profiles.role='pending', full_name='홍길동'`
@@ -404,19 +404,19 @@ Phase 0 (완료)
     - 오류: `execute_sql(authenticated) → select private.is_admin() via REST(/rest/v1/rpc/is_admin) → 404/노출되지 않음`
     - 엣지: 메타데이터에 `role:"admin"`을 넣어 가입 → `pending`으로 생성
     - 엣지: `full_name`·`name` 모두 없음 → 이메일 앞부분으로 생성
-  - 테스트 결과: (미수행)
+  - 테스트 결과(2026-10-15): 마이그레이션 3개 적용(`20261015055853_reshape_profiles_roles`, `20261015060059_create_private_role_functions`, `20261015060140_create_staff_names`, 로컬 파일명과 원격 version 일치). `execute_sql` 트랜잭션 + `rollback`(임시 사용자 4명, 롤백 후 `staff_names` 0행·기존 2명 `pending` 유지): 메타데이터 `full_name:"홍길동"` 가입 → `pending/홍길동`. manager 승격 → `staff_names` 1행, pending 강등 후에도 1행 유지(이름 변경은 반영). authenticated 흉내로 본인 `role='admin'` update → `permission denied for table profiles`(`full_name` update는 성공, 본인 행만 1건 조회). anon `select profiles` → `permission denied for table profiles`(REST도 401). 메타데이터 `role:"admin"` 가입 → `pending`. `full_name`·`name` 없음 → `noname`(이메일 앞부분), `name`만 있음 → `이름만`. `staff_names`는 anon select 가능, anon·authenticated insert/update/delete → `permission denied`. `private.is_staff()/is_admin()`은 anon이 호출하면 `permission denied for schema private`, authenticated(pending)는 둘 다 `false`. REST(publishable key): `/rest/v1/rpc/is_admin`·`is_staff` → 404, `Content-Profile: private` → 406, `/rest/v1/staff_names` → 200. `get_advisors(security)`: 신규 경고 없음(기존 `auth_leaked_password_protection` 1건만 있으며 이번 변경과 무관한 Auth 설정). `npm run check` 통과. 추가 검증(같은 날, 트랜잭션 + `rollback`): `is_staff()/is_admin()`은 manager `true/false`, admin `true/true`, pending `false/false`. admin 승격 시 `staff_names` 행 생성, `profiles`를 `role='manager'`로 직접 insert해도 `staff_names` 행 생성, `updated_at`은 update 시 현재 시각으로 갱신. 사용자 C 흉내로 `profiles` 조회 시 본인 1행만 보이고 다른 사용자(A) 행은 0건, A 행 update는 0행이며 이름 유지. 롤백 후 `staff_names` 0행, 기존 2명 `pending`, `auth.users` 2명. 미확인: 인증된 실제 세션의 REST rpc 호출(anon 키로만 확인, QA 계정이 생기는 Task 015 이후)
 
-- **Task 013: 핵심 테이블·제약·RLS·초기 데이터 구축**
+- **Task 013: 핵심 테이블·제약·RLS·초기 데이터 구축** ✅
   - 관련 기능: F02, F03, F04, F07, F08, F09, F10, F11
   - 설명: `quick_tags`, `patrol_logs`, `patrol_drafts`를 PRD의 제약·권한 규칙 그대로 만든다. DB 기본 시간대를 한국으로 설정한다.
   - 관련 파일: `supabase/migrations/<ts>_set_timezone_seoul.sql`, `<ts>_create_quick_tags.sql`, `<ts>_create_patrol_logs.sql`, `<ts>_create_patrol_drafts.sql`
   - 구현 사항:
-    - [ ] `alter database postgres set timezone to 'Asia/Seoul'` (SQL 함수에서는 그래도 `at time zone 'Asia/Seoul'`을 명시)
-    - [ ] 좌석 배열 검증 함수 `private.is_valid_seats(int[])`(`immutable`): 모든 원소 > 0, 중복 없음, null 원소 없음. 4개 배열 컬럼 `not null default '{}'` + `check`
-    - [ ] `quick_tags(id uuid default gen_random_uuid(), label, sort_order int, is_active bool default true, created_at timestamptz default now())`: `label` check(트림 후 비어 있지 않음, `\r`/`\n` 불포함), 유일 인덱스 `lower(regexp_replace(btrim(label), '\s+', ' ', 'g'))`. 정책: `anon` select `is_active`, `authenticated` select `is_active or private.is_admin()`, insert/update/delete는 `private.is_admin()`. 초기 데이터 5종(퇴실자 탭 디스플레이 종료 / 화장실 정리 / 제빙기 물 보충 / 정수기 및 커피머신 청소 / 전 열람실 에어컨 종료) seed
-    - [ ] `patrol_logs(id uuid default gen_random_uuid(), client_request_id uuid not null unique, business_date date, patrolled_at timestamptz, author_id uuid, standing, cafe_zone, drowsy, away int[], memo text check (char_length(memo) <= 2000))`: `author_id`가 `profiles(id)`와 `staff_names(id)`를 모두 참조(작성자 이름 embed용), 인덱스 `(business_date, patrolled_at)`, `(author_id)`
-    - [ ] `patrol_logs` 권한: `anon`/`authenticated` select(정책 `using (true)`), insert 권한 없음, `grant update (standing, cafe_zone, drowsy, away, memo)`과 `grant delete`를 `authenticated`에 부여, update/delete 정책 `(author_id = auth.uid() and private.is_staff()) or private.is_admin()`
-    - [ ] `patrol_drafts(user_id pk references profiles(id), 좌석 4종, memo, revision bigint not null default 0, updated_at timestamptz default now())`: 본인 행 select만, 쓰기 권한 없음(RPC 전용)
+    - ✅ `alter database postgres set timezone to 'Asia/Seoul'` (SQL 함수에서는 그래도 `at time zone 'Asia/Seoul'`을 명시)
+    - ✅ 좌석 배열 검증 함수 `private.is_valid_seats(int[])`(`immutable`): 모든 원소 > 0, 중복 없음, null 원소 없음. 4개 배열 컬럼 `not null default '{}'` + `check`
+    - ✅ `quick_tags(id uuid default gen_random_uuid(), label, sort_order int, is_active bool default true, created_at timestamptz default now())`: `label` check(트림 후 비어 있지 않음, `\r`/`\n` 불포함), 유일 인덱스 `lower(regexp_replace(btrim(label), '\s+', ' ', 'g'))`. 정책: `anon` select `is_active`, `authenticated` select `is_active or private.is_admin()`, insert/update/delete는 `private.is_admin()`. 초기 데이터 5종(퇴실자 탭 디스플레이 종료 / 화장실 정리 / 제빙기 물 보충 / 정수기 및 커피머신 청소 / 전 열람실 에어컨 종료) seed
+    - ✅ `patrol_logs(id uuid default gen_random_uuid(), client_request_id uuid not null unique, business_date date, patrolled_at timestamptz, author_id uuid, standing, cafe_zone, drowsy, away int[], memo text check (char_length(memo) <= 2000))`: `author_id`가 `profiles(id)`와 `staff_names(id)`를 모두 참조(작성자 이름 embed용), 인덱스 `(business_date, patrolled_at)`, `(author_id)`
+    - ✅ `patrol_logs` 권한: `anon`/`authenticated` select(정책 `using (true)`), insert 권한 없음, `grant update (standing, cafe_zone, drowsy, away, memo)`과 `grant delete`를 `authenticated`에 부여, update/delete 정책 `(author_id = auth.uid() and private.is_staff()) or private.is_admin()`
+    - ✅ `patrol_drafts(user_id pk references profiles(id), 좌석 4종, memo, revision bigint not null default 0, updated_at timestamptz default now())`: 본인 행 select만, 쓰기 권한 없음(RPC 전용)
   - 완료 기준: 테이블·제약·정책이 적용되고, PostgREST에서 `patrol_logs?select=*,staff_names(full_name)`이 비로그인 키로 동작한다(구현 전 확인 항목). `get_advisors(security, performance)` 신규 경고 없음.
   - 테스트 체크리스트:
     - 정상: `execute_sql(anon) → select from quick_tags → 활성 태그 5개`
@@ -429,19 +429,19 @@ Phase 0 (완료)
     - 오류: `execute_sql(qa-admin) → insert quick_tags label=' 화장실   정리 ' → unique 위반` / `label=E'a\nb' → check 위반`
     - 엣지: 같은 번호를 서로 다른 카테고리(`standing={5}`, `away={5}`)에 넣기 → 허용
     - 엣지: `qa-manager`를 pending으로 강등 후 본인 기록 update → 0행, 일지 조회 시 작성자 이름 유지
-  - 테스트 결과: (미수행)
+  - 테스트 결과(2026-10-15): 마이그레이션 4개 적용(`20261015061451_set_timezone_seoul`, `20261015151459_create_quick_tags`, `20261015151645_create_patrol_logs`, `20261015151739_create_patrol_drafts`, 로컬 파일명과 원격 version 일치). QA 계정은 Task 015 이후라 트랜잭션 안의 임시 사용자(admin 1·manager 2·pending 1)로 대체했고 `execute_sql` + `set local role`/`request.jwt.claims` + `rollback`으로 검증했다. anon: `quick_tags` 활성 5개, `patrol_logs` join `staff_names`로 작성자 이름 반환, REST(publishable key) `/rest/v1/patrol_logs?select=id,staff_names(full_name)` 200(FK 2개여도 embed 모호성 없음), `patrol_drafts` 조회·`patrol_logs` insert는 permission denied. manager: 본인 기록 memo update 1행, 타인 기록 update/delete 0행, `patrolled_at`·`author_id` update와 `patrol_logs`/`patrol_drafts` 직접 insert는 permission denied, `patrol_drafts`는 본인 1행만 조회. pending: 기록 update 0행, `quick_tags`는 활성 5개. admin: 타인 기록 update 1행, `quick_tags` label `' 화장실   정리 '` unique 위반·`E'a\nb'`·공백만 있는 label check 위반. 제약: `standing={0}`·`{3,3}`·memo 2001자·초안 `drowsy={2,2}` check 위반, `standing={5}`와 `away={5}` 동시 허용. `private.is_valid_seats`는 `{}`·`{1,2}` true, `{1,1}`·`{0}`·`{1,null}` false. 강등(manager→pending) 후 본인 기록 update/delete 0행, 일지 조회 시 작성자 이름 유지(`staff_names` 행 유지). 롤백 후 `patrol_logs`·`patrol_drafts`·`staff_names` 0행, `quick_tags` 5행, `auth.users` 2명(모두 pending) 유지. 새 연결에서 `show timezone` = `Asia/Seoul`. `get_advisors`: security는 기존 `auth_leaked_password_protection` 1건뿐이고 신규 없음, performance는 신규 테이블 `patrol_logs` 인덱스 2개 `unused_index`(INFO, 아직 쿼리가 없어서 발생하며 유지). 구현 메모: 한글 정책명은 63바이트 제한으로 잘려 update/delete 정책명이 충돌하므로 짧게 지었다. `patrol_drafts.memo`는 초기화 값이 빈 값이라 `not null default ''`로 했다(`patrol_logs.memo`는 nullable). PRD "TS 타입 노출 범위"에서 존재하지 않는 `patrol_logs.created_at` 언급을 제거했다. 미확인: 인증된 실제 세션의 REST 호출(QA 계정이 생기는 Task 015 이후)
 
-- **Task 014: 저장·완료·태그 순서 RPC 구현**
+- **Task 014: 저장·완료·태그 순서 RPC 구현** ✅
   - 관련 기능: F05, F07, F11
   - 설명: `save_patrol_draft`, `complete_patrol`, `swap_quick_tag_order`를 `security definer` 함수로 만들고 함수 본문에서 호출자 역할을 다시 검사한다. 응답 형태는 Task 002 `SaveDraftResult`·`CompletePatrolResult`(Task 008 가짜 어댑터와 동일)와 일치시킨다.
   - 관련 파일: `supabase/migrations/<ts>_create_patrol_rpcs.sql`, `<ts>_create_swap_quick_tag_order.sql`
   - 구현 사항:
-    - [ ] 공통: `set search_path = ''`, 본문 첫 줄에서 `private.is_staff()`(태그는 `private.is_admin()`) 검사 후 위반 시 예외, `revoke execute ... from public, anon` + `grant execute ... to authenticated`
-    - [ ] `save_patrol_draft(base_revision bigint, standing int[], cafe_zone int[], drowsy int[], away int[], memo text)` → `jsonb`: 행이 없으면 `base_revision = 0`일 때만 생성(그 외 충돌), 있으면 `for update` 잠금 후 `revision = base_revision`일 때만 저장하고 `revision + 1`, `updated_at = now()`. 좌석은 양의 정수만 남기고 카테고리 내 중복 제거·정렬, 메모 2,000자 초과는 오류. 충돌 시 `{status:"conflict", server_revision, server_draft}`, 성공 시 `{status:"ok", revision}`. 응답 키는 snake_case이고 `server_draft`는 `{revision, updated_at, standing, cafe_zone, drowsy, away, memo}` 평평한 형태(camelCase·`content` 중첩 변환은 Task 020 어댑터가 담당, PRD "RPC 응답 키 규칙")
-    - [ ] `complete_patrol(client_request_id uuid, expected_revision bigint)` → `jsonb`, PRD 순서 그대로: ① 초안 행 보장 후 `for update` ② 같은 `client_request_id`의 기록(작성자 본인)이 있으면 초안을 건드리지 않고 `{status:"duplicate", log_id, patrolled_at, revision}` ③ `expected_revision` 불일치 시 `{status:"conflict", server_revision, server_draft}`(저장 RPC와 같은 형태) ④ 서버 초안 내용으로 `patrol_logs` insert(`patrolled_at = now()`, `business_date = ((now() at time zone 'Asia/Seoul') - interval '4 hours')::date`, `author_id = auth.uid()`) ⑤ 초안을 빈 값 + `revision + 1`로 초기화. 응답 `{status:"ok", log_id, patrolled_at, revision}`
-    - [ ] 빈 초안이라도 `revision`이 일치하면 완료 허용
-    - [ ] `swap_quick_tag_order(tag_a uuid, tag_b uuid)`: 두 행 잠금 후 `sort_order` 맞바꿈(한 트랜잭션), 존재하지 않으면 예외
-    - [ ] SQL 영업일 경계값 검증용으로 계산식을 `private.business_date_of(timestamptz)` 함수로 분리해 재사용
+    - ✅ 공통: `set search_path = ''`, 본문 첫 줄에서 `private.is_staff()`(태그는 `private.is_admin()`) 검사 후 위반 시 예외, `revoke execute ... from public, anon` + `grant execute ... to authenticated`
+    - ✅ `save_patrol_draft(base_revision bigint, standing int[], cafe_zone int[], drowsy int[], away int[], memo text)` → `jsonb`: 행이 없으면 `base_revision = 0`일 때만 생성(그 외 충돌), 있으면 `for update` 잠금 후 `revision = base_revision`일 때만 저장하고 `revision + 1`, `updated_at = now()`. 좌석은 양의 정수만 남기고 카테고리 내 중복 제거·정렬, 메모 2,000자 초과는 오류. 충돌 시 `{status:"conflict", server_revision, server_draft}`, 성공 시 `{status:"ok", revision}`. 응답 키는 snake_case이고 `server_draft`는 `{revision, updated_at, standing, cafe_zone, drowsy, away, memo}` 평평한 형태(camelCase·`content` 중첩 변환은 Task 020 어댑터가 담당, PRD "RPC 응답 키 규칙")
+    - ✅ `complete_patrol(client_request_id uuid, expected_revision bigint)` → `jsonb`, PRD 순서 그대로: ① 초안 행 보장 후 `for update` ② 같은 `client_request_id`의 기록(작성자 본인)이 있으면 초안을 건드리지 않고 `{status:"duplicate", log_id, patrolled_at, revision}` ③ `expected_revision` 불일치 시 `{status:"conflict", server_revision, server_draft}`(저장 RPC와 같은 형태) ④ 서버 초안 내용으로 `patrol_logs` insert(`patrolled_at = now()`, `business_date = ((now() at time zone 'Asia/Seoul') - interval '4 hours')::date`, `author_id = auth.uid()`) ⑤ 초안을 빈 값 + `revision + 1`로 초기화. 응답 `{status:"ok", log_id, patrolled_at, revision}`
+    - ✅ 빈 초안이라도 `revision`이 일치하면 완료 허용
+    - ✅ `swap_quick_tag_order(tag_a uuid, tag_b uuid)`: 두 행 잠금 후 `sort_order` 맞바꿈(한 트랜잭션), 존재하지 않으면 예외
+    - ✅ SQL 영업일 경계값 검증용으로 계산식을 `private.business_date_of(timestamptz)` 함수로 분리해 재사용
   - 완료 기준: 아래 시나리오 전부 통과. `anon`으로 RPC 호출 시 권한 오류. `pending`이 호출하면 함수 내부 검사에서 거부.
   - 테스트 체크리스트:
     - 정상: `execute_sql(qa-manager) → save_patrol_draft(0, '{1}', ...) → status ok, revision 1` → `save_patrol_draft(1, ...) → revision 2`
@@ -454,34 +454,34 @@ Phase 0 (완료)
     - 오류: `execute_sql(qa-manager) → swap_quick_tag_order → 예외`
     - 엣지: `private.business_date_of` 경계표 7건(03:59:59 → 전일, 04:00:00 → 당일, 00:00:00 → 전일, 월말 03:59:59 → 말일, 월초 04:00:00 → 1일, 12/31 23:59:59 → 12/31, 1/1 03:59:59 → 12/31) 일치
     - 엣지: 좌석 입력 `{3,3,-1,0,2}` → 저장값 `{2,3}`
-  - 테스트 결과: (미수행)
+  - 테스트 결과(2026-10-15): 마이그레이션 2개 적용(`20261015152500_create_patrol_rpcs`, `20261015152502_create_swap_quick_tag_order`, 로컬 파일명과 원격 version 일치). QA 계정은 Task 015 이후라 트랜잭션 안의 임시 사용자(admin 1·manager 2·pending 1)로 대체했고 `execute_sql` + `set local role`/`request.jwt.claims` + 예외로 롤백해 검증했다. 정상: `save(0)` → ok revision 1, `save(1, {3,3,-1,0,2}...)` → revision 2·저장값 `{2,3}`, `complete(A,2)` → ok·기록 1건(영업일 2026-10-15)·초안 빈 값 revision 3, 재호출 → duplicate·같은 `log_id`·기록 1건·revision 3 유지, 빈 초안 `complete(C,0)` → ok, 메모 2,000자 ok. 오류: `save(1)`(서버 3) → conflict `server_revision` 3·`server_draft` 포함, 초안 행 없음 + `save(5)` → conflict `server_revision` 0, `complete(B,1)` → conflict·`server_draft` 포함·기록 미생성, 메모 2,001자 → 22023, pending의 `save`/`complete` → 42501, anon의 RPC 3종 → `permission denied for function`, manager의 `swap_quick_tag_order` → 42501, 없는 태그 → P0002, 같은 태그 → 22023. admin `swap` → `sort_order` 1,2 → 2,1. `private.business_date_of` 경계표 7건 모두 일치. 롤백 후 `patrol_logs`·`patrol_drafts`·테스트 사용자 0건, `quick_tags` 순서 1~5 유지. `get_advisors`: security 신규 WARN 3건(`authenticated_security_definer_function_executable`: 3개 RPC, 설계상 의도이며 함수 본문의 역할 검사가 방어선이고 anon 노출은 없음), 기존 `auth_leaked_password_protection` 1건 유지. performance는 `patrol_logs_business_date_patrolled_at_idx` `unused_index`(INFO, 기존). `npm run check` 통과. 구현 메모: 초안 행이 없고 `base_revision`이 0이 아니면 빈 초안(revision 0)을 만든 뒤 conflict로 응답한다(`server_draft`를 항상 돌려주기 위함). 파라미터명이 컬럼명과 같아 본문은 `v_*` 변수만 쓴다. `private.draft_json`은 `timestamptz`의 jsonb 변환이 타임존에 의존해 `stable`이다. 미확인: 인증된 실제 세션의 REST `supabase.rpc` 호출(Task 015 이후), 동시 호출 경합(`for update` 잠금)
 
-- **Task 015: 방치 초안 정리 스케줄, DB 타입 생성, 테스트 계정 준비**
+- **Task 015: 방치 초안 정리 스케줄, DB 타입 생성, 테스트 계정 준비** ✅
   - 관련 기능: F07, F01
   - 설명: `pg_cron`으로 방치 초안을 비우고, 생성된 DB 타입을 Supabase 클라이언트에 연결한다. QA용 계정을 만든다.
   - 관련 파일: `supabase/migrations/<ts>_schedule_stale_draft_reset.sql`, `lib/supabase/database.types.ts`(생성), `lib/supabase/client.ts`, `lib/supabase/server.ts`
   - 구현 사항:
-    - [ ] `pg_cron` 확장 활성화 여부 확인(구현 전 확인 항목). 비활성 시 대시보드에서 활성화하거나 마이그레이션에 `create extension if not exists pg_cron`
-    - [ ] 정리 함수 `private.reset_stale_drafts()`: `updated_at < now() - interval '2 hours'`이고 내용이 비어 있지 않은 초안만 빈 값 + `revision + 1` + `updated_at = now()`(행 삭제 없음, 이미 빈 초안은 제외해 불필요한 revision 증가 방지)
-    - [ ] `cron.schedule('reset-stale-patrol-drafts', '*/30 * * * *', 'select private.reset_stale_drafts()')`
-    - [ ] Supabase MCP `generate_typescript_types`로 `lib/supabase/database.types.ts` 생성, `createBrowserClient<Database>`/`createServerClient<Database>` 제네릭 적용, Task 002 타입과 매핑 함수(`toPatrolLog` 등) 작성
-    - [ ] 테스트 계정 4종 생성 후 대시보드(Table Editor)에서 역할 지정, 첫 관리자 지정 절차를 README 운영 메모에 기록
+    - ✅ `pg_cron` 확장 활성화 여부 확인(구현 전 확인 항목). 비활성 시 대시보드에서 활성화하거나 마이그레이션에 `create extension if not exists pg_cron`
+    - ✅ 정리 함수 `private.reset_stale_drafts()`: `updated_at < now() - interval '2 hours'`이고 내용이 비어 있지 않은 초안만 빈 값 + `revision + 1` + `updated_at = now()`(행 삭제 없음, 이미 빈 초안은 제외해 불필요한 revision 증가 방지)
+    - ✅ `cron.schedule('reset-stale-patrol-drafts', '*/30 * * * *', 'select private.reset_stale_drafts()')`
+    - ✅ Supabase MCP `generate_typescript_types`로 `lib/supabase/database.types.ts` 생성, `createBrowserClient<Database>`/`createServerClient<Database>` 제네릭 적용, Task 002 타입과 매핑 함수(`toPatrolLog` 등) 작성
+    - ✅ 테스트 계정 4종 생성 후 대시보드(Table Editor)에서 역할 지정, 첫 관리자 지정 절차를 README 운영 메모에 기록
   - 완료 기준: `cron.job`에 작업이 등록되고 정리 함수를 수동 실행해 규칙대로 동작한다. 타입 생성 후 `npm run typecheck` 통과.
   - 테스트 체크리스트:
     - 정상: `execute_sql → 초안 updated_at을 3시간 전으로 바꾸고 reset_stale_drafts() → 내용 비고 revision +1`
     - 엣지: `updated_at` 1시간 전(영업일 04:00 경계를 넘긴 작성 중 초안) → 유지
     - 엣지: 이미 빈 초안 → revision 변화 없음
     - 정상: `execute_sql → select * from cron.job_run_details order by start_time desc limit 1 → 30분 뒤 succeeded`
-  - 테스트 결과: (미수행)
+  - 테스트 결과(2026-10-15): 마이그레이션 `20261015153727_schedule_stale_draft_reset` 적용(로컬 파일명과 원격 version 일치). `pg_cron` 1.6.4 활성, `cron.job`에 `reset-stale-patrol-drafts`(`*/30 * * * *`, active) 등록, `private.reset_stale_drafts()`는 anon·authenticated 모두 execute 불가. `execute_sql` 트랜잭션 + 예외 롤백으로 초안 3건을 만들어 실행: 3시간 전 비어 있지 않은 초안 → 빈 값·`revision` 5→6·`updated_at` 갱신, 1시간 전 초안 → 내용·`revision` 유지, 3시간 전이지만 이미 빈 초안 → `revision` 5 유지. 롤백 후 `patrol_drafts` 0행. 타입 생성: `lib/supabase/database.types.ts` 저장, `client.ts`/`server.ts`에 `Database` 제네릭 적용, `lib/supabase/mappers.ts`에 `toPatrolLog`·`toPatrolDraft`·`toQuickTag`·`toSaveDraftResult`·`toCompletePatrolResult` 작성. QA 계정 4종은 대시보드(Add user, Auto Confirm User)로 만들고 `profiles.role`을 `qa-admin`=`admin`, `qa-manager`·`qa-manager2`=`manager`, `qa-pending`=`pending`으로 지정(Gmail `+` 별칭 이메일, 조회로 확인). README 운영 메모에 첫 관리자 지정 절차, QA 계정 표, `cron.job`·`cron.job_run_details` 확인 쿼리를 추가했다. `get_advisors`: security는 `authenticated_security_definer_function_executable` WARN 3건(Task 014의 3개 RPC, 설계상 의도)과 기존 `auth_leaked_password_protection` 1건이고 신규 없음, performance는 `patrol_logs_business_date_patrolled_at_idx` `unused_index`(INFO, 기존). `npm run check`: `typecheck`·`lint`는 통과했고 `format:check`는 저장소 밖 로컬 파일 `.claude/settings.local.json`(전역 gitignore 대상)의 Prettier 경고 1건만 남았으며 이번 변경과 무관하다. 미확인: 30분 주기 첫 실행 결과(`cron.job_run_details`, 등록 직후 확인 시 실행 이력 0건이라 16:00 이후 재확인 필요), QA 계정으로 실제 로그인한 세션의 REST `supabase.rpc` 호출(Task 012~014에서 미확인으로 남긴 항목), 콘솔 에러·hydration 경고(화면 변경이 없어 Playwright 시나리오는 수행하지 않음)
 
-- **Task 016: 서버 권한 검증(DAL) 구현**
+- **Task 016: 서버 권한 검증(DAL) 구현** ✅
   - 관련 기능: F01
   - 설명: Task 012의 `profiles.role`을 읽는 `lib/auth/dal.ts`의 `getViewer()`/`requireStaff()`/`requireAdmin()`을 만들고 보호 페이지에 연결한다. `next`·`notice` 처리는 Task 005의 함수를 쓴다.
   - 관련 파일: `lib/auth/dal.ts`(신규, `import "server-only"`), `app/protected/patrol/page.tsx`, `app/protected/admin/tags/page.tsx`
   - 구현 사항:
-    - [ ] `getViewer()`(React `cache`): `getClaims()` → 본인 `profiles`(`full_name`, `role`) 조회 후 Task 002 `Viewer`로 반환, 비로그인은 `null`
-    - [ ] `requireStaff()`: 비로그인 → `/auth/login?next=<현재 경로>`(`getSafeNextPath`로 검증), `pending` → `/logs?notice=pending`. `requireAdmin()`: 비로그인 → 로그인, `pending` → `notice=pending`, `manager` → `/logs?notice=admin-required`
-    - [ ] `/protected/patrol`은 `requireStaff()`, `/protected/admin/tags`는 `requireAdmin()`을 `<Suspense>` 안의 비동기 컴포넌트에서 호출(레이아웃 검사만으로 끝내지 않음). 화면 데이터는 아직 더미이며 실데이터 연결은 Task 020·022
+    - ✅ `getViewer()`(React `cache`): `getClaims()` → 본인 `profiles`(`full_name`, `role`) 조회 후 Task 002 `Viewer`로 반환, 비로그인은 `null`
+    - ✅ `requireStaff()`: 비로그인 → `/auth/login?next=<현재 경로>`(`getSafeNextPath`로 검증), `pending` → `/logs?notice=pending`. `requireAdmin()`: 비로그인 → 로그인, `pending` → `notice=pending`, `manager` → `/logs?notice=admin-required`
+    - ✅ `/protected/patrol`은 `requireStaff()`, `/protected/admin/tags`는 `requireAdmin()`을 `<Suspense>` 안의 비동기 컴포넌트에서 호출(레이아웃 검사만으로 끝내지 않음). 화면 데이터는 아직 더미이며 실데이터 연결은 Task 020·022
   - 완료 기준: QA 계정 4종과 비로그인에서 두 보호 페이지의 접근 결과가 PRD 권한 규칙과 일치한다. `npm run check` 통과.
   - 테스트 체크리스트:
     - 정상: `browser_navigate → /protected/patrol (qa-manager) → 200, 페이지 표시`
@@ -491,7 +491,7 @@ Phase 0 (완료)
     - 오류: `browser_navigate → /protected/admin/tags (비로그인) → /auth/login?next=%2Fprotected%2Fadmin%2Ftags`
     - 엣지: `execute_sql → qa-manager를 pending으로 강등 → /protected/patrol 새로고침 → /logs?notice=pending` (확인 후 원복)
     - 엣지: `browser_console_messages → 에러·hydration 경고 없음`
-  - 테스트 결과: (미수행)
+  - 테스트 결과(2026-10-15): Playwright MCP + Supabase MCP로 개발 서버(`npm run dev`)에서 수행. QA 계정 비밀번호를 알 수 없어 `execute_sql`로 4개 계정(`koikoilove99+qa-*`)의 `auth.users.encrypted_password`만 임시 값으로 재설정한 뒤 로그인했다(임시 비밀번호는 문서에 기록하지 않음, 비밀번호 관리자에 새로 보관 필요). 결과: ① `qa-manager` → `/protected/patrol` 200, URL 유지, 순찰 기록 폼(좌석 4종·퀵 태그·메모·[순찰 완료]) 표시. ② `qa-admin` → `/protected/admin/tags` URL 유지. ③ `qa-pending` → `/protected/patrol` → `/logs?notice=pending`, 배너 "관리자 승인이 완료되지 않아 작성할 수 없습니다. 승인 후 이용해 주세요." ④ `qa-manager` → `/protected/admin/tags` → `/logs?notice=admin-required`, 배너 "관리자 권한이 필요합니다." ⑤ 비로그인 → `/protected/admin/tags` → `/auth/login?next=%2Fprotected%2Fadmin%2Ftags`. ⑥ `qa-manager`로 로그인한 채 `profiles.role`을 `pending`으로 강등(`update ... returning`으로 확인) → `/protected/patrol` 새로고침 → `/logs?notice=pending`, 즉시 `manager`로 원복하고 4개 계정 역할(`admin`/`manager`/`manager`/`pending`)을 조회로 확인(강등 중 세션 재로그인 없이 바로 반영되어 `getViewer()`가 요청마다 DB에서 역할을 읽음을 확인). ⑦ `browser_console_messages`(전체 세션, warning 이상): 에러 0·경고 0(hydration 경고 없음). 관찰 사항: 헤더 `AppHeader`·`PendingBanner`는 아직 `ACTIVE_DUMMY_VIEWER`(admin) 기준이라 어느 계정으로 로그인해도 "관리자"로 표시되며 실제 역할과 다르다(`app/layout.tsx`, `app/logs/page.tsx`, `lib/dummy/viewers.ts`, Task 018 범위이므로 이번에 수정하지 않음). 로그인 폼은 `?next=/protected/patrol`이 있어도 `/logs`로 이동했다(로그인 후 이동·`next` 연결은 Phase 5 인증 흐름에서 확인 필요). 추가 확인(2026-10-15): `qa-manager2`·`qa-admin`의 임시 비밀번호를 재설정해 로그인한 뒤 각각 `/protected/patrol`에 접근했고, 둘 다 URL이 유지되며 순찰 기록 폼(좌석 입력·태그와 메모·[순찰 완료])이 표시됐다. 이때 콘솔 에러는 개발 서버 HMR WebSocket 연결 거부 12건뿐이며 hydration 경고는 없었다. 미확인: `qa-admin`·`qa-pending`의 나머지 경로 조합, 로그아웃 시 `draft:` 백업 키 삭제, 모바일 뷰포트 화면. `npm run check`: `typecheck`·`lint` 통과, `format:check`는 저장소 밖 로컬 파일 `.claude/settings.local.json`(전역 gitignore 대상)의 Prettier 경고 1건만 남았으며 이번 변경과 무관(Task 015 기록과 동일)
 
 ### Phase 5: 핵심 기능 구현
 
