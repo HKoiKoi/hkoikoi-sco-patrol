@@ -384,17 +384,17 @@ Phase 0 (완료)
 
 > Task 011에서 PRD·데이터 모델이 확정된 뒤 시작한다. DB 검증은 Supabase MCP `execute_sql`에서 트랜잭션 안에 `set local role authenticated; set local request.jwt.claims = '{"sub":"<uuid>","role":"authenticated"}';`로 사용자를 흉내 내고 `rollback`하는 방식으로 한다. 비로그인은 `set local role anon`. Task 015 이전 시나리오의 `qa-*`는 트랜잭션 안에서 만든 같은 역할의 임시 사용자다. 각 Task 후 `get_advisors`(security)를 확인한다.
 
-- **Task 012: profiles 재정비, 역할 판별 함수, staff_names 동기화 구축**
+- **Task 012: profiles 재정비, 역할 판별 함수, staff_names 동기화 구축** ✅
   - 관련 기능: F01, F08
   - 설명: 스타터 `profiles`를 PRD 모델로 바꾸고 역할 판별 함수와 작성자 이름 공개용 `staff_names`를 만든다.
   - 관련 파일: `supabase/migrations/<ts>_reshape_profiles_roles.sql`, `supabase/migrations/<ts>_create_staff_names.sql`
   - 구현 사항:
-    - [ ] `profiles`: `username`(unique)·`website`·`avatar_url` 컬럼과 `username_length` 제약 제거, `role text not null default 'pending' check (role in ('pending','manager','admin'))` 추가, `updated_at` 기본값/갱신 트리거
-    - [ ] `handle_new_user` 재작성: `full_name` ← `raw_user_meta_data->>'full_name'` → 없으면 `->>'name'` → 없으면 이메일 앞부분. `role`은 메타데이터에서 읽지 않고 항상 `pending`. 기존 행 `full_name` 공백 backfill
-    - [ ] `profiles` 정책/권한 재설정: "누구나 조회" 정책과 insert 정책 삭제, 본인 행만 select(`authenticated`), `revoke all ... from anon, authenticated` 후 `grant select` + `grant update (full_name)`만 `authenticated`에 부여(컬럼 GRANT로 `role` 변경 차단)
-    - [ ] `create schema private` + `private.is_staff()`, `private.is_admin()`(`security definer`, `set search_path = ''`, `stable`, `auth.uid()` 기준). `revoke execute ... from public, anon`, `grant usage on schema private` 및 `grant execute`는 `authenticated`에만. `private` 스키마는 Data API 노출 스키마에 넣지 않는다
-    - [ ] `staff_names(id uuid pk references profiles(id), full_name text)`: RLS 켜고 `anon`, `authenticated`에 select만 부여(정책 `using (true)`), 쓰기 권한 없음
-    - [ ] 동기화 트리거 `sync_staff_name`(`security definer`): `profiles` insert/update(`role`, `full_name`) 시 역할이 `manager`/`admin`이면 upsert, 강등 시 행 유지(이름 변경은 기존 행이 있으면 반영)
+    - ✅ `profiles`: `username`(unique)·`website`·`avatar_url` 컬럼과 `username_length` 제약 제거, `role text not null default 'pending' check (role in ('pending','manager','admin'))` 추가, `updated_at` 기본값/갱신 트리거
+    - ✅ `handle_new_user` 재작성: `full_name` ← `raw_user_meta_data->>'full_name'` → 없으면 `->>'name'` → 없으면 이메일 앞부분. `role`은 메타데이터에서 읽지 않고 항상 `pending`. 기존 행 `full_name` 공백 backfill
+    - ✅ `profiles` 정책/권한 재설정: "누구나 조회" 정책과 insert 정책 삭제, 본인 행만 select(`authenticated`), `revoke all ... from anon, authenticated` 후 `grant select` + `grant update (full_name)`만 `authenticated`에 부여(컬럼 GRANT로 `role` 변경 차단)
+    - ✅ `create schema private` + `private.is_staff()`, `private.is_admin()`(`security definer`, `set search_path = ''`, `stable`, `auth.uid()` 기준). `revoke execute ... from public, anon`, `grant usage on schema private` 및 `grant execute`는 `authenticated`에만. `private` 스키마는 Data API 노출 스키마에 넣지 않는다
+    - ✅ `staff_names(id uuid pk references profiles(id), full_name text)`: RLS 켜고 `anon`, `authenticated`에 select만 부여(정책 `using (true)`), 쓰기 권한 없음
+    - ✅ 동기화 트리거 `sync_staff_name`(`security definer`): `profiles` insert/update(`role`, `full_name`) 시 역할이 `manager`/`admin`이면 upsert, 강등 시 행 유지(이름 변경은 기존 행이 있으면 반영)
   - 완료 기준: 마이그레이션이 원격 DB에 적용되고 아래 SQL 시나리오가 모두 기대대로 동작한다. `get_advisors(security)`에 신규 경고 없음.
   - 테스트 체크리스트:
     - 정상: `execute_sql → auth.users에 메타데이터 {full_name:"홍길동"}인 사용자 insert(트랜잭션) → profiles.role='pending', full_name='홍길동'`
@@ -404,7 +404,7 @@ Phase 0 (완료)
     - 오류: `execute_sql(authenticated) → select private.is_admin() via REST(/rest/v1/rpc/is_admin) → 404/노출되지 않음`
     - 엣지: 메타데이터에 `role:"admin"`을 넣어 가입 → `pending`으로 생성
     - 엣지: `full_name`·`name` 모두 없음 → 이메일 앞부분으로 생성
-  - 테스트 결과: (미수행)
+  - 테스트 결과(2026-10-15): 마이그레이션 3개 적용(`20261015055853_reshape_profiles_roles`, `20261015060059_create_private_role_functions`, `20261015060140_create_staff_names`, 로컬 파일명과 원격 version 일치). `execute_sql` 트랜잭션 + `rollback`(임시 사용자 4명, 롤백 후 `staff_names` 0행·기존 2명 `pending` 유지): 메타데이터 `full_name:"홍길동"` 가입 → `pending/홍길동`. manager 승격 → `staff_names` 1행, pending 강등 후에도 1행 유지(이름 변경은 반영). authenticated 흉내로 본인 `role='admin'` update → `permission denied for table profiles`(`full_name` update는 성공, 본인 행만 1건 조회). anon `select profiles` → `permission denied for table profiles`(REST도 401). 메타데이터 `role:"admin"` 가입 → `pending`. `full_name`·`name` 없음 → `noname`(이메일 앞부분), `name`만 있음 → `이름만`. `staff_names`는 anon select 가능, anon·authenticated insert/update/delete → `permission denied`. `private.is_staff()/is_admin()`은 anon이 호출하면 `permission denied for schema private`, authenticated(pending)는 둘 다 `false`. REST(publishable key): `/rest/v1/rpc/is_admin`·`is_staff` → 404, `Content-Profile: private` → 406, `/rest/v1/staff_names` → 200. `get_advisors(security)`: 신규 경고 없음(기존 `auth_leaked_password_protection` 1건만 있으며 이번 변경과 무관한 Auth 설정). `npm run check` 통과. 추가 검증(같은 날, 트랜잭션 + `rollback`): `is_staff()/is_admin()`은 manager `true/false`, admin `true/true`, pending `false/false`. admin 승격 시 `staff_names` 행 생성, `profiles`를 `role='manager'`로 직접 insert해도 `staff_names` 행 생성, `updated_at`은 update 시 현재 시각으로 갱신. 사용자 C 흉내로 `profiles` 조회 시 본인 1행만 보이고 다른 사용자(A) 행은 0건, A 행 update는 0행이며 이름 유지. 롤백 후 `staff_names` 0행, 기존 2명 `pending`, `auth.users` 2명. 미확인: 인증된 실제 세션의 REST rpc 호출(anon 키로만 확인, QA 계정이 생기는 Task 015 이후)
 
 - **Task 013: 핵심 테이블·제약·RLS·초기 데이터 구축**
   - 관련 기능: F02, F03, F04, F07, F08, F09, F10, F11
