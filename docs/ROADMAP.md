@@ -515,6 +515,12 @@ Phase 0 (완료)
     - 오류: `browser_navigate → /auth/login?next=https://evil.com → 로그인 → /logs`
     - 오류: `browser_navigate → /auth/confirm?token_hash=bad&type=email → /auth/error에 사유 표시`
     - 엣지: 가입한 기기와 다른 브라우저에서 확인 링크 열기 → 정상 확인(token_hash 방식)
+  - Supabase 대시보드 수동 설정 체크리스트(사용자가 직접 수행, 완료 확인 전에는 이메일 가입 시나리오를 실행하지 않는다):
+    - [ ] Authentication → Email Templates → Confirm signup의 링크를 `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/logs`로 변경
+    - [ ] Authentication → URL Configuration → Site URL 설정
+    - [ ] Redirect URLs에 로컬(`http://localhost:3000/**`), HTTPS 터널, 운영 도메인 등록
+    - [ ] Confirm email 옵션이 켜져 있는지 확인
+  - 코드 변경 검증(2026-10-15): `npm run check` — `typecheck`·`lint` 통과, `format:check`는 저장소 밖 로컬 파일 `.claude/settings.local.json`(전역 gitignore 대상)의 Prettier 경고 1건만 남았으며 이번 변경과 무관
   - 테스트 결과: (미수행)
 
 - **Task 018: 일지 조회 실데이터 연동**
