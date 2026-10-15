@@ -1,9 +1,8 @@
 import { Suspense } from "react";
 
 import { Skeleton } from "@/components/ui/skeleton";
+import { requireAdmin } from "@/lib/auth/dal";
 import { DUMMY_QUICK_TAGS } from "@/lib/dummy/quick-tags";
-import { ACTIVE_DUMMY_VIEWER } from "@/lib/dummy/viewers";
-import { isAdmin } from "@/lib/permissions";
 
 import { TagList } from "./_components/tag-list";
 
@@ -19,17 +18,9 @@ function TagsSkeleton() {
   );
 }
 
-// 권한 확인 후 목록 렌더 (TODO: Task 018에서 requireAdmin()으로 교체)
+// 서버에서 관리자 확인(비로그인·pending·manager는 리디렉션) 후 목록 렌더
 async function TagsContent() {
-  const viewer = ACTIVE_DUMMY_VIEWER;
-
-  if (!isAdmin(viewer)) {
-    return (
-      <p role="status" className="rounded-md border bg-muted p-4 text-sm">
-        퀵 태그 관리는 관리자만 할 수 있습니다.
-      </p>
-    );
-  }
+  await requireAdmin("/protected/admin/tags");
 
   // TODO: Task 018에서 DB 조회로 교체
   return <TagList initialTags={DUMMY_QUICK_TAGS} />;

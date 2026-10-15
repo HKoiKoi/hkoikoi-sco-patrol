@@ -1,9 +1,8 @@
 import { Suspense } from "react";
 
 import { Skeleton } from "@/components/ui/skeleton";
+import { requireStaff } from "@/lib/auth/dal";
 import { DUMMY_QUICK_TAGS } from "@/lib/dummy/quick-tags";
-import { ACTIVE_DUMMY_VIEWER } from "@/lib/dummy/viewers";
-import { canWrite } from "@/lib/permissions";
 
 import { PatrolFormHost } from "./_components/patrol-form-host";
 
@@ -18,17 +17,9 @@ function PatrolSkeleton() {
   );
 }
 
-// 권한 확인 후 폼 렌더 (TODO: Task 018에서 requireStaff()/getViewer()로 교체)
+// 서버에서 권한 확인(비로그인·pending은 리디렉션) 후 폼 렌더
 async function PatrolContent() {
-  const viewer = ACTIVE_DUMMY_VIEWER;
-
-  if (!canWrite(viewer)) {
-    return (
-      <p role="status" className="rounded-md border bg-muted p-4 text-sm">
-        순찰 기록은 매니저와 관리자만 작성할 수 있습니다.
-      </p>
-    );
-  }
+  const viewer = await requireStaff("/protected/patrol");
 
   // TODO: Task 018에서 DB 조회로 교체 (어댑터는 Task 020에서 RPC 구현으로 교체)
   return <PatrolFormHost viewer={viewer} quickTags={DUMMY_QUICK_TAGS} />;

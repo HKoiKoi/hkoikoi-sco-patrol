@@ -474,14 +474,14 @@ Phase 0 (완료)
     - 정상: `execute_sql → select * from cron.job_run_details order by start_time desc limit 1 → 30분 뒤 succeeded`
   - 테스트 결과(2026-10-15): 마이그레이션 `20261015153727_schedule_stale_draft_reset` 적용(로컬 파일명과 원격 version 일치). `pg_cron` 1.6.4 활성, `cron.job`에 `reset-stale-patrol-drafts`(`*/30 * * * *`, active) 등록, `private.reset_stale_drafts()`는 anon·authenticated 모두 execute 불가. `execute_sql` 트랜잭션 + 예외 롤백으로 초안 3건을 만들어 실행: 3시간 전 비어 있지 않은 초안 → 빈 값·`revision` 5→6·`updated_at` 갱신, 1시간 전 초안 → 내용·`revision` 유지, 3시간 전이지만 이미 빈 초안 → `revision` 5 유지. 롤백 후 `patrol_drafts` 0행. 타입 생성: `lib/supabase/database.types.ts` 저장, `client.ts`/`server.ts`에 `Database` 제네릭 적용, `lib/supabase/mappers.ts`에 `toPatrolLog`·`toPatrolDraft`·`toQuickTag`·`toSaveDraftResult`·`toCompletePatrolResult` 작성. QA 계정 4종은 대시보드(Add user, Auto Confirm User)로 만들고 `profiles.role`을 `qa-admin`=`admin`, `qa-manager`·`qa-manager2`=`manager`, `qa-pending`=`pending`으로 지정(Gmail `+` 별칭 이메일, 조회로 확인). README 운영 메모에 첫 관리자 지정 절차, QA 계정 표, `cron.job`·`cron.job_run_details` 확인 쿼리를 추가했다. `get_advisors`: security는 `authenticated_security_definer_function_executable` WARN 3건(Task 014의 3개 RPC, 설계상 의도)과 기존 `auth_leaked_password_protection` 1건이고 신규 없음, performance는 `patrol_logs_business_date_patrolled_at_idx` `unused_index`(INFO, 기존). `npm run check`: `typecheck`·`lint`는 통과했고 `format:check`는 저장소 밖 로컬 파일 `.claude/settings.local.json`(전역 gitignore 대상)의 Prettier 경고 1건만 남았으며 이번 변경과 무관하다. 미확인: 30분 주기 첫 실행 결과(`cron.job_run_details`, 등록 직후 확인 시 실행 이력 0건이라 16:00 이후 재확인 필요), QA 계정으로 실제 로그인한 세션의 REST `supabase.rpc` 호출(Task 012~014에서 미확인으로 남긴 항목), 콘솔 에러·hydration 경고(화면 변경이 없어 Playwright 시나리오는 수행하지 않음)
 
-- **Task 016: 서버 권한 검증(DAL) 구현**
+- **Task 016: 서버 권한 검증(DAL) 구현** ✅
   - 관련 기능: F01
   - 설명: Task 012의 `profiles.role`을 읽는 `lib/auth/dal.ts`의 `getViewer()`/`requireStaff()`/`requireAdmin()`을 만들고 보호 페이지에 연결한다. `next`·`notice` 처리는 Task 005의 함수를 쓴다.
   - 관련 파일: `lib/auth/dal.ts`(신규, `import "server-only"`), `app/protected/patrol/page.tsx`, `app/protected/admin/tags/page.tsx`
   - 구현 사항:
-    - [ ] `getViewer()`(React `cache`): `getClaims()` → 본인 `profiles`(`full_name`, `role`) 조회 후 Task 002 `Viewer`로 반환, 비로그인은 `null`
-    - [ ] `requireStaff()`: 비로그인 → `/auth/login?next=<현재 경로>`(`getSafeNextPath`로 검증), `pending` → `/logs?notice=pending`. `requireAdmin()`: 비로그인 → 로그인, `pending` → `notice=pending`, `manager` → `/logs?notice=admin-required`
-    - [ ] `/protected/patrol`은 `requireStaff()`, `/protected/admin/tags`는 `requireAdmin()`을 `<Suspense>` 안의 비동기 컴포넌트에서 호출(레이아웃 검사만으로 끝내지 않음). 화면 데이터는 아직 더미이며 실데이터 연결은 Task 020·022
+    - ✅ `getViewer()`(React `cache`): `getClaims()` → 본인 `profiles`(`full_name`, `role`) 조회 후 Task 002 `Viewer`로 반환, 비로그인은 `null`
+    - ✅ `requireStaff()`: 비로그인 → `/auth/login?next=<현재 경로>`(`getSafeNextPath`로 검증), `pending` → `/logs?notice=pending`. `requireAdmin()`: 비로그인 → 로그인, `pending` → `notice=pending`, `manager` → `/logs?notice=admin-required`
+    - ✅ `/protected/patrol`은 `requireStaff()`, `/protected/admin/tags`는 `requireAdmin()`을 `<Suspense>` 안의 비동기 컴포넌트에서 호출(레이아웃 검사만으로 끝내지 않음). 화면 데이터는 아직 더미이며 실데이터 연결은 Task 020·022
   - 완료 기준: QA 계정 4종과 비로그인에서 두 보호 페이지의 접근 결과가 PRD 권한 규칙과 일치한다. `npm run check` 통과.
   - 테스트 체크리스트:
     - 정상: `browser_navigate → /protected/patrol (qa-manager) → 200, 페이지 표시`
@@ -491,7 +491,7 @@ Phase 0 (완료)
     - 오류: `browser_navigate → /protected/admin/tags (비로그인) → /auth/login?next=%2Fprotected%2Fadmin%2Ftags`
     - 엣지: `execute_sql → qa-manager를 pending으로 강등 → /protected/patrol 새로고침 → /logs?notice=pending` (확인 후 원복)
     - 엣지: `browser_console_messages → 에러·hydration 경고 없음`
-  - 테스트 결과: (미수행)
+  - 테스트 결과(2026-10-15): Playwright MCP + Supabase MCP로 개발 서버(`npm run dev`)에서 수행. QA 계정 비밀번호를 알 수 없어 `execute_sql`로 4개 계정(`koikoilove99+qa-*`)의 `auth.users.encrypted_password`만 임시 값으로 재설정한 뒤 로그인했다(임시 비밀번호는 문서에 기록하지 않음, 비밀번호 관리자에 새로 보관 필요). 결과: ① `qa-manager` → `/protected/patrol` 200, URL 유지, 순찰 기록 폼(좌석 4종·퀵 태그·메모·[순찰 완료]) 표시. ② `qa-admin` → `/protected/admin/tags` URL 유지. ③ `qa-pending` → `/protected/patrol` → `/logs?notice=pending`, 배너 "관리자 승인이 완료되지 않아 작성할 수 없습니다. 승인 후 이용해 주세요." ④ `qa-manager` → `/protected/admin/tags` → `/logs?notice=admin-required`, 배너 "관리자 권한이 필요합니다." ⑤ 비로그인 → `/protected/admin/tags` → `/auth/login?next=%2Fprotected%2Fadmin%2Ftags`. ⑥ `qa-manager`로 로그인한 채 `profiles.role`을 `pending`으로 강등(`update ... returning`으로 확인) → `/protected/patrol` 새로고침 → `/logs?notice=pending`, 즉시 `manager`로 원복하고 4개 계정 역할(`admin`/`manager`/`manager`/`pending`)을 조회로 확인(강등 중 세션 재로그인 없이 바로 반영되어 `getViewer()`가 요청마다 DB에서 역할을 읽음을 확인). ⑦ `browser_console_messages`(전체 세션, warning 이상): 에러 0·경고 0(hydration 경고 없음). 관찰 사항: 헤더 `AppHeader`·`PendingBanner`는 아직 `ACTIVE_DUMMY_VIEWER`(admin) 기준이라 어느 계정으로 로그인해도 "관리자"로 표시되며 실제 역할과 다르다(`app/layout.tsx`, `app/logs/page.tsx`, `lib/dummy/viewers.ts`, Task 018 범위이므로 이번에 수정하지 않음). 로그인 폼은 `?next=/protected/patrol`이 있어도 `/logs`로 이동했다(로그인 후 이동·`next` 연결은 Phase 5 인증 흐름에서 확인 필요). 미확인: `qa-manager2`·`qa-admin`의 `/protected/patrol` 접근, `qa-admin`·`qa-pending`의 나머지 경로 조합, 로그아웃 시 `draft:` 백업 키 삭제, 모바일 뷰포트 화면. `npm run check`: `typecheck`·`lint` 통과, `format:check`는 저장소 밖 로컬 파일 `.claude/settings.local.json`(전역 gitignore 대상)의 Prettier 경고 1건만 남았으며 이번 변경과 무관(Task 015 기록과 동일)
 
 ### Phase 5: 핵심 기능 구현
 
