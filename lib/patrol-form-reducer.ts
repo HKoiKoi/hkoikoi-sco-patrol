@@ -55,7 +55,11 @@ export type PatrolFormAction =
     }
   /** 완료 요청이 네트워크 오류 등으로 응답 없이 끝난 경우. 같은 요청 ID로 다시 시도할 수 있게 풀어 준다. */
   | { type: "COMPLETE_FAILED" }
-  | { type: "NEXT_PATROL" };
+  | { type: "NEXT_PATROL" }
+  /** 탭 포커스 복귀 시 서버 초안 반영. 깨끗한 상태에서 서버 revision이 더 클 때만 교체한다. */
+  | { type: "REPLACE_FROM_SERVER"; draft: PatrolDraft }
+  /** 마운트 시 로컬 백업 복원. 서버에 아직 저장되지 않은 내용이므로 dirty로 둔다. */
+  | { type: "RESTORE_BACKUP"; content: PatrolContent; revision: number };
 
 export const EMPTY_PATROL_CONTENT: PatrolContent = {
   standing: [],
@@ -231,6 +235,34 @@ export function patrolFormReducer(
     case "COMPLETE_FAILED":
       if (!state.completing) return state;
       return { ...state, completing: false };
+    case "REPLACE_FROM_SERVER": {
+      // 저장 안 된 입력·저장 중·충돌·완료 중에는 서버 초안으로 덮어쓰지 않는다.
+      if (state.status !== "clean" && state.status !== "saved") return state;
+      if (state.completed !== null || state.completing) return state;
+      if (action.draft.revision <= state.revision) return state;
+      return {
+        ...state,
+        content: action.draft.content,
+        revision: action.draft.revision,
+        status: isSameContent(action.draft.content, EMPTY_PATROL_CONTENT)
+          ? "clean"
+          : "saved",
+        lastSavedAt: action.draft.updatedAt || state.lastSavedAt,
+        conflictDraft: null,
+        savingContent: null,
+      };
+    }
+    case "RESTORE_BACKUP": {
+      if (!editable) return state;
+      return {
+        ...state,
+        content: action.content,
+        revision: action.revision,
+        status: "dirty",
+        conflictDraft: null,
+        savingContent: null,
+      };
+    }
     case "NEXT_PATROL":
       if (state.completed === null) return state;
       return { ...createInitialPatrolFormState(), revision: state.revision };
