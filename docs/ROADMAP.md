@@ -523,16 +523,16 @@ Phase 0 (완료)
   - 코드 변경 검증(2026-10-15): `npm run check` — `typecheck`·`lint` 통과, `format:check`는 저장소 밖 로컬 파일 `.claude/settings.local.json`(전역 gitignore 대상)의 Prettier 경고 1건만 남았으며 이번 변경과 무관
   - 테스트 결과(2026-10-20): Playwright MCP로 개발 서버(`npm run dev`)에서 수행. `qa-manager`의 `auth.users.encrypted_password`만 임시 값으로 재설정해 로그인했다(임시 비밀번호는 문서에 기록하지 않음, 비밀번호 관리자에 새로 보관 필요). 결과: ① 비로그인 `/protected/patrol` → `/auth/login?next=%2Fprotected%2Fpatrol` → `qa-manager` 로그인 → `/protected/patrol` 복귀 통과. ② `/auth/login` → 로그인 → `/logs` 통과. ③ `localStorage`에 `draft:x`·`other` 설정 후 로그아웃 → `/logs`, `draft:x`만 삭제되고 `other`는 유지 통과. ④ `/auth/login?next=` 값이 `https://evil.com`, `//evil.com`, `/\evil.com`일 때 로그인 후 모두 `/logs`, 외부 주소 이동 없음 통과. ⑤ `/auth/confirm?token_hash=bad&type=email` → `/auth/error`에 "오류 코드: Email link is invalid or has expired" 표시 통과. ⑥ 이메일 가입(이름 "테스트", `koikoilove99+qa-signup@gmail.com`): 처음에는 `POST /auth/v1/signup`이 500이었고 Auth 로그 원인은 `lookup stmp.resend.com ... no such host`(대시보드 커스텀 SMTP 호스트 오타)였다. 사용자가 `smtp.resend.com`으로 수정한 뒤 재수행해 `/auth/sign-up-success`로 이동, 확인 메일 수신 후 사용자가 Playwright가 아닌 다른 브라우저에서 확인 링크를 열어 `/logs`에 도착했다(token_hash 방식). `execute_sql` 확인: `email_confirmed_at` 기록, `profiles.full_name='테스트'`, `role='pending'`. 확인 후 테스트 계정을 삭제하고 `auth.users`·`profiles` 0건을 확인했다. 확인 메일이 처음에는 스팸함으로 분류됨(발신 도메인 인증·평판 점검 필요). 미확인: Google 로그인 `redirectTo`와 `/auth/callback`의 성공 경로. ⑦ 콘솔: warning 이상 기준 에러 0·경고 0(hydration 경고 없음). 최초 가입 시도의 SMTP 500 네트워크 에러 1건은 위 설정 오타 때문이며 수정 후 재수행에서는 0건. 관찰 사항: 헤더는 여전히 `ACTIVE_DUMMY_VIEWER` 기준이라 로그아웃 상태에서도 "관리자"로 표시된다(Task 018 범위).
 
-- **Task 018: 일지 조회 실데이터 연동**
+- **Task 018: 일지 조회 실데이터 연동** ✅
   - 관련 기능: F08, F06, F01
   - 설명: `/logs`를 Supabase 데이터로 교체하고, Task 006·007에서 더미 viewer로 확인하던 헤더·페이지에 `getViewer()`를 연결해 역할에 따라 버튼을 노출한다.
   - 관련 파일: `app/logs/page.tsx`, `lib/queries/patrol-logs.ts`(신규, 서버 전용), `components/layout/app-header.tsx`, `lib/dummy/patrol-logs.ts`(삭제), `lib/dummy/viewers.ts`(삭제)
   - 구현 사항:
-    - [ ] 페이지: `<Suspense>` 안의 비동기 컴포넌트에서 `await searchParams` → `await io()` 후 현재 시각으로 `getBusinessDate` 계산 → `?date` 검증 결과 적용 (`04-functions/io.md` 확인)
-    - [ ] `getPatrolLogsByDate(date)`: `patrol_logs` select `id, business_date, patrolled_at, author_id, standing, cafe_zone, drowsy, away, memo, staff_names(full_name)` + `eq("business_date", date)` + `order("patrolled_at", { ascending: false })`(최신순), 비로그인 키로 동작 확인
-    - [ ] 헤더와 페이지의 더미 viewer를 `getViewer()`로 교체: pending 배너, 관리자 메뉴, 기록별 수정/삭제 노출은 `canEdit(log, viewer)` 그대로 사용(pending 본인은 미노출). 교체 후 `lib/dummy/patrol-logs.ts`, `lib/dummy/viewers.ts` 삭제
-    - [ ] 조회 실패 시 에러 경계(`app/logs/error.tsx`)와 재시도 버튼, 로딩 스켈레톤(`loading` fallback)
-    - [ ] 다음 날짜 이동은 현재 영업일 다음 날까지만 활성(미래 이동 제한)
+    - [x] 페이지: `<Suspense>` 안의 비동기 컴포넌트에서 `await searchParams` → `await io()` 후 현재 시각으로 `getBusinessDate` 계산 → `?date` 검증 결과 적용 (`04-functions/io.md` 확인)
+    - [x] `getPatrolLogsByDate(date)`(`lib/queries/patrol-logs.ts`, 2026-10-20 작성. `/logs` 페이지 연결과 비로그인 키 동작 확인은 아래 진행 메모 참고): `patrol_logs` select `id, business_date, patrolled_at, author_id, standing, cafe_zone, drowsy, away, memo, staff_names(full_name)` + `eq("business_date", date)` + `order("patrolled_at", { ascending: false })`(최신순), 비로그인 키로 동작 확인
+    - [x] 헤더와 페이지의 더미 viewer를 `getViewer()`로 교체(헤더·배너는 `components/layout/app-chrome.tsx`, 페이지는 `app/logs/page.tsx`, 2026-10-20): pending 배너, 관리자 메뉴, 기록별 수정/삭제 노출은 `canEdit(log, viewer)` 그대로 사용(pending 본인은 미노출). 교체 후 `lib/dummy/patrol-logs.ts`, `lib/dummy/viewers.ts` 삭제
+    - [x] 조회 실패 시 에러 경계(`app/logs/error.tsx`)와 재시도 버튼, 로딩 스켈레톤(`loading` fallback)
+    - [x] 다음 날짜 이동은 현재 영업일 다음 날까지만 활성(미래 이동 제한)
   - 완료 기준: 비로그인/pending/manager/admin 4개 상태에서 같은 날짜의 기록이 동일하게 보이고 버튼 노출만 다르다. 복사 문구가 서버 `patrolled_at` 기준 KST로 만들어진다. `lib/dummy/patrol-logs.ts`·`viewers.ts`를 참조하는 코드가 없다.
   - 테스트 체크리스트:
     - 정상: `browser_navigate → /logs (비로그인) → 현재 영업일 기록 목록, 작성자 이름 표시, 수정 버튼 없음`
@@ -541,7 +541,8 @@ Phase 0 (완료)
     - 오류: `browser_navigate → /logs?date=abc → 현재 영업일로 표시, 에러 없음`
     - 엣지: 03:59 완료 기록이 전일 날짜에서 조회됨(Supabase MCP로 `patrolled_at` 조정한 데이터)
     - 엣지: `browser_console_messages → hydration 경고 없음`(서버·클라이언트 HH:mm 일치)
-  - 테스트 결과: (미수행)
+  - 구현 메모(2026-10-20): `lib/queries/patrol-logs.ts`는 `import "server-only"`, 호출마다 `createClient()`, `business_date` 필터 + `patrolled_at` 내림차순, `staff_names(full_name)` 조인, 오류 시 `Error` throw. 작성자 이름이 없으면 빈 문자열을 넘기고 화면 폴백은 `PatrolLogItem`이 맡는다. select에 `client_request_id`가 없어 `toPatrolLog` 인자 타입을 `Omit<Tables<"patrol_logs">, "client_request_id">`로 좁혔다(`as` 단언 없음). `components/layout/app-chrome.tsx`가 `getViewer()`를 await 해 `AppHeader`·`PendingBanner`에 같은 viewer를 주입하고 `app/layout.tsx`에서 `<Suspense>`로 감싼다. `app/logs/page.tsx`는 `getViewer()`와 `getPatrolLogsByDate()`를 `Promise.all`로 호출하고, `app/logs/error.tsx`(`retry` prop, [다시 시도] 버튼)를 추가했다. `lib/dummy/viewers.ts`·`patrol-logs.ts`를 삭제했고 참조가 없음을 검색과 `typecheck`·`eslint .`로 확인했다(`quick-tags.ts`·`patrol-draft-adapter.ts`는 유지).
+  - 테스트 결과(2026-10-20): `typecheck`·`eslint`·`prettier --check` 통과. Playwright MCP + Supabase MCP로 개발 서버에서 수행. `patrol_logs`가 비어 있어 `execute_sql`로 `[QA018]` 테스트 기록 5건(manager·manager2·admin 기록, 03:59·04:00 경계)을 넣고 검증 후 삭제했다. `qa-manager`·`qa-admin`·`qa-pending`의 `auth.users.encrypted_password`만 임시 값으로 재설정해 로그인했다(임시 비밀번호는 문서에 기록하지 않음, 비밀번호 관리자에 새로 보관 필요). 결과: ① 비로그인: 현재 영업일 4건, 작성자 이름 표시, 수정·삭제 없음, 헤더에 로그인·가입. ② `qa-manager`: 본인 기록 2건에만 수정·삭제, 타인 기록은 복사만. ③ `qa-admin`: 4건 모두 수정·삭제, 헤더에 퀵 태그 관리. ④ `qa-pending`: 4건 모두 복사만, 승인 대기 배너 표시. ⑤ `?date=abc`: 리디렉션 없이 현재 영업일 표시. ⑥ 03:59(KST) 기록은 전일(10/19)에만, 04:00 기록은 당일에만 조회됨(DB `private.business_date_of` 계산). ⑦ 콘솔: 비로그인·manager·pending에서 warning 이상 0건(hydration 경고 없음). 미확인: `error.tsx`의 에러 경계·[다시 시도] 동작(조회 실패를 재현하지 않음), 복사 문구의 서버 `patrolled_at` 기준 KST 일치(복사 버튼 미실행), 10/19 화면의 `HH:mm` 표시·hydration(HTML fetch로만 확인), admin 로그인 상태의 콘솔, 다음 날 이동 비활성(코드의 `shiftBusinessDate(currentDate, 1)`만 확인), 모바일 뷰포트·다크 모드.
 
 - **Task 019: 기록 수정/삭제 및 자리비움 사후 처리 구현**
   - 관련 기능: F09, F10

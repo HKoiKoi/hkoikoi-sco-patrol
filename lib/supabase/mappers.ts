@@ -40,7 +40,7 @@ function expectNumberArray(value: unknown, where: string): number[] {
 
 /** patrol_logs 행 + 작성자 이름(staff_names.full_name). client_request_id는 제외한다. */
 export function toPatrolLog(
-  row: Tables<"patrol_logs">,
+  row: Omit<Tables<"patrol_logs">, "client_request_id">,
   authorName: string,
 ): PatrolLog {
   return {

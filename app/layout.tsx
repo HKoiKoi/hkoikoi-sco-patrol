@@ -4,12 +4,23 @@ import { ThemeProvider } from "next-themes";
 import { Suspense } from "react";
 
 import { AppFooter } from "@/components/layout/app-footer";
-import { AppHeader } from "@/components/layout/app-header";
+import { AppChrome } from "@/components/layout/app-chrome";
 import { NoticeBanner } from "@/components/layout/notice-banner";
-import { PendingBanner } from "@/components/layout/pending-banner";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Toaster } from "@/components/ui/sonner";
-import { ACTIVE_DUMMY_VIEWER } from "@/lib/dummy/viewers";
 import "./globals.css";
+
+// AppChrome 로딩 중 헤더 자리를 지키는 스켈레톤(헤더와 같은 border-b, min-h-14)
+function HeaderSkeleton() {
+  return (
+    <div className="border-b bg-background">
+      <div className="mx-auto flex min-h-14 w-full max-w-5xl items-center justify-between px-4">
+        <Skeleton className="h-6 w-32" />
+        <Skeleton className="h-9 w-24" />
+      </div>
+    </div>
+  );
+}
 
 const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
@@ -49,9 +60,10 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {/* TODO: Task 018에서 getViewer() 결과로 교체 */}
-          <AppHeader viewer={ACTIVE_DUMMY_VIEWER} />
-          <PendingBanner viewer={ACTIVE_DUMMY_VIEWER} />
+          {/* 쿠키를 읽는 AppChrome은 Suspense 안에 두고, 같은 높이의 자리표시자로 레이아웃 시프트를 줄인다 */}
+          <Suspense fallback={<HeaderSkeleton />}>
+            <AppChrome />
+          </Suspense>
           <Suspense fallback={null}>
             <NoticeBanner />
           </Suspense>
