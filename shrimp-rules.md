@@ -32,7 +32,6 @@ AI Agent 전용 규칙이다. 일반 개발 지식은 제외하고 이 프로젝
 | `lib/auth/`                | `dal.ts`(`requireStaff`, `requireAdmin`), `safe-next.ts`, `notice.ts` |
 | `lib/business-date.ts`     | 영업일 표시·기본 날짜 전용                                            |
 | `lib/patrol-format.ts`     | 복사 문구 순수 함수                                                   |
-| `lib/dummy/*`              | Phase 3 더미 데이터. Task 018·020에서 삭제                            |
 | `supabase/migrations/`     | 스키마 변경 전용                                                      |
 
 - import 방향은 `components/ui` ← `components/<domain>` ← `app/` 단방향이다. **역방향 import 금지.**
