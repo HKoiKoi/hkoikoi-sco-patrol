@@ -544,16 +544,16 @@ Phase 0 (완료)
   - 구현 메모(2026-10-20): `lib/queries/patrol-logs.ts`는 `import "server-only"`, 호출마다 `createClient()`, `business_date` 필터 + `patrolled_at` 내림차순, `staff_names(full_name)` 조인, 오류 시 `Error` throw. 작성자 이름이 없으면 빈 문자열을 넘기고 화면 폴백은 `PatrolLogItem`이 맡는다. select에 `client_request_id`가 없어 `toPatrolLog` 인자 타입을 `Omit<Tables<"patrol_logs">, "client_request_id">`로 좁혔다(`as` 단언 없음). `components/layout/app-chrome.tsx`가 `getViewer()`를 await 해 `AppHeader`·`PendingBanner`에 같은 viewer를 주입하고 `app/layout.tsx`에서 `<Suspense>`로 감싼다. `app/logs/page.tsx`는 `getViewer()`와 `getPatrolLogsByDate()`를 `Promise.all`로 호출하고, `app/logs/error.tsx`(`retry` prop, [다시 시도] 버튼)를 추가했다. `lib/dummy/viewers.ts`·`patrol-logs.ts`를 삭제했고 참조가 없음을 검색과 `typecheck`·`eslint .`로 확인했다(`quick-tags.ts`·`patrol-draft-adapter.ts`는 유지).
   - 테스트 결과(2026-10-20): `typecheck`·`eslint`·`prettier --check` 통과. Playwright MCP + Supabase MCP로 개발 서버에서 수행. `patrol_logs`가 비어 있어 `execute_sql`로 `[QA018]` 테스트 기록 5건(manager·manager2·admin 기록, 03:59·04:00 경계)을 넣고 검증 후 삭제했다. `qa-manager`·`qa-admin`·`qa-pending`의 `auth.users.encrypted_password`만 임시 값으로 재설정해 로그인했다(임시 비밀번호는 문서에 기록하지 않음, 비밀번호 관리자에 새로 보관 필요). 결과: ① 비로그인: 현재 영업일 4건, 작성자 이름 표시, 수정·삭제 없음, 헤더에 로그인·가입. ② `qa-manager`: 본인 기록 2건에만 수정·삭제, 타인 기록은 복사만. ③ `qa-admin`: 4건 모두 수정·삭제, 헤더에 퀵 태그 관리. ④ `qa-pending`: 4건 모두 복사만, 승인 대기 배너 표시. ⑤ `?date=abc`: 리디렉션 없이 현재 영업일 표시. ⑥ 03:59(KST) 기록은 전일(10/19)에만, 04:00 기록은 당일에만 조회됨(DB `private.business_date_of` 계산). ⑦ 콘솔: 비로그인·manager·pending에서 warning 이상 0건(hydration 경고 없음). 미확인: `error.tsx`의 에러 경계·[다시 시도] 동작(조회 실패를 재현하지 않음), 복사 문구의 서버 `patrolled_at` 기준 KST 일치(복사 버튼 미실행), 10/19 화면의 `HH:mm` 표시·hydration(HTML fetch로만 확인), admin 로그인 상태의 콘솔, 다음 날 이동 비활성(코드의 `shiftBusinessDate(currentDate, 1)`만 확인), 모바일 뷰포트·다크 모드.
 
-- **Task 019: 기록 수정/삭제 및 자리비움 사후 처리 구현**
+- **Task 019: 기록 수정/삭제 및 자리비움 사후 처리 구현** ✅
   - 관련 기능: F09, F10
   - 설명: Server Action으로 확정 기록 정정을 구현한다. 각 Action은 `requireStaff()`를 호출하고 RLS가 최종 판단한다.
   - 관련 파일: `app/logs/actions.ts`(신규, `"use server"`), `app/logs/_components/edit-log-dialog.tsx`, `app/logs/_components/away-seat-actions.tsx`, `app/logs/_components/patrol-log-item.tsx`
   - 구현 사항:
-    - [ ] `updatePatrolLog(id, content)`: 좌석·메모를 `lib/seat-numbers.ts`/`MEMO_MAX_LENGTH`로 재검증 후 `update(...).eq("id", id).select("id")`, 0행이면 "권한이 없거나 삭제된 기록입니다"
-    - [ ] `deletePatrolLog(id)`: 삭제 후 0행 처리 동일
-    - [ ] `moveAwaySeat(id, seat, target: "standing" | "cafe_zone")`와 `removeAwaySeat(id, seat)`: 현재 행 조회 → `moveAwaySeat` 순수 함수 적용 → update (동시 수정은 마지막 저장 우선)
-    - [ ] 완료 시각·영업일·작성자는 payload에서 받지 않음
-    - [ ] 성공 시 `refresh()` 또는 `revalidatePath("/logs")`로 같은 페이지 갱신(Next 16 문서 확인 후 선택), 실패 시 토스트
+    - [x] `updatePatrolLog(id, content)`: 좌석·메모를 `lib/seat-numbers.ts`/`MEMO_MAX_LENGTH`로 재검증 후 `update(...).eq("id", id).select("id")`, 0행이면 "권한이 없거나 삭제된 기록입니다"
+    - [x] `deletePatrolLog(id)`: 삭제 후 0행 처리 동일
+    - [x] `moveAwaySeat(id, seat, target: "standing" | "cafe_zone")`와 `removeAwaySeat(id, seat)`: 현재 행 조회 → `moveAwaySeat` 순수 함수 적용 → update (동시 수정은 마지막 저장 우선)
+    - [x] 완료 시각·영업일·작성자는 payload에서 받지 않음
+    - [x] 성공 시 `refresh()` 또는 `revalidatePath("/logs")`로 같은 페이지 갱신(Next 16 문서 확인 후 선택), 실패 시 토스트
   - 완료 기준: 권한 규칙이 UI 우회(직접 Action 호출) 상황에서도 지켜진다.
   - 테스트 체크리스트:
     - 정상: `browser_click → (qa-manager) 본인 기록 수정 → 메모 변경 저장 → 목록 갱신`
@@ -563,7 +563,8 @@ Phase 0 (완료)
     - 오류: 수정 다이얼로그에서 좌석 `0` 또는 메모 2,001자 → 저장 거부 안내
     - 엣지: 강등된 qa-manager(pending)가 열어둔 화면에서 수정 시도 → 거부(`requireStaff` 리디렉션 또는 RLS 0행)
     - 엣지: (qa-admin) 타인 기록 삭제 → 성공, 확인 다이얼로그 거침
-  - 테스트 결과: (미수행)
+  - 구현 메모(2026-10-20): `app/logs/actions.ts`(`"use server"`)에 `updatePatrolLog`·`deletePatrolLog`·`moveAwaySeat`·`removeAwaySeat`를 추가했다. 모두 `ActionResult<null>`을 반환하고, `requireStaff("/logs")`를 try/catch 밖에서 먼저 호출해 `redirect`가 삼켜지지 않게 했다. 서버 검증은 `id` 비어 있지 않은 문자열, 좌석 4종 `validateSeatList`(`lib/seat-numbers.ts`에 신규, 양의 안전 정수 배열만 허용하고 정렬·중복 제거), 메모 `MEMO_MAX_LENGTH` 이하, `seat` 양의 안전 정수, `target` 화이트리스트(`standing`/`cafe_zone`)다. update payload는 `standing`·`cafe_zone`·`drowsy`·`away`·`memo` 5개 키만 명시적으로 구성하며 완료 시각·영업일·작성자는 받지 않는다. `update`/`delete`에 `.select("id")`를 붙여 결과가 0행이면 "권한이 없거나 삭제된 기록입니다"를 반환하고 DB 오류 원문은 노출하지 않는다. 자리비움 처리는 현재 행을 읽어 순수 함수(`moveAwaySeat` 별칭 import, `removeSeat`)를 적용한 뒤 해당 컬럼만 update하며 동시 수정은 마지막 저장 우선이다. 현재 `away`에 없는 번호는 "이미 처리된 자리비움 번호입니다"를 반환한다. 성공 시 `next/cache`의 `refresh()`를 호출한다(`revalidatePath`는 쓰지 않음). `edit-log-dialog.tsx`는 로컬 `MEMO_MAX_LENGTH`를 지우고 `lib/patrol-format`에서 import하며 `useTransition`으로 저장 중 중복 제출을 막는다. `DeleteLogDialog`는 `logId` prop을 받아 확인 후 삭제한다. `away-seat-actions.tsx`는 이동 후 기존 `toast.custom`을 유지하고 PRD F10에 따라 메뉴에 [삭제] 항목을 추가했다. PRD는 구현과 일치해 수정하지 않았다.
+  - 테스트 결과(2026-10-20): `npm run check`(`typecheck`·`lint`·`format:check`) 통과. 순수 함수는 커밋하지 않는 임시 스크립트로 0·음수·소수·문자열·NaN·중복·비배열 입력을 확인했다. DB는 Supabase MCP `execute_sql` 롤백 트랜잭션에서 수행: ① 타인 기록 update/delete 0행 ② 본인 기록 update 1행 ③ admin의 타인 기록 delete 1행 ④ 강등(pending) 계정 update/delete 0행 ⑤ `patrolled_at`·`business_date`·`author_id` update는 42501 ⑥ 좌석 0·메모 2,001자는 23514(CHECK). 롤백 후 `[QA019]` 행 0건, `get_advisors`에 신규 경고 없음. `qa-pending`이 `staff_names`에 없어 `qa-manager`를 임시 강등해 대체했고 role 원복을 확인했다. 화면은 Playwright MCP + 개발 서버에서 수행했다. `[QA019]` 기록을 `execute_sql`로 넣었다가 검증 후 삭제했고, QA 계정은 `auth.users.encrypted_password`만 임시 값으로 재설정한 뒤 4개 계정 모두 원복했다(임시 비밀번호는 문서에 기록하지 않음, 비밀번호 관리자에 새로 보관 필요). 결과: ① `qa-manager` 본인 기록 메모 수정 후 목록·DB 갱신 ② 자리비움 7 → 스탠딩 이동 시 `standing` [3,7], `away` [8] ③ 대상에 7이 이미 있으면 `away`에서만 제거, 중복 없음 ④ 자리비움 [삭제] 메뉴 동작 ⑤ 좌석 0은 인라인 오류로 거부, 메모는 `maxLength` 2,000으로 입력 불가, 우회해도 토스트로 저장 거부 ⑥ `qa-admin`이 확인 다이얼로그를 거쳐 타인 기록 삭제 ⑦ 강등된 계정이 열어 둔 화면에서 수정하면 `/logs?notice=pending`으로 리디렉션되고 DB 불변 ⑧ `Next-Action` 요청을 fetch로 재전송해 타인 기록은 "권한이 없거나 삭제된 기록입니다", 좌석 0·메모 초과·빈 `id`는 검증 오류 응답이며 DB 불변 ⑨ 콘솔 에러·경고·hydration 경고 0건. 미확인: 모바일 뷰포트·다크 모드, 자리비움 이동 성공 토스트(하단 중앙 `toast.custom`)의 직접 확인, `deletePatrolLog`·`moveAwaySeat`·`removeAwaySeat`의 직접 Action 재전송(`updatePatrolLog`만 재전송했고 나머지는 같은 `requireStaff`와 0행 판정 구조이며 DB 검증 ①~⑥으로 보완).
 
 - **Task 020: 순찰 초안 자동 저장·복원 구현 (가짜 어댑터 교체, 더미 삭제)**
   - 관련 기능: F07, F02, F03, F04

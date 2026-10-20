@@ -14,6 +14,24 @@ export function normalizeSeats(list: readonly number[]): number[] {
   return [...new Set(list)].sort((a, b) => a - b);
 }
 
+/**
+ * 서버 Action이 받은 임의의 값을 좌석 목록으로 검증한다.
+ * 모든 요소가 양의 안전 정수인 배열이면 정규화한 새 배열을, 아니면 null을 반환한다.
+ */
+export function validateSeatList(list: unknown): number[] | null {
+  if (!Array.isArray(list)) return null;
+  for (const value of list) {
+    if (
+      typeof value !== "number" ||
+      !Number.isSafeInteger(value) ||
+      value <= 0
+    ) {
+      return null;
+    }
+  }
+  return normalizeSeats(list);
+}
+
 export type AddSeatResult =
   { ok: true; seats: number[] } | { ok: false; reason: "duplicate" };
 
