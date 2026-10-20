@@ -7,9 +7,10 @@ import {
   useEffect,
   useReducer,
   useRef,
+  useState,
   type Dispatch,
-  type RefObject,
 } from "react";
+import { toast } from "sonner";
 
 import {
   clearDraftBackup,
@@ -23,12 +24,16 @@ import {
   type PatrolFormAction,
   type PatrolFormState,
 } from "@/lib/patrol-form-reducer";
+import { createClient } from "@/lib/supabase/client";
 import type {
   PatrolContent,
   PatrolDraft,
   PatrolDraftAdapter,
   SeatCategory,
 } from "@/lib/types/patrol";
+
+/** 완료 직전 flush에서 저장을 다시 시도하는 최대 횟수 */
+const MAX_FLUSH_ATTEMPTS = 3;
 
 /** 마지막 입력 후 자동 저장까지 기다리는 시간 */
 const SAVE_DEBOUNCE_MS = 1000;
@@ -55,6 +60,24 @@ function isEmptyContent(content: PatrolContent): boolean {
   );
 }
 
+/**
+ * 저장 직후 본인 초안의 서버 updated_at을 조회한다(클라이언트 시계 미사용).
+ * 조회 실패·행 없음은 null이며, 호출부는 저장 성공으로 처리하고 기존 저장 시각을 유지한다.
+ */
+async function fetchServerUpdatedAt(userId: string): Promise<string | null> {
+  try {
+    const { data, error } = await createClient()
+      .from("patrol_drafts")
+      .select("updated_at")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error || !data) return null;
+    return data.updated_at;
+  } catch {
+    return null;
+  }
+}
+
 /** 서버 초안으로 초기 상태를 만든다. 내용이 있으면 이미 저장된 상태("저장됨 HH:mm")로 시작한다. */
 function createInitialState(draft: PatrolDraft): PatrolFormState {
   const base = createInitialPatrolFormState(draft);
@@ -72,12 +95,10 @@ interface UsePatrolDraftOptions {
 interface UsePatrolDraftResult {
   state: PatrolFormState;
   dispatch: Dispatch<PatrolFormAction>;
-  /** 비동기 흐름(순찰 완료 등)이 최신 상태를 읽기 위한 ref */
-  stateRef: RefObject<PatrolFormState>;
-  /** 진행 중인 저장 요청 (없으면 null) */
-  inflightSaveRef: RefObject<Promise<void> | null>;
-  /** 지금 저장한다. 이미 저장 중이면 진행 중인 요청을 돌려준다(기기당 동시 요청 1개). */
-  save: () => Promise<void>;
+  /** 저장 flush 후 순찰을 완료한다. */
+  handleComplete: () => Promise<void>;
+  /** 클릭 직후 COMPLETE_START 전까지(저장 flush 중) true */
+  flushing: boolean;
 }
 
 export function usePatrolDraft({
@@ -95,6 +116,9 @@ export function usePatrolDraft({
   // 저장 실패(오프라인·거절) 이후 저장에 성공하기 전까지 true. 입력이 바뀔 때마다 로컬 백업을 갱신한다.
   const needsBackupRef = useRef(false);
   const refetchingRef = useRef(false);
+  // 완료 재시도 시 같은 요청 ID를 써서 서버 멱등 처리를 탄다.
+  const requestIdRef = useRef<string | null>(null);
+  const [flushing, setFlushing] = useState(false);
 
   const dispatch = useCallback((action: PatrolFormAction) => {
     stateRef.current = patrolFormReducer(stateRef.current, action);
@@ -113,25 +137,17 @@ export function usePatrolDraft({
       try {
         const result = await adapter.saveDraft(revision, content);
         if (result.status === "ok") {
-          // 저장 시각은 응답의 서버 updated_at만 쓴다(클라이언트 시계 미사용).
-          dispatch({
-            type: "SAVE_OK",
-            revision: result.revision,
-            savedAt: result.updatedAt,
-          });
+          // 저장 시각은 서버 updated_at을 다시 읽어 쓴다. 조회 실패 시 저장은 성공으로 두고 시각만 유지한다.
+          const savedAt = await fetchServerUpdatedAt(userId);
+          dispatch({ type: "SAVE_OK", revision: result.revision, savedAt });
           needsBackupRef.current = false;
           // 입력이 더 들어와 dirty로 남았다면 그 내용은 아직 서버에 없으므로 백업을 유지한다.
           if (stateRef.current.status === "saved") clearDraftBackup(userId);
         } else {
           dispatch({ type: "SAVE_CONFLICT", serverDraft: result.serverDraft });
           // 서버 초안이 비어 있으면 선택 없이 로컬 입력을 서버 revision 기준으로 다시 저장한다.
-          if (
-            isEmptyContent(result.serverDraft.content) &&
-            !isEmptyContent(stateRef.current.content)
-          ) {
+          if (isEmptyContent(result.serverDraft.content)) {
             dispatch({ type: "RESOLVE_CONFLICT", choice: "local" });
-          } else if (isEmptyContent(result.serverDraft.content)) {
-            dispatch({ type: "RESOLVE_CONFLICT", choice: "server" });
           }
         }
       } catch (error) {
@@ -161,20 +177,21 @@ export function usePatrolDraft({
   useEffect(() => {
     const backup = readDraftBackup(userId);
     if (!backup) return;
-    const current = stateRef.current;
     if (
-      backup.revision >= current.revision &&
-      !isSameContent(backup.payload, current.content)
+      backup.revision >= initialDraft.revision &&
+      !isSameContent(backup.payload, initialDraft.content)
     ) {
       needsBackupRef.current = true;
       dispatch({
         type: "RESTORE_BACKUP",
         content: backup.payload,
-        revision: current.revision,
+        revision: initialDraft.revision,
       });
     } else {
       clearDraftBackup(userId);
     }
+    // 마운트 시 한 번만 판단한다. initialDraft는 서버가 준 초기값이다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, dispatch]);
 
   // 오프라인·저장 실패 이후의 추가 입력도 백업에 반영한다.
@@ -213,6 +230,7 @@ export function usePatrolDraft({
 
   // 탭 복귀 시 저장 안 된 입력이 없는 상태에서만 서버 초안을 다시 읽고, revision이 더 크면 교체한다.
   useEffect(() => {
+    let cancelled = false;
     async function refetch() {
       if (document.visibilityState !== "visible") return;
       const { status } = stateRef.current;
@@ -222,7 +240,10 @@ export function usePatrolDraft({
       refetchingRef.current = true;
       try {
         const draft = await adapter.fetchDraft(userId);
-        if (draft) dispatch({ type: "REPLACE_FROM_SERVER", draft });
+        // 응답 도착 시점의 status는 reducer가 다시 확인한다(dirty·saving이면 무시).
+        if (draft && !cancelled) {
+          dispatch({ type: "REPLACE_FROM_SERVER", draft });
+        }
       } catch {
         // 재조회 실패는 조용히 넘기고 다음 복귀 때 다시 시도한다.
       } finally {
@@ -232,10 +253,69 @@ export function usePatrolDraft({
     document.addEventListener("visibilitychange", refetch);
     window.addEventListener("focus", refetch);
     return () => {
+      cancelled = true;
       document.removeEventListener("visibilitychange", refetch);
       window.removeEventListener("focus", refetch);
     };
   }, [adapter, dispatch, userId]);
 
-  return { state, dispatch, stateRef, inflightSaveRef, save };
+  async function handleComplete() {
+    if (flushing || stateRef.current.completing) return;
+    setFlushing(true);
+    try {
+      // 대기 중인 저장을 먼저 끝낸다. 저장 중 입력이 들어오면 다시 dirty가 되므로 몇 번 반복한다.
+      for (let i = 0; i < MAX_FLUSH_ATTEMPTS; i++) {
+        const { status } = stateRef.current;
+        if (status === "saving") {
+          await inflightSaveRef.current;
+        } else if (status === "dirty" || (status === "offline" && i === 0)) {
+          await save();
+        } else {
+          break;
+        }
+      }
+      const current = stateRef.current;
+      if (current.status !== "saved" && current.status !== "clean") {
+        if (current.status === "offline") {
+          toast.error("오프라인이라 완료할 수 없음");
+        }
+        return;
+      }
+
+      dispatch({ type: "COMPLETE_START" });
+      requestIdRef.current ??= crypto.randomUUID();
+      const requestId = requestIdRef.current;
+      try {
+        const result = await adapter.completePatrol(
+          requestId,
+          current.revision,
+        );
+        if (result.status === "conflict") {
+          requestIdRef.current = null;
+          dispatch({
+            type: "COMPLETE_CONFLICT",
+            serverRevision: result.serverRevision,
+            serverDraft: result.serverDraft,
+          });
+        } else {
+          requestIdRef.current = null;
+          dispatch({
+            type: "COMPLETE_OK",
+            logId: result.logId,
+            patrolledAt: result.patrolledAt,
+            revision: result.revision,
+          });
+          // 복사·다음 순찰 버튼이 없으므로 완료 즉시 다음 순찰 입력 상태로 돌아간다.
+          dispatch({ type: "NEXT_PATROL" });
+          toast.success("순찰 완료 기록됨");
+        }
+      } catch {
+        dispatch({ type: "COMPLETE_FAILED" });
+      }
+    } finally {
+      setFlushing(false);
+    }
+  }
+
+  return { state, dispatch, handleComplete, flushing };
 }

@@ -37,7 +37,7 @@ export type PatrolFormAction =
   | { type: "SET_MEMO"; memo: string }
   | { type: "APPEND_TAG"; label: string }
   | { type: "SAVE_START" }
-  | { type: "SAVE_OK"; revision: number; savedAt: string }
+  | { type: "SAVE_OK"; revision: number; savedAt: string | null }
   | { type: "SAVE_CONFLICT"; serverDraft: PatrolDraft }
   | { type: "SAVE_OFFLINE" }
   /** 서버가 저장을 거절한 경우(권한·검증·DB 오류). 네트워크 실패(offline)와 구분한다. */
@@ -174,7 +174,9 @@ export function patrolFormReducer(
         savingContent: null,
         // 저장 중 입력이 들어왔다면 dirty를 유지해 다시 저장되게 한다.
         status: unchanged ? "saved" : "dirty",
-        lastSavedAt: unchanged ? action.savedAt : state.lastSavedAt,
+        lastSavedAt: unchanged
+          ? (action.savedAt ?? state.lastSavedAt)
+          : state.lastSavedAt,
       };
     }
     case "SAVE_CONFLICT":
