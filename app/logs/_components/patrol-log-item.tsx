@@ -77,7 +77,7 @@ export function PatrolLogItem({ log, viewer, serial }: PatrolLogItemProps) {
           {editable && (
             <>
               <EditLogDialog log={log} />
-              <DeleteLogDialog />
+              <DeleteLogDialog logId={log.id} />
             </>
           )}
         </div>
