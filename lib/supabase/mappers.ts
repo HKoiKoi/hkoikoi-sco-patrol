@@ -116,6 +116,7 @@ export function toSaveDraftResult(json: Json): SaveDraftResult {
       return {
         status: "ok",
         revision: expectNumber(r.revision, "save_patrol_draft.revision"),
+        updatedAt: expectString(r.updated_at, "save_patrol_draft.updated_at"),
       };
     case "conflict":
       return {

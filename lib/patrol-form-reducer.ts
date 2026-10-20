@@ -8,7 +8,7 @@ import type {
 } from "@/lib/types/patrol";
 
 export type PatrolFormStatus =
-  "clean" | "dirty" | "saving" | "saved" | "offline" | "conflict";
+  "clean" | "dirty" | "saving" | "saved" | "offline" | "error" | "conflict";
 
 export interface CompletedPatrol {
   logId: string;
@@ -37,9 +37,11 @@ export type PatrolFormAction =
   | { type: "SET_MEMO"; memo: string }
   | { type: "APPEND_TAG"; label: string }
   | { type: "SAVE_START" }
-  | { type: "SAVE_OK"; revision: number; savedAt: string }
+  | { type: "SAVE_OK"; revision: number; savedAt: string | null }
   | { type: "SAVE_CONFLICT"; serverDraft: PatrolDraft }
   | { type: "SAVE_OFFLINE" }
+  /** 서버가 저장을 거절한 경우(권한·검증·DB 오류). 네트워크 실패(offline)와 구분한다. */
+  | { type: "SAVE_ERROR" }
   | { type: "RESOLVE_CONFLICT"; choice: "local" | "server" }
   | { type: "COMPLETE_START" }
   | {
@@ -55,7 +57,11 @@ export type PatrolFormAction =
     }
   /** 완료 요청이 네트워크 오류 등으로 응답 없이 끝난 경우. 같은 요청 ID로 다시 시도할 수 있게 풀어 준다. */
   | { type: "COMPLETE_FAILED" }
-  | { type: "NEXT_PATROL" };
+  | { type: "NEXT_PATROL" }
+  /** 탭 포커스 복귀 시 서버 초안 반영. 깨끗한 상태에서 서버 revision이 더 클 때만 교체한다. */
+  | { type: "REPLACE_FROM_SERVER"; draft: PatrolDraft }
+  /** 마운트 시 로컬 백업 복원. 서버에 아직 저장되지 않은 내용이므로 dirty로 둔다. */
+  | { type: "RESTORE_BACKUP"; content: PatrolContent; revision: number };
 
 export const EMPTY_PATROL_CONTENT: PatrolContent = {
   standing: [],
@@ -148,7 +154,13 @@ export function patrolFormReducer(
       return withEdit(state, { ...state.content, memo: next });
     }
     case "SAVE_START": {
-      if (state.status !== "dirty" && state.status !== "offline") return state;
+      if (
+        state.status !== "dirty" &&
+        state.status !== "offline" &&
+        state.status !== "error"
+      ) {
+        return state;
+      }
       if (!editable) return state;
       return { ...state, status: "saving", savingContent: state.content };
     }
@@ -162,7 +174,9 @@ export function patrolFormReducer(
         savingContent: null,
         // 저장 중 입력이 들어왔다면 dirty를 유지해 다시 저장되게 한다.
         status: unchanged ? "saved" : "dirty",
-        lastSavedAt: unchanged ? action.savedAt : state.lastSavedAt,
+        lastSavedAt: unchanged
+          ? (action.savedAt ?? state.lastSavedAt)
+          : state.lastSavedAt,
       };
     }
     case "SAVE_CONFLICT":
@@ -176,6 +190,10 @@ export function patrolFormReducer(
     case "SAVE_OFFLINE":
       if (state.savingContent === null) return state;
       return { ...state, status: "offline", savingContent: null };
+    case "SAVE_ERROR":
+      // 입력은 그대로 두고 자동 재저장하지 않는다. 다음 입력(dirty)이나 명시적 재시도에서만 저장한다.
+      if (state.savingContent === null) return state;
+      return { ...state, status: "error", savingContent: null };
     case "RESOLVE_CONFLICT": {
       const server = state.conflictDraft;
       if (state.status !== "conflict" || server === null) return state;
@@ -231,6 +249,34 @@ export function patrolFormReducer(
     case "COMPLETE_FAILED":
       if (!state.completing) return state;
       return { ...state, completing: false };
+    case "REPLACE_FROM_SERVER": {
+      // 저장 안 된 입력·저장 중·충돌·완료 중에는 서버 초안으로 덮어쓰지 않는다.
+      if (state.status !== "clean" && state.status !== "saved") return state;
+      if (state.completed !== null || state.completing) return state;
+      if (action.draft.revision <= state.revision) return state;
+      return {
+        ...state,
+        content: action.draft.content,
+        revision: action.draft.revision,
+        status: isSameContent(action.draft.content, EMPTY_PATROL_CONTENT)
+          ? "clean"
+          : "saved",
+        lastSavedAt: action.draft.updatedAt || state.lastSavedAt,
+        conflictDraft: null,
+        savingContent: null,
+      };
+    }
+    case "RESTORE_BACKUP": {
+      if (!editable) return state;
+      return {
+        ...state,
+        content: action.content,
+        revision: action.revision,
+        status: "dirty",
+        conflictDraft: null,
+        savingContent: null,
+      };
+    }
     case "NEXT_PATROL":
       if (state.completed === null) return state;
       return { ...createInitialPatrolFormState(), revision: state.revision };

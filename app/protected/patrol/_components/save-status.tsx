@@ -23,7 +23,8 @@ export function SaveStatus({
       aria-live="polite"
       className={cn(
         "flex min-h-6 items-center gap-1.5 text-sm text-muted-foreground",
-        status === "conflict" && "font-medium text-destructive",
+        (status === "conflict" || status === "error") &&
+          "font-medium text-destructive",
         className,
       )}
     >
@@ -43,6 +44,12 @@ export function SaveStatus({
         <>
           <CloudOff className="size-4" aria-hidden="true" />
           오프라인 (기기에 임시 저장)
+        </>
+      )}
+      {status === "error" && (
+        <>
+          <AlertTriangle className="size-4" aria-hidden="true" />
+          저장 실패 (기기에 임시 저장)
         </>
       )}
       {status === "conflict" && (

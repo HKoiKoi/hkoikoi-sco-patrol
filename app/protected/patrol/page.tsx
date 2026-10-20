@@ -2,7 +2,8 @@ import { Suspense } from "react";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { requireStaff } from "@/lib/auth/dal";
-import { DUMMY_QUICK_TAGS } from "@/lib/dummy/quick-tags";
+import { getMyDraft } from "@/lib/queries/patrol-draft";
+import { getActiveQuickTags } from "@/lib/queries/quick-tags";
 
 import { PatrolFormHost } from "./_components/patrol-form-host";
 
@@ -21,8 +22,18 @@ function PatrolSkeleton() {
 async function PatrolContent() {
   const viewer = await requireStaff("/protected/patrol");
 
-  // TODO: Task 018에서 DB 조회로 교체 (어댑터는 Task 020에서 RPC 구현으로 교체)
-  return <PatrolFormHost viewer={viewer} quickTags={DUMMY_QUICK_TAGS} />;
+  const [initialDraft, quickTags] = await Promise.all([
+    getMyDraft(viewer.userId),
+    getActiveQuickTags(),
+  ]);
+
+  return (
+    <PatrolFormHost
+      viewer={viewer}
+      quickTags={quickTags}
+      initialDraft={initialDraft}
+    />
+  );
 }
 
 export default function PatrolPage() {
