@@ -2,11 +2,13 @@
 import { createClient } from "@/lib/supabase/client";
 import {
   toCompletePatrolResult,
+  toPatrolDraft,
   toSaveDraftResult,
 } from "@/lib/supabase/mappers";
 import type {
   CompletePatrolResult,
   PatrolContent,
+  PatrolDraft,
   PatrolDraftAdapter,
   SaveDraftResult,
 } from "@/lib/types/patrol";
@@ -83,6 +85,18 @@ export function createPatrolDraftAdapter(): PatrolDraftAdapter {
       });
       throwIfError(response);
       return toCompletePatrolResult(response.data);
+    },
+
+    async fetchDraft(userId: string): Promise<PatrolDraft | null> {
+      const response = await supabase
+        .from("patrol_drafts")
+        .select(
+          "user_id, revision, updated_at, standing, cafe_zone, drowsy, away, memo",
+        )
+        .eq("user_id", userId)
+        .maybeSingle();
+      throwIfError(response);
+      return response.data ? toPatrolDraft(response.data) : null;
     },
   };
 }

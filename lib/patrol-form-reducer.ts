@@ -8,7 +8,7 @@ import type {
 } from "@/lib/types/patrol";
 
 export type PatrolFormStatus =
-  "clean" | "dirty" | "saving" | "saved" | "offline" | "conflict";
+  "clean" | "dirty" | "saving" | "saved" | "offline" | "error" | "conflict";
 
 export interface CompletedPatrol {
   logId: string;
@@ -40,6 +40,8 @@ export type PatrolFormAction =
   | { type: "SAVE_OK"; revision: number; savedAt: string }
   | { type: "SAVE_CONFLICT"; serverDraft: PatrolDraft }
   | { type: "SAVE_OFFLINE" }
+  /** 서버가 저장을 거절한 경우(권한·검증·DB 오류). 네트워크 실패(offline)와 구분한다. */
+  | { type: "SAVE_ERROR" }
   | { type: "RESOLVE_CONFLICT"; choice: "local" | "server" }
   | { type: "COMPLETE_START" }
   | {
@@ -152,7 +154,13 @@ export function patrolFormReducer(
       return withEdit(state, { ...state.content, memo: next });
     }
     case "SAVE_START": {
-      if (state.status !== "dirty" && state.status !== "offline") return state;
+      if (
+        state.status !== "dirty" &&
+        state.status !== "offline" &&
+        state.status !== "error"
+      ) {
+        return state;
+      }
       if (!editable) return state;
       return { ...state, status: "saving", savingContent: state.content };
     }
@@ -180,6 +188,10 @@ export function patrolFormReducer(
     case "SAVE_OFFLINE":
       if (state.savingContent === null) return state;
       return { ...state, status: "offline", savingContent: null };
+    case "SAVE_ERROR":
+      // 입력은 그대로 두고 자동 재저장하지 않는다. 다음 입력(dirty)이나 명시적 재시도에서만 저장한다.
+      if (state.savingContent === null) return state;
+      return { ...state, status: "error", savingContent: null };
     case "RESOLVE_CONFLICT": {
       const server = state.conflictDraft;
       if (state.status !== "conflict" || server === null) return state;

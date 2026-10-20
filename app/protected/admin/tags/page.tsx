@@ -2,7 +2,7 @@ import { Suspense } from "react";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { requireAdmin } from "@/lib/auth/dal";
-import { DUMMY_QUICK_TAGS } from "@/lib/dummy/quick-tags";
+import { getAllQuickTags } from "@/lib/queries/quick-tags";
 
 import { TagList } from "./_components/tag-list";
 
@@ -22,8 +22,9 @@ function TagsSkeleton() {
 async function TagsContent() {
   await requireAdmin("/protected/admin/tags");
 
-  // TODO: Task 018에서 DB 조회로 교체
-  return <TagList initialTags={DUMMY_QUICK_TAGS} />;
+  const tags = await getAllQuickTags();
+
+  return <TagList initialTags={tags} />;
 }
 
 export default function AdminTagsPage() {

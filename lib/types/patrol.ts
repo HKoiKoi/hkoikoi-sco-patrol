@@ -35,7 +35,7 @@ export interface QuickTag {
 
 /** save_patrol_draft RPC 응답. */
 export type SaveDraftResult =
-  | { status: "ok"; revision: number }
+  | { status: "ok"; revision: number; updatedAt: string }
   | { status: "conflict"; serverRevision: number; serverDraft: PatrolDraft };
 
 /** complete_patrol RPC 응답. duplicate는 같은 요청 ID의 재요청. */
@@ -58,6 +58,8 @@ export interface PatrolDraftAdapter {
     requestId: string,
     expectedRevision: number,
   ): Promise<CompletePatrolResult>;
+  /** 본인 초안을 다시 읽는다(포커스 복귀 재조회·저장 시각 확인용). 행이 없으면 null. */
+  fetchDraft(userId: string): Promise<PatrolDraft | null>;
 }
 
 /** Server Action 공통 반환 형태. */
