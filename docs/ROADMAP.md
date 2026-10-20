@@ -590,22 +590,22 @@ Phase 0 (완료)
     - 엣지: 서버 초안이 정리(cron)로 비워진 뒤 탭 A에서 입력 → 다이얼로그 없이 새 revision으로 재저장
     - 엣지: 빠른 연속 입력 20회 → 네트워크 탭에서 동시 요청 1개 이하(`browser_network_requests`)
     - 엣지: 탭 A가 dirty인 상태에서 포커스 복귀 → 서버 내용으로 덮어쓰지 않음
-  - 구현 메모(2026-10-20): `hooks/use-patrol-draft.ts`가 `{state, dispatch, stateRef, inflightSaveRef, save}`를 돌려주고 `patrol-form.tsx`가 이를 쓴다. 저장 중 입력은 진행 중 요청이 끝난 뒤 최신 내용 하나로 다시 저장한다(`inflightSaveRef`가 있으면 새 요청을 보내지 않고 `revision` 변화로 디바운스 effect가 재실행). 서버 초안이 비어 있고 로컬에 입력이 있으면 `RESOLVE_CONFLICT local`을 자동 dispatch해 다이얼로그 없이 재저장한다. 저장 시각은 `save_patrol_draft` 응답의 `updated_at`(migration `20261020160932_save_patrol_draft_return_updated_at`, 2026-10-20 원격 적용)을 쓰며 재조회하지 않는다. 서버 거절은 reducer `error` 상태(7종)로 처리하고 자동 재시도 없이 다음 입력(dirty)에서만 재저장한다. 포커스 복귀 재조회는 `clean`·`saved`에서만 허용한다. 진입 시 `backup.revision >= 서버 revision`이고 내용이 다르면 `RESTORE_BACKUP`, 아니면 백업을 지운다. 관찰: 모바일에서는 저장 상태 줄이 화면 맨 위에 있어 메모 입력 중 스크롤하면 `error`·`offline`이 보이지 않는다(Task 020 범위 밖, 하단 바 표시 검토 후보). `error` 상태에서 [순찰 완료]는 안내 없이 반환되며 Task 021에서 flush·실패 안내를 추가한다.
+  - 구현 메모(2026-10-20): `hooks/use-patrol-draft.ts`가 `{state, dispatch, handleComplete, flushing}`을 돌려주고 `patrol-form.tsx`가 이를 쓴다(저장 ref는 훅 내부에 둔다). 저장 중 입력은 진행 중 요청이 끝난 뒤 최신 내용 하나로 다시 저장한다(`inflightSaveRef`가 있으면 새 요청을 보내지 않고 `revision` 변화로 디바운스 effect가 재실행). 서버 초안이 비어 있고 로컬에 입력이 있으면 `RESOLVE_CONFLICT local`을 자동 dispatch해 다이얼로그 없이 재저장한다. 저장 시각은 `save_patrol_draft` 응답의 `updated_at`(migration `20261020160932_save_patrol_draft_return_updated_at`, 2026-10-20 원격 적용)을 쓰며 재조회하지 않는다. 서버 거절은 reducer `error` 상태(7종)로 처리하고 자동 재시도 없이 다음 입력(dirty)에서만 재저장한다. 포커스 복귀 재조회는 `clean`·`saved`에서만 허용한다. 진입 시 `backup.revision >= 서버 revision`이고 내용이 다르면 `RESTORE_BACKUP`, 아니면 백업을 지운다. 관찰: 모바일에서는 저장 상태 줄이 화면 맨 위에 있어 메모 입력 중 스크롤하면 `error`·`offline`이 보이지 않는다(Task 020 범위 밖, 하단 바 표시 검토 후보). `error` 상태에서 [순찰 완료]가 안내 없이 반환되던 동작은 Task 021에서 flush 후 실패 토스트로 바꿨다.
   - 테스트 결과(2026-10-20): `npm run check`(`typecheck`·`lint`·`format:check`)와 `npm run build` 통과. `grep -r "lib/dummy" app components lib hooks`와 `__fakePatrolAdapter` 결과 없음. DB는 Supabase MCP 롤백 트랜잭션에서 qa-manager로 `save_patrol_draft`를 호출해 신규·기존 행 저장의 `ok` 응답에 `updated_at`이 있고 `conflict` 응답이 이전과 같음을 확인한 뒤 migration을 적용했고, `get_advisors`에 신규 경고는 없다(기존 RPC 실행 권한 경고와 유출 비밀번호 보호 비활성만 남음). 화면은 Playwright MCP + 개발 서버, `qa-manager`·`qa-admin`·`qa-pending`으로 수행했다. 결과: ① 메모 입력 1초 후 "저장됨 HH:mm"이 DB `updated_at`(KST)과 일치, 요청 1회 ② 새로고침·두 번째 탭에서 초안 복원 ③ 연속 입력 25회에 요청 1건, 응답을 2.5초 지연시킨 저장 중 추가 입력은 총 2건·동시 최대 1건으로 합쳐짐 ④ 오프라인 입력 시 "오프라인 (기기에 임시 저장)"과 `draft:{user_id}` 백업 생성, 복귀 후 재전송·백업 삭제·DB 반영 ⑤ 두 탭 충돌 다이얼로그에서 "서버 내용"·"이 기기 내용" 선택이 각각 반영됨 ⑥ `execute_sql`로 서버 초안을 비운 뒤 입력하면 다이얼로그 없이 새 revision으로 재저장 ⑦ 포커스 복귀 시 `saved`는 서버 내용으로 교체, dirty는 덮어쓰지 않고 저장 시점에 충돌 다이얼로그 ⑧ RPC 응답을 403으로 가로채면 "저장 실패 (기기에 임시 저장)"·백업 유지·자동 재시도 없음, 다음 입력에서 재저장·백업 삭제 ⑨ `revision` 999 백업을 심고 새로고침하면 복원·재전송(DB `revision` 14) ⑩ [순찰 완료] 회귀: 기록 1건 생성, 입력·초안·백업 초기화 ⑪ `qa-admin`의 `/protected/admin/tags`가 DB 태그 5개를 `sort_order` 순으로 표시하고, 태그 하나를 임시 비활성화하면 관리자 목록에는 보이고 순찰 기록 화면에는 4개만 표시(원복) ⑫ manager는 태그 관리 접근 시 `/logs?notice=admin-required`, `pending`은 순찰 기록·태그 관리 접근 시 `/logs?notice=pending`, 비로그인은 `/auth/login?next=...` ⑬ 375x812 가로 스크롤 없음, [순찰 완료] 48px, 다크 모드에서 저장 상태 표시 가독 ⑭ 콘솔 경고·hydration 경고 0건(에러는 직접 만든 오프라인·403뿐). 테스트 데이터(`[QA020]` 기록, 초안, 태그 활성 상태)는 모두 원복했다. QA 계정(`qa-admin`·`qa-manager`·`qa-pending`)은 `auth.users.encrypted_password`만 임시 값으로 재설정한 뒤 원래 해시로 복원했다(임시 비밀번호는 문서에 기록하지 않음). 미확인: 실기기 폰↔태블릿 이어쓰기, 1024x768 태블릿 뷰포트, 포커스 이벤트는 실제 탭 전환이 아니라 `focus`·`visibilitychange` 이벤트를 발생시켜 확인, 연속 [순찰 완료] 멱등·충돌은 Task 021에서 확인.
 
-- **Task 021: 순찰 완료 구현**
+- **Task 021: 순찰 완료 구현** ✅
   - 관련 기능: F05
   - 설명: 대기 중인 저장을 먼저 보내고 `complete_patrol`을 멱등 호출한 뒤, 입력을 초기화해 다음 순찰 입력 상태로 돌아간다. 복사는 순찰 기록 화면에 두지 않고 `/logs`의 기록 항목에서만 한다.
   - 관련 파일: `hooks/use-patrol-draft.ts`, `app/protected/patrol/_components/patrol-action-bar.tsx`
   - 구현 사항:
-    - [ ] [순찰 완료]: 버튼 비활성화 → 대기 중 저장 즉시 flush 후 완료 대기 → `crypto.randomUUID()` 요청 ID 생성(같은 시도의 재시도에는 같은 ID 재사용) → `complete_patrol(id, revision)`
-    - [ ] `ok`/`duplicate` 응답: 로컬 입력 초기화, `revision`을 응답값으로 갱신, `draft:{user_id}` 백업 삭제, 곧바로 다음 순찰 입력 상태로 전환
-    - [ ] 저장 상태가 `error`(서버 거절)·`offline`이면 완료 전 flush로 저장을 재시도하고, 실패하면 완료를 진행하지 않고 실패 안내를 표시(Task 020 시점에는 `error`에서 [순찰 완료]가 안내 없이 반환됨)
-    - [ ] `conflict` 응답: 기록 미생성 안내 후 응답의 `server_draft`로 충돌 다이얼로그를 연결(재조회 없음)
-    - [ ] 네트워크 오류로 응답을 못 받은 경우 같은 요청 ID로 재시도 버튼 제공: 하단 바의 [순찰 완료] 버튼 문구를 '다시 시도'로 바꾸고(버튼은 하나만 둔다), 폼 상단에 안내 한 줄을 표시한다
-    - [ ] 재시도 대기(`completeRetry`) 중에는 입력을 잠근다: 서버가 이미 기록을 만들고 초안을 `revision + 1`로 비웠을 수 있어, 로컬 편집을 허용하면 저장 충돌 → 자동 local 해결 → `duplicate` → 다음 순찰 전환 순서로 입력이 사라지거나 서버 초안과 어긋난다. 같은 요청 ID·같은 `revision`으로만 재시도한다
-    - [ ] 서버가 완료를 거절한 경우(권한·검증·응답 형식 오류)는 요청 ID를 버리고 재시도 대기 없이 입력 상태로 복귀하며 실패 토스트를 표시
-    - [ ] `completingRef` 동기 가드로 같은 틱의 [순찰 완료] 연타를 막는다(React state만으로는 렌더 전 연타를 못 막음)
+    - ✅ [순찰 완료]: 버튼 비활성화 → 대기 중 저장 즉시 flush 후 완료 대기 → `crypto.randomUUID()` 요청 ID 생성(같은 시도의 재시도에는 같은 ID 재사용) → `complete_patrol(id, revision)`
+    - ✅ `ok`/`duplicate` 응답: 로컬 입력 초기화, `revision`을 응답값으로 갱신, `draft:{user_id}` 백업 삭제, 곧바로 다음 순찰 입력 상태로 전환
+    - ✅ 저장 상태가 `error`(서버 거절)·`offline`이면 완료 전 flush로 저장을 재시도하고, 실패하면 완료를 진행하지 않고 실패 안내를 표시(Task 020 시점에는 `error`에서 [순찰 완료]가 안내 없이 반환됨)
+    - ✅ `conflict` 응답: 기록 미생성 안내 후 응답의 `server_draft`로 충돌 다이얼로그를 연결(재조회 없음)
+    - ✅ 네트워크 오류로 응답을 못 받은 경우 같은 요청 ID로 재시도 버튼 제공: 하단 바의 [순찰 완료] 버튼 문구를 '다시 시도'로 바꾸고(버튼은 하나만 둔다), 폼 상단에 안내 한 줄을 표시한다
+    - ✅ 재시도 대기(`completeRetry`) 중에는 입력을 잠근다: 서버가 이미 기록을 만들고 초안을 `revision + 1`로 비웠을 수 있어, 로컬 편집을 허용하면 저장 충돌 → 자동 local 해결 → `duplicate` → 다음 순찰 전환 순서로 입력이 사라지거나 서버 초안과 어긋난다. 같은 요청 ID·같은 `revision`으로만 재시도한다
+    - ✅ 서버가 완료를 거절한 경우(권한·검증·응답 형식 오류)는 요청 ID를 버리고 재시도 대기 없이 입력 상태로 복귀하며 실패 토스트를 표시
+    - ✅ `completingRef` 동기 가드로 같은 틱의 [순찰 완료] 연타를 막는다(React state만으로는 렌더 전 연타를 못 막음)
   - 완료 기준: 중복 탭·재시도에도 기록은 1건만 생기고, 완료한 기록을 `/logs`에서 복사하면 문구가 서버 시각과 일치한다.
   - 테스트 체크리스트:
     - 정상: `browser_click → 졸음 23, 메모 입력 후 [순찰 완료] → 입력 초기화 → `/logs`에서 해당 기록 [복사] → clipboard "HH:mm 순찰 → 완료 (메모, 23번 졸아서 깨움)"`
@@ -618,7 +618,8 @@ Phase 0 (완료)
     - 오류(응답 유실): 완료 응답을 라우트 가로채기로 유실 → '다시 시도' 표시·입력 잠금, 가로채기 해제 후 같은 요청 ID로 재시도 → `duplicate`/`ok` 처리, 기록 1건
     - 오류(저장 거절): 저장 RPC를 403으로 가로채 `error` 상태로 만든 뒤 [순찰 완료] → 안내 토스트, 완료 미진행
     - 정상: 완료 성공 후 `localStorage`의 `draft:{user_id}` 키 삭제
-  - 테스트 결과: (미수행)
+  - 구현 메모(2026-10-20): `lib/patrol-form-reducer.ts`에 `completeRetry`와 `COMPLETE_REJECTED`를 추가했다. 응답 유실(`PatrolDraftNetworkError`)이면 `COMPLETE_FAILED`로 재시도 대기에 들어가 입력·`SAVE_START`·서버 초안 교체를 막고, `COMPLETE_OK`·`COMPLETE_CONFLICT`·`COMPLETE_REJECTED`에서 해제한다. `handleComplete`는 `completingRef` 동기 가드 뒤 `inflightSaveRef` 대기와 `dirty`·`offline`·`error` flush 루프를 거치고, 저장이 끝나지 않으면 사유별 토스트(`offline`·`error`·`dirty`/`saving`)를 띄운 채 완료하지 않는다(`conflict`는 이미 떠 있는 다이얼로그로 대신한다). 재시도는 같은 요청 ID·같은 `revision`을 쓰고 서버 거절은 요청 ID를 버린다. `patrol-action-bar.tsx`는 `retrying`일 때 '다시 시도'를 표시하고 폼 상단에 `role="status"` 안내 한 줄을 둔다. 훅 반환값은 `{state, dispatch, handleComplete, flushing}`이다.
+  - 테스트 결과(2026-10-20): `npm run check` 통과. DB는 Supabase MCP의 롤백되는 `DO` 블록에서 qa-manager로 `complete_patrol`을 호출해, 같은 요청 ID 2회째가 `duplicate`(같은 `log_id`·`revision` 17)이고 기록 1건·초안 `revision` 16→17로 1회만 증가하며, 어긋난 `expected_revision`은 `conflict`로 기록이 생기지 않음을 확인했다(롤백 후 기록 0건). 화면은 Playwright MCP + 개발 서버, `qa-manager`로 수행했다. 결과: ① 졸음 23 + 메모 완료 시 입력 초기화, `/logs` [복사]가 "16:51 순찰 → 완료 ([QA021] 메모, 23번 졸아서 깨움)"과 일치 ② `/logs`에 기록 1건, `business_date`가 `private.business_date_of()` 값(2026-10-20)과 일치 ③ 빈 초안 완료 시 빈 내용 기록 1건 생성(`complete_patrol` 요청 1회, `/logs` 복사 문구는 미확인) ④ 라우트 가로채기로 같은 요청을 2회 보내 `ok`/`duplicate`, 같은 `log_id`, 기록 1건 ⑤ 탭 B 저장 후 탭 A에서 완료하면 "다른 기기에서 수정됨" 다이얼로그가 뜨고 기록 미생성(flush 단계 `conflict`라 별도 토스트 없음) ⑥ 입력 직후 즉시 완료해도 마지막 입력 포함 ⑦ 같은 틱 5회 클릭에 `complete_patrol` 요청 1개 ⑧ 응답을 `abort`로 유실시키면 '다시 시도'·안내 문구·토스트가 뜨고 좌석·메모 입력이 거부됨, 가로채기 해제 후 재시도는 같은 요청 ID로 1회 전송되어 "순찰 완료 기록됨"·기록 1건 ⑨ 저장 RPC를 403으로 가로챈 "저장 실패 (기기에 임시 저장)" 상태에서 [순찰 완료] 시 "저장에 실패해 완료하지 못했습니다" 토스트, `complete_patrol` 요청 없음, 기록 미생성 ⑩ 완료 후 `localStorage`의 `draft:` 키 없음 ⑪ 콘솔 에러는 직접 만든 응답 유실·403뿐이고 hydration 경고 없음(개발 모드 `cache-bypass-in-dev` 안내 1건만 있음). 테스트 데이터(`[QA021]` 기록 5건, 초안 메모)는 삭제·원복했고 `qa-manager`의 `auth.users.encrypted_password`는 임시 값으로 바꿨다가 원래 해시로 복원했다(임시 비밀번호는 문서에 기록하지 않음). 미확인: 실기기·태블릿 뷰포트, 실제 오프라인 전환 상태의 [순찰 완료](`offline` flush는 코드 경로만 확인), 375px 모바일에서 '다시 시도' 안내 줄의 가시성(저장 상태 줄과 같은 상단 위치라 스크롤 시 가려질 수 있음, 하단 바 표시 검토 후보).
 
 - **Task 022: 퀵 태그 관리 기능 구현**
   - 관련 기능: F11, F03
