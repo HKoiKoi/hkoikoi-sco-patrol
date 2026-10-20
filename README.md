@@ -70,7 +70,7 @@ SCO 관리형 독서실의 30분 간격 순찰 업무를 스마트폰/태블릿�
 
    [localhost:3000](http://localhost:3000/)에서 확인합니다.
 
-> 복사 기능은 HTTPS에서만 동작합니다. 실기기 테스트 시 `http://192.168.x.x` 접속에서는 복사가 막히므로 HTTPS 터널을 사용하세요.
+> 복사 기능은 HTTPS(보안 컨텍스트)에서만 동작합니다. 실기기 테스트 시 `http://192.168.x.x` 접속에서는 복사가 막히므로 배포된 HTTPS 주소(`https://sco.hkoikoi.dev`)에서 확인하세요. 터널을 쓰려면 `next.config.ts`의 `allowedDevOrigins`에 터널 호스트가 필요합니다(`*.trycloudflare.com`, `*.ngrok-free.app` 등록됨).
 
 ## 명령어
 

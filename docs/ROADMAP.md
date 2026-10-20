@@ -101,12 +101,14 @@ Phase 0 (완료)
                                 → 020 자동 저장(가짜 어댑터 교체, lib/dummy 삭제) → 021 완료
                                 → 022 태그 관리 → 023 통합 테스트
                         │
-  Phase 6: 024 실기기·환경 검증 · 025 품질/성능/보안 · 026 배포
+  Phase 6 (실행 순서): 025 품질/성능/보안 → 026 배포(배포 준비·호스팅·인증 설정)
+                        → 024 실기기·환경 검증(배포된 HTTPS 주소) → 026 운영 스모크·QA 정리
 ```
 
 - Phase 2·3은 DB 없이 Task 002의 타입 계약만으로 진행한다. Phase 2의 세 Task는 서로 병렬로 진행할 수 있고, Phase 3의 Task 007~010은 Task 006 이후 병렬로 진행할 수 있다.
 - Phase 4는 Task 011에서 UI 검토가 끝나고 PRD·데이터 모델이 확정된 뒤 시작한다. 확정 과정에서 요구사항이 바뀌면 PRD를 먼저 고치고 Task 012~016 명세를 갱신한다.
 - Phase 5는 Phase 4가 끝난 뒤 시작한다. Task 017은 Task 016 직후 바로 시작해도 된다.
+- Phase 6은 Task 번호와 실행 순서가 다르다(2026-10-20 결정). 로컬에 HTTPS 터널 도구(`cloudflared`, `ngrok`)를 설치하지 않고, 코드 정리(025)를 마친 뒤 먼저 배포(026의 배포 준비·호스팅·인증 설정)하고 **배포된 HTTPS 주소에서 실기기를 검증(024)**한다. 클립보드 API가 HTTPS(보안 컨텍스트)에서만 동작하는 제약을 터널 대신 실제 배포 주소로 해결하는 방식이다. 번호는 바꾸지 않고 각 Task의 "선행 조건"으로 순서를 표시한다.
 
 ## 개발 단계
 
@@ -664,46 +666,51 @@ Phase 0 (완료)
 
 - **Task 024: 실기기 및 운영 환경 검증**
   - 관련 기능: F01, F06, F07
-  - 설명: PRD "구현 전 확인 항목" 중 실기기·외부 설정이 필요한 항목을 확인하고 결과를 기록한다.
+  - 설명: PRD "구현 전 확인 항목" 중 실기기·외부 설정이 필요한 항목을 확인하고 결과를 기록한다. 로컬 터널 도구를 설치하지 않고 **Task 026의 배포(배포 준비·호스팅·인증 설정)를 마친 HTTPS 주소**에서 확인한다.
+  - 선행 조건: Task 025 완료 → Task 026의 배포 준비·호스팅·인증 설정(운영 주소에서 로그인 가능) 완료. 실기기 조작은 사용자가 직접 하고 Claude는 체크리스트·결과 기록 양식 제공과 결과 반영을 맡는다.
   - 관련 파일: `README.md`(운영 메모), Supabase 대시보드 설정
   - 구현 사항:
-    - [ ] HTTPS 터널(예: `cloudflared`, `ngrok`)로 개발 서버 노출(`http://192.168.x.x`는 클립보드가 막힘), 터널 주소를 Supabase Redirect URLs와 `allowedDevOrigins`에 필요 시 추가
+    - [ ] 배포된 HTTPS 주소(`https://sco.hkoikoi.dev`)로 접속(`http://192.168.x.x`는 클립보드가 막힘). 터널을 쓰지 않으므로 `allowedDevOrigins`와 터널용 Redirect URLs는 필요 없다
     - [ ] iOS Safari, Android Chrome에서 [복사] 즉시 복사 및 실패 시 선택 입력란 대체 동작 확인, 구글 시트 붙여넣기 시 한 셀에 한 줄로 들어가는지 확인
     - [ ] 카카오톡 인앱 브라우저: Google 로그인 차단 시 안내 노출, 이메일 확인 링크 동작 확인
-    - [ ] Google 가입자의 `full_name` 수신 재확인(현재 확인됨)
-    - [ ] `pg_cron` 실제 실행 이력(`cron.job_run_details`) 확인
+    - ✅ Google 가입자의 `full_name` 수신 재확인(2026-10-20): `auth.users`의 Google 가입자 1명 모두 `raw_user_meta_data.full_name`이 있고 비어 있지 않음. 이메일 가입 계정 5개는 가입 폼 밖에서 만든 QA·초기 계정이라 `full_name`이 없는 것이 정상
+    - ✅ `pg_cron` 실제 실행 이력(`cron.job_run_details`) 확인(2026-10-20): 작업 `reset-stale-patrol-drafts`(`*/30 * * * *`)가 활성이고 2026-10-15 16:00부터 2026-10-20 17:30(KST)까지 244회 실행에 실패 0건
     - [ ] 태블릿 가로/세로, 입력란·버튼 터치 타깃 48px, 하단 액션바가 가상 키보드에 가려지지 않는지 확인
   - 완료 기준: 모든 확인 항목의 결과(기기/OS/브라우저 버전 포함)가 기록되고 실패 항목은 수정 Task로 등록된다.
   - 테스트 체크리스트:
     - 정상: iOS Safari [복사] → 시트 붙여넣기 → 한 줄
     - 오류: 클립보드 권한 거부 환경 → 선택 입력란 표시
     - 엣지: 폰에서 입력 → 태블릿에서 이어쓰기 → 완료
-  - 테스트 결과: (미수행)
+  - 테스트 결과: (일부 수행) DB 확인 2건(`full_name`, `pg_cron`)만 2026-10-20에 완료했다. 실기기 항목은 배포 후 수행한다(미수행).
 
 - **Task 025: 품질·성능·보안 점검**
   - 관련 기능: 전체
   - 설명: 출시 전 접근성, 성능, 보안 권고를 점검하고 스타터 잔재를 마지막으로 정리한다.
   - 관련 파일: 전반, `app/not-found.tsx`, `app/error.tsx`, `supabase/migrations/*`
   - 구현 사항:
-    - [ ] Supabase `get_advisors`(security, performance) 경고 해소(외래 키 인덱스, RLS 정책 내 `(select auth.uid())` 형태 등)
-    - [ ] 전역 `error.tsx`/`not-found.tsx` 한국어 화면, 로딩 스켈레톤 점검
+    - ✅ Supabase `get_advisors`(security, performance) 경고 해소(2026-10-20): performance 경고 0건. security는 의도된 `SECURITY DEFINER` 3건(`complete_patrol`·`save_patrol_draft`·`swap_quick_tag_order`, 본문에서 `is_staff`/`is_admin` 재검사)을 수용하고, `auth_leaked_password_protection`은 Supabase 대시보드(Authentication) 설정이라 **사용자가 직접 켠다**(요금제 제약 여부 확인 필요, 켜지 못하면 수용 사유 기록)
+    - ✅ 보안 보완 마이그레이션 2건 적용(2026-10-20, 원격 버전과 로컬 파일명 일치): `20261020180016_hide_patrol_logs_client_request_id`(`patrol_logs`의 테이블 단위 SELECT를 컬럼 단위 SELECT로 바꿔 DB 전용 멱등 키 `client_request_id`를 anon·authenticated 조회에서 제외, Task 023의 미확인 사항 해소. 이후 컬럼을 추가하면 화면이 읽어야 할 때만 GRANT 목록에 명시) · `20261020180232_reject_null_revision_in_patrol_rpcs`(`save_patrol_draft`·`complete_patrol`의 `revision` 비교를 `<>`에서 `is distinct from`으로 바꿔 `NULL`이 충돌 검사를 통과하던 문제 차단)
+    - ✅ 전역 `error.tsx`/`global-error.tsx`/`not-found.tsx` 한국어 화면(2026-10-20, Next 16.4 문서의 `retry` 사용)
+    - [ ] 로딩 스켈레톤 점검
     - [ ] 접근성: 버튼 `aria-label`, 저장 상태 `aria-live`, 포커스 이동(다이얼로그), 색 대비(다크 모드 포함)
     - [ ] Lighthouse(모바일) 성능·접근성 점수 확인, 불필요한 클라이언트 번들(lucide 개별 import 등) 점검
-    - [ ] `hasEnvVars` 튜토리얼 분기와 `env-var-warning` 정리 여부 결정, `CLAUDE.md`·`docs/guides/project-structure.md`를 실제 구조로 갱신
+    - ✅ `hasEnvVars` 튜토리얼 분기와 `env-var-warning` 제거(2026-10-20), `CLAUDE.md`·`docs/guides/project-structure.md`를 실제 구조로 갱신. 결정: 환경 변수가 없으면 `proxy.ts`의 `createServerClient`가 바로 실패하도록 둔다(운영에서는 두 값이 필수이므로 조용히 우회하는 것보다 빨리 실패하는 쪽이 안전)
   - 완료 기준: advisors 경고 0(또는 수용 사유 기록), Lighthouse 모바일 접근성 90 이상, `npm run check`와 `npm run build` 통과.
   - 테스트 체크리스트:
-    - 정상: `browser_navigate → /없는경로 → 한국어 404`
+    - 정상: `browser_navigate → /logs/없는경로 → 한국어 404`(비로그인의 공개 경로 밖 알 수 없는 경로는 `proxy.ts`가 먼저 `/auth/login?next=`로 보내므로 404가 아니라 로그인 화면이 정상이다)
     - 엣지: 키보드만으로 순찰 입력 → 완료, `/logs`에서 복사 가능
-  - 테스트 결과: (미수행)
+  - 테스트 결과: (일부 수행) 2026-10-20 `npm run check`·`npm run build` 통과. Playwright MCP + 개발 서버로 `/logs/없는경로`가 상태 404와 한국어 404 화면(헤더·푸터 유지)을 보이고, 임시 오류 라우트에서 한국어 오류 화면과 [다시 시도](재렌더링 재시도)가 동작하며 hydration 경고 0건(임시 라우트는 삭제). DB는 롤백되는 `DO` 블록으로 anon의 `client_request_id` 조회 `42501`, anon·pending의 RPC `42501`, `NULL` revision `conflict`, 정상 `ok`/`duplicate`, 본인 기록 수정 1행·타인 수정/삭제 0행을 확인했고 `get_advisors`는 새 경고 없음. 미확인: `global-error.tsx` 화면(루트 레이아웃 오류가 필요해 빌드·타입 검사만 통과), 접근성·Lighthouse·키보드 전용 시나리오·로딩 스켈레톤(남은 항목은 미수행).
 
 - **Task 026: 운영 배포 및 출시 준비**
   - 관련 기능: 전체
   - 설명: 운영 환경(예: Vercel)에 배포하고 Supabase 인증 설정과 초기 운영 데이터를 맞춘다.
+  - 실행 순서(2026-10-20 결정): 이 Task는 **두 번에 나눠 진행**한다. ① 배포 준비·호스팅·인증 설정(Task 025 직후, Task 024 이전) → Task 024 실기기 검증(배포된 HTTPS 주소) → ② 운영 스모크 테스트·QA 정리(Task 024 이후). 운영 도메인은 `https://sco.hkoikoi.dev`이고 Redirect URLs(`https://sco.hkoikoi.dev/**`)는 Task 017에서 이미 등록했다. Site URL은 아직 `http://localhost:3000`일 수 있어 배포 시 운영 도메인으로 바꾼다.
+  - 유의: Supabase 프로젝트가 개발·운영 공용이면 실기기 검증 중 만든 QA 계정·테스트 기록이 운영 DB에 생기므로, 테스트 기록 메모에 식별 접두사(예: `[SMOKE026]`)를 붙이고 정리는 마지막 단계에서 대상 확인과 사용자 승인 뒤에 한다.
   - 관련 파일: `.env.example`, `README.md`
   - 구현 사항:
     - [ ] 운영 환경 변수(`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`) 설정, HTTPS 도메인 확인
-    - [ ] Supabase Site URL, Redirect URLs(`/auth/callback`, `/auth/confirm`), Google OAuth 승인된 리디렉션 URI를 운영 도메인으로 갱신
-    - [ ] 마이그레이션 원격 적용 상태(`list_migrations`)와 로컬 파일 일치 확인, 퀵 태그 seed 확인
+    - [ ] Supabase Site URL을 운영 도메인으로 변경하고 Redirect URLs(`/auth/callback`, `/auth/confirm`, 등록 완료 여부 재확인), Google OAuth 승인된 리디렉션 URI를 운영 도메인으로 갱신
+    - [ ] 마이그레이션 원격 적용 상태(`list_migrations`)와 로컬 파일 일치 확인(2026-10-20 기준 원격 15개, 로컬 15개 일치), 퀵 태그 seed 확인
     - [ ] 첫 관리자 지정(대시보드에서 `profiles.role = 'admin'`) 및 매니저 승격 절차를 README에 정리, QA 계정 정리
     - [ ] 운영 도메인에서 Task 023 핵심 여정 스모크 테스트
   - 완료 기준: 운영 URL에서 로그인 → 순찰 완료 → 일지 조회 → 복사가 동작한다.

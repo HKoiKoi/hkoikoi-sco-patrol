@@ -33,21 +33,25 @@ hkoikoi-sco-patrol/
 
 ```
 app/
-├── layout.tsx                # 루트 레이아웃 (폰트, ThemeProvider)
-├── page.tsx                  # /
+├── layout.tsx                # 루트 레이아웃 (폰트, ThemeProvider, 헤더/푸터, 공통 안내 배너)
+├── page.tsx                  # / (일지 조회로 이동)
 ├── globals.css               # Tailwind v4 + 테마 변수
-├── favicon.ico, opengraph-image.png, twitter-image.png
+├── icon.svg
+├── error.tsx                 # 전역 오류 경계 (한국어, retry)
+├── global-error.tsx          # 루트 레이아웃 오류 경계 (자체 html/body)
+├── not-found.tsx             # 전역 404 (한국어)
 ├── auth/                     # 인증 흐름
-│   ├── login/page.tsx
-│   ├── sign-up/page.tsx
-│   ├── sign-up-success/page.tsx
-│   ├── forgot-password/page.tsx
-│   ├── update-password/page.tsx
-│   ├── error/page.tsx
+│   ├── login/, sign-up/, sign-up-success/
+│   ├── forgot-password/, update-password/, error/
+│   ├── callback/route.ts     # OAuth 콜백 Route Handler
 │   └── confirm/route.ts      # 이메일 확인 Route Handler
-├── protected/                # 로그인 필요 영역
-│   ├── layout.tsx
-│   └── page.tsx
+├── logs/                     # 일지 조회 (공개, 앱 기본 진입)
+│   ├── page.tsx, actions.ts, error.tsx
+│   └── _components/
+└── protected/                # 로그인 필요 영역 (역할 검증은 lib/auth/dal.ts)
+    ├── layout.tsx, page.tsx
+    ├── patrol/               # 순찰 기록 (매니저·관리자)
+    └── admin/tags/           # 퀵 태그 관리 (관리자)
 ```
 
 파일 규칙:
@@ -64,32 +68,44 @@ app/
 
 ```
 components/
-├── ui/                       # shadcn/ui 기본 컴포넌트 (badge, button, card, checkbox,
-│                             #   dropdown-menu, input, label)
-├── tutorial/                 # 스타터 튜토리얼 (제거 가능)
-├── auth-button.tsx, logout-button.tsx
+├── ui/                       # shadcn/ui 기본 컴포넌트 (alert-dialog, badge, button, card,
+│                             #   checkbox, dialog, dropdown-menu, input, label, separator,
+│                             #   skeleton, sonner, switch, textarea)
+├── layout/                   # 앱 공통 레이아웃 (app-chrome, app-header, app-footer,
+│                             #   nav-menu, notice-banner, pending-banner)
+├── patrol/                   # 여러 페이지 공용 순찰 컴포넌트 (copy-button, seat-chips)
+├── auth-button.tsx, logout-button.tsx, google-login-button.tsx
 ├── login-form.tsx, sign-up-form.tsx
 ├── forgot-password-form.tsx, update-password-form.tsx
-├── theme-switcher.tsx
-├── hero.tsx, deploy-button.tsx, env-var-warning.tsx
-└── next-logo.tsx, supabase-logo.tsx
+├── auth-error-message.tsx, in-app-browser-notice.tsx
+└── theme-switcher.tsx
 ```
 
 분류 규칙:
 
 1. **ui/**: shadcn/ui 기반 순수 UI 컴포넌트. 비즈니스 로직 없이 props로 동작을 제어한다. 추가는 `npx shadcn@latest add <name>`.
-2. **루트(`components/*.tsx`)**: 도메인/기능 컴포넌트(폼, 버튼 등). 기능이 늘어 5개 이상 묶이면 `components/<domain>/` 폴더로 분리한다.
-3. **tutorial/**: 스타터 킷 안내용이므로 기능 개발에서 import하지 않는다.
+2. **`components/<domain>/`**: 여러 페이지가 쓰는 도메인 컴포넌트(`layout/`, `patrol/`). 한 페이지에서만 쓰면 라우트의 `_components/`에 둔다.
+3. **루트(`components/*.tsx`)**: 인증 폼·버튼 같은 기능 컴포넌트. 기능이 늘어 5개 이상 묶이면 `components/<domain>/` 폴더로 분리한다.
+4. import 방향은 `components/ui` ← `components/<domain>` ← `app/` 단방향이다.
 
 ## lib/ — 유틸리티와 Supabase
 
 ```
 lib/
-├── utils.ts                  # cn(), hasEnvVars
+├── utils.ts                  # cn()
+├── auth/                     # dal.ts(requireStaff/requireAdmin), notice.ts, safe-next.ts
+├── queries/                  # 서버 조회 함수 (patrol-logs, patrol-draft, quick-tags)
+├── types/                    # auth.ts, patrol.ts (화면용 도메인 타입)
+├── business-date.ts          # 영업일 표시·기본값 (기준은 DB private.business_date_of)
+├── patrol-format.ts          # 복사 문구 순수 함수
+├── patrol-form-reducer.ts, patrol-draft-rpc.ts, draft-backup.ts   # 순찰 입력·자동 저장
+├── permissions.ts, seat-numbers.ts, quick-tag-label.ts, quick-tag-list.ts
 └── supabase/
     ├── client.ts             # 브라우저용 클라이언트 (Client Component)
     ├── server.ts             # 서버용 클라이언트 (Server Component/Action/Route Handler)
-    └── proxy.ts              # proxy.ts에서 호출하는 세션 갱신 로직
+    ├── proxy.ts              # proxy.ts에서 호출하는 세션 갱신 로직
+    ├── database.types.ts     # 생성된 DB 타입
+    └── mappers.ts            # DB 행 → 도메인 타입 변환
 ```
 
 - 서버 클라이언트(`server.ts`)는 `cookies()`를 쓰므로 **요청마다** `await createClient()`로 생성한다. 전역 변수에 저장하지 않는다.
