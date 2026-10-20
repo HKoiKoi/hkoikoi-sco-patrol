@@ -9,17 +9,20 @@ import { Input } from "@/components/ui/input";
 import type { TagActionResult } from "./tag-list";
 
 interface AddTagFormProps {
-  onAdd: (label: string) => TagActionResult;
+  onAdd: (label: string) => Promise<TagActionResult>;
+  /** 다른 조작이 진행 중이면 제출을 막는다. */
+  disabled?: boolean;
 }
 
 // 새 태그 추가 폼. Enter 또는 [추가]로 제출하며 성공하면 입력을 비운다.
-export function AddTagForm({ onAdd }: AddTagFormProps) {
+export function AddTagForm({ onAdd, disabled = false }: AddTagFormProps) {
   const [label, setLabel] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const result = onAdd(label);
+    if (disabled) return;
+    const result = await onAdd(label);
     if (!result.ok) {
       setError(result.error);
       return;
@@ -46,7 +49,7 @@ export function AddTagForm({ onAdd }: AddTagFormProps) {
             setError(null);
           }}
         />
-        <Button type="submit" className="min-h-12 shrink-0">
+        <Button type="submit" className="min-h-12 shrink-0" disabled={disabled}>
           <Plus aria-hidden="true" />
           추가
         </Button>
