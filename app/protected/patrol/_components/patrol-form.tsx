@@ -39,7 +39,16 @@ export function PatrolForm({
 
   return (
     <div className={`space-y-4 ${ACTION_BAR_SPACER_CLASS}`}>
-      <div className="flex justify-end">
+      <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
+        {state.completeRetry && (
+          <p
+            role="status"
+            aria-live="polite"
+            className="text-sm font-medium text-destructive"
+          >
+            완료 여부를 확인하지 못했습니다. 아래 [다시 시도]를 눌러 주세요
+          </p>
+        )}
         <SaveStatus status={state.status} lastSavedAt={state.lastSavedAt} />
       </div>
 
@@ -76,6 +85,7 @@ export function PatrolForm({
 
       <PatrolActionBar
         completing={state.completing || flushing}
+        retrying={state.completeRetry}
         onComplete={() => void handleComplete()}
       />
       <ConflictDialog

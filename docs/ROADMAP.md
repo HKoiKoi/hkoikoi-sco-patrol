@@ -500,12 +500,12 @@ Phase 0 (완료)
   - 설명: 로그인 후/로그아웃 후 이동을 `/logs`로 통일하고 `next` 복귀를 모든 경로에서 같은 방식으로 처리한다.
   - 관련 파일: `components/login-form.tsx`, `components/sign-up-form.tsx`, `components/google-login-button.tsx`, `components/logout-button.tsx`, `app/auth/callback/route.ts`, `app/auth/confirm/route.ts`, `app/auth/login/page.tsx`
   - 구현 사항:
-    - [x] 로그인 페이지가 `?next`를 읽어(`<Suspense>` 안) 로그인 폼과 Google 버튼에 전달, 성공 시 `getSafeNextPath(next)`(기본 `/logs`)로 이동
+    - ✅ 로그인 페이지가 `?next`를 읽어(`<Suspense>` 안) 로그인 폼과 Google 버튼에 전달, 성공 시 `getSafeNextPath(next)`(기본 `/logs`)로 이동
     - [ ] Google `redirectTo`: `/auth/callback?next=<검증된 next>`, 콜백 기본값 `/logs`
-    - [x] 이메일 가입: `options.data.full_name`에 이름 전달, `emailRedirectTo`를 `/auth/confirm` 기반으로 변경
-    - [x] `/auth/confirm`: `next`를 `getSafeNextPath`로 검증, 기본값 `/logs`, 에러 메시지 인코딩
-    - [x] Supabase 대시보드 확인 메일 템플릿을 `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/logs`로 변경, Site URL·Redirect URLs(로컬, HTTPS 터널, 운영 도메인) 등록 (수동 작업, 체크리스트로 기록)
-    - [x] 로그아웃: `signOut` 후 `localStorage`의 `draft:`로 시작하는 키 전부 삭제, `/logs`로 이동
+    - ✅ 이메일 가입: `options.data.full_name`에 이름 전달, `emailRedirectTo`를 `/auth/confirm` 기반으로 변경
+    - ✅ `/auth/confirm`: `next`를 `getSafeNextPath`로 검증, 기본값 `/logs`, 에러 메시지 인코딩
+    - ✅ Supabase 대시보드 확인 메일 템플릿을 `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/logs`로 변경, Site URL·Redirect URLs(로컬, HTTPS 터널, 운영 도메인) 등록 (수동 작업, 체크리스트로 기록)
+    - ✅ 로그아웃: `signOut` 후 `localStorage`의 `draft:`로 시작하는 키 전부 삭제, `/logs`로 이동
   - 완료 기준: 아래 흐름이 모두 기대대로 동작하고 외부 주소로의 리디렉션이 불가능하다.
   - 테스트 체크리스트:
     - 정상: `browser_navigate → /protected/patrol (비로그인) → 로그인 페이지 → qa-manager 이메일 로그인 → /protected/patrol 복귀`
@@ -516,10 +516,10 @@ Phase 0 (완료)
     - 오류: `browser_navigate → /auth/confirm?token_hash=bad&type=email → /auth/error에 사유 표시`
     - 엣지: 가입한 기기와 다른 브라우저에서 확인 링크 열기 → 정상 확인(token_hash 방식)
   - Supabase 대시보드 수동 설정 체크리스트(사용자가 직접 수행, 완료 확인 전에는 이메일 가입 시나리오를 실행하지 않는다):
-    - [x] Authentication → Email Templates → Confirm signup의 링크를 `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/logs`로 변경 (템플릿 수정에는 커스텀 SMTP가 필요해 Resend `hkoikoi.dev` 도메인으로 연결, 2026-10-15)
-    - [x] Authentication → URL Configuration → Site URL 설정 (테스트 중 `http://localhost:3000`, 운영 배포 시 `https://sco.hkoikoi.dev`로 변경)
-    - [x] Redirect URLs에 로컬(`http://localhost:3000/**`), HTTPS 터널·운영 도메인(`https://sco.hkoikoi.dev/**`) 등록
-    - [x] Confirm email 옵션이 켜져 있는지 확인
+    - ✅ Authentication → Email Templates → Confirm signup의 링크를 `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/logs`로 변경 (템플릿 수정에는 커스텀 SMTP가 필요해 Resend `hkoikoi.dev` 도메인으로 연결, 2026-10-15)
+    - ✅ Authentication → URL Configuration → Site URL 설정 (테스트 중 `http://localhost:3000`, 운영 배포 시 `https://sco.hkoikoi.dev`로 변경)
+    - ✅ Redirect URLs에 로컬(`http://localhost:3000/**`), HTTPS 터널·운영 도메인(`https://sco.hkoikoi.dev/**`) 등록
+    - ✅ Confirm email 옵션이 켜져 있는지 확인
   - 코드 변경 검증(2026-10-15): `npm run check` — `typecheck`·`lint` 통과, `format:check`는 저장소 밖 로컬 파일 `.claude/settings.local.json`(전역 gitignore 대상)의 Prettier 경고 1건만 남았으며 이번 변경과 무관
   - 테스트 결과(2026-10-20): Playwright MCP로 개발 서버(`npm run dev`)에서 수행. `qa-manager`의 `auth.users.encrypted_password`만 임시 값으로 재설정해 로그인했다(임시 비밀번호는 문서에 기록하지 않음, 비밀번호 관리자에 새로 보관 필요). 결과: ① 비로그인 `/protected/patrol` → `/auth/login?next=%2Fprotected%2Fpatrol` → `qa-manager` 로그인 → `/protected/patrol` 복귀 통과. ② `/auth/login` → 로그인 → `/logs` 통과. ③ `localStorage`에 `draft:x`·`other` 설정 후 로그아웃 → `/logs`, `draft:x`만 삭제되고 `other`는 유지 통과. ④ `/auth/login?next=` 값이 `https://evil.com`, `//evil.com`, `/\evil.com`일 때 로그인 후 모두 `/logs`, 외부 주소 이동 없음 통과. ⑤ `/auth/confirm?token_hash=bad&type=email` → `/auth/error`에 "오류 코드: Email link is invalid or has expired" 표시 통과. ⑥ 이메일 가입(이름 "테스트", `koikoilove99+qa-signup@gmail.com`): 처음에는 `POST /auth/v1/signup`이 500이었고 Auth 로그 원인은 `lookup stmp.resend.com ... no such host`(대시보드 커스텀 SMTP 호스트 오타)였다. 사용자가 `smtp.resend.com`으로 수정한 뒤 재수행해 `/auth/sign-up-success`로 이동, 확인 메일 수신 후 사용자가 Playwright가 아닌 다른 브라우저에서 확인 링크를 열어 `/logs`에 도착했다(token_hash 방식). `execute_sql` 확인: `email_confirmed_at` 기록, `profiles.full_name='테스트'`, `role='pending'`. 확인 후 테스트 계정을 삭제하고 `auth.users`·`profiles` 0건을 확인했다. 확인 메일이 처음에는 스팸함으로 분류됨(발신 도메인 인증·평판 점검 필요). 미확인: Google 로그인 `redirectTo`와 `/auth/callback`의 성공 경로. ⑦ 콘솔: warning 이상 기준 에러 0·경고 0(hydration 경고 없음). 최초 가입 시도의 SMTP 500 네트워크 에러 1건은 위 설정 오타 때문이며 수정 후 재수행에서는 0건. 관찰 사항: 헤더는 여전히 `ACTIVE_DUMMY_VIEWER` 기준이라 로그아웃 상태에서도 "관리자"로 표시된다(Task 018 범위).
 
@@ -528,11 +528,11 @@ Phase 0 (완료)
   - 설명: `/logs`를 Supabase 데이터로 교체하고, Task 006·007에서 더미 viewer로 확인하던 헤더·페이지에 `getViewer()`를 연결해 역할에 따라 버튼을 노출한다.
   - 관련 파일: `app/logs/page.tsx`, `lib/queries/patrol-logs.ts`(신규, 서버 전용), `components/layout/app-header.tsx`, `lib/dummy/patrol-logs.ts`(삭제), `lib/dummy/viewers.ts`(삭제)
   - 구현 사항:
-    - [x] 페이지: `<Suspense>` 안의 비동기 컴포넌트에서 `await searchParams` → `await io()` 후 현재 시각으로 `getBusinessDate` 계산 → `?date` 검증 결과 적용 (`04-functions/io.md` 확인)
-    - [x] `getPatrolLogsByDate(date)`(`lib/queries/patrol-logs.ts`, 2026-10-20 작성. `/logs` 페이지 연결과 비로그인 키 동작 확인은 아래 진행 메모 참고): `patrol_logs` select `id, business_date, patrolled_at, author_id, standing, cafe_zone, drowsy, away, memo, staff_names(full_name)` + `eq("business_date", date)` + `order("patrolled_at", { ascending: false })`(최신순), 비로그인 키로 동작 확인
-    - [x] 헤더와 페이지의 더미 viewer를 `getViewer()`로 교체(헤더·배너는 `components/layout/app-chrome.tsx`, 페이지는 `app/logs/page.tsx`, 2026-10-20): pending 배너, 관리자 메뉴, 기록별 수정/삭제 노출은 `canEdit(log, viewer)` 그대로 사용(pending 본인은 미노출). 교체 후 `lib/dummy/patrol-logs.ts`, `lib/dummy/viewers.ts` 삭제
-    - [x] 조회 실패 시 에러 경계(`app/logs/error.tsx`)와 재시도 버튼, 로딩 스켈레톤(`loading` fallback)
-    - [x] 다음 날짜 이동은 현재 영업일 다음 날까지만 활성(미래 이동 제한)
+    - ✅ 페이지: `<Suspense>` 안의 비동기 컴포넌트에서 `await searchParams` → `await io()` 후 현재 시각으로 `getBusinessDate` 계산 → `?date` 검증 결과 적용 (`04-functions/io.md` 확인)
+    - ✅ `getPatrolLogsByDate(date)`(`lib/queries/patrol-logs.ts`, 2026-10-20 작성. `/logs` 페이지 연결과 비로그인 키 동작 확인은 아래 진행 메모 참고): `patrol_logs` select `id, business_date, patrolled_at, author_id, standing, cafe_zone, drowsy, away, memo, staff_names(full_name)` + `eq("business_date", date)` + `order("patrolled_at", { ascending: false })`(최신순), 비로그인 키로 동작 확인
+    - ✅ 헤더와 페이지의 더미 viewer를 `getViewer()`로 교체(헤더·배너는 `components/layout/app-chrome.tsx`, 페이지는 `app/logs/page.tsx`, 2026-10-20): pending 배너, 관리자 메뉴, 기록별 수정/삭제 노출은 `canEdit(log, viewer)` 그대로 사용(pending 본인은 미노출). 교체 후 `lib/dummy/patrol-logs.ts`, `lib/dummy/viewers.ts` 삭제
+    - ✅ 조회 실패 시 에러 경계(`app/logs/error.tsx`)와 재시도 버튼, 로딩 스켈레톤(`loading` fallback)
+    - ✅ 다음 날짜 이동은 현재 영업일 다음 날까지만 활성(미래 이동 제한)
   - 완료 기준: 비로그인/pending/manager/admin 4개 상태에서 같은 날짜의 기록이 동일하게 보이고 버튼 노출만 다르다. 복사 문구가 서버 `patrolled_at` 기준 KST로 만들어진다. `lib/dummy/patrol-logs.ts`·`viewers.ts`를 참조하는 코드가 없다.
   - 테스트 체크리스트:
     - 정상: `browser_navigate → /logs (비로그인) → 현재 영업일 기록 목록, 작성자 이름 표시, 수정 버튼 없음`
@@ -549,11 +549,11 @@ Phase 0 (완료)
   - 설명: Server Action으로 확정 기록 정정을 구현한다. 각 Action은 `requireStaff()`를 호출하고 RLS가 최종 판단한다.
   - 관련 파일: `app/logs/actions.ts`(신규, `"use server"`), `app/logs/_components/edit-log-dialog.tsx`, `app/logs/_components/away-seat-actions.tsx`, `app/logs/_components/patrol-log-item.tsx`
   - 구현 사항:
-    - [x] `updatePatrolLog(id, content)`: 좌석·메모를 `lib/seat-numbers.ts`/`MEMO_MAX_LENGTH`로 재검증 후 `update(...).eq("id", id).select("id")`, 0행이면 "권한이 없거나 삭제된 기록입니다"
-    - [x] `deletePatrolLog(id)`: 삭제 후 0행 처리 동일
-    - [x] `moveAwaySeat(id, seat, target: "standing" | "cafe_zone")`와 `removeAwaySeat(id, seat)`: 현재 행 조회 → `moveAwaySeat` 순수 함수 적용 → update (동시 수정은 마지막 저장 우선)
-    - [x] 완료 시각·영업일·작성자는 payload에서 받지 않음
-    - [x] 성공 시 `refresh()` 또는 `revalidatePath("/logs")`로 같은 페이지 갱신(Next 16 문서 확인 후 선택), 실패 시 토스트
+    - ✅ `updatePatrolLog(id, content)`: 좌석·메모를 `lib/seat-numbers.ts`/`MEMO_MAX_LENGTH`로 재검증 후 `update(...).eq("id", id).select("id")`, 0행이면 "권한이 없거나 삭제된 기록입니다"
+    - ✅ `deletePatrolLog(id)`: 삭제 후 0행 처리 동일
+    - ✅ `moveAwaySeat(id, seat, target: "standing" | "cafe_zone")`와 `removeAwaySeat(id, seat)`: 현재 행 조회 → `moveAwaySeat` 순수 함수 적용 → update (동시 수정은 마지막 저장 우선)
+    - ✅ 완료 시각·영업일·작성자는 payload에서 받지 않음
+    - ✅ 성공 시 `refresh()` 또는 `revalidatePath("/logs")`로 같은 페이지 갱신(Next 16 문서 확인 후 선택), 실패 시 토스트
   - 완료 기준: 권한 규칙이 UI 우회(직접 Action 호출) 상황에서도 지켜진다.
   - 테스트 체크리스트:
     - 정상: `browser_click → (qa-manager) 본인 기록 수정 → 메모 변경 저장 → 목록 갱신`
@@ -590,19 +590,22 @@ Phase 0 (완료)
     - 엣지: 서버 초안이 정리(cron)로 비워진 뒤 탭 A에서 입력 → 다이얼로그 없이 새 revision으로 재저장
     - 엣지: 빠른 연속 입력 20회 → 네트워크 탭에서 동시 요청 1개 이하(`browser_network_requests`)
     - 엣지: 탭 A가 dirty인 상태에서 포커스 복귀 → 서버 내용으로 덮어쓰지 않음
-  - 구현 메모(2026-10-20): `hooks/use-patrol-draft.ts`가 `{state, dispatch, stateRef, inflightSaveRef, save}`를 돌려주고 `patrol-form.tsx`가 이를 쓴다. 저장 중 입력은 진행 중 요청이 끝난 뒤 최신 내용 하나로 다시 저장한다(`inflightSaveRef`가 있으면 새 요청을 보내지 않고 `revision` 변화로 디바운스 effect가 재실행). 서버 초안이 비어 있고 로컬에 입력이 있으면 `RESOLVE_CONFLICT local`을 자동 dispatch해 다이얼로그 없이 재저장한다. 저장 시각은 `save_patrol_draft` 응답의 `updated_at`(migration `20261020160932_save_patrol_draft_return_updated_at`, 2026-10-20 원격 적용)을 쓰며 재조회하지 않는다. 서버 거절은 reducer `error` 상태(7종)로 처리하고 자동 재시도 없이 다음 입력(dirty)에서만 재저장한다. 포커스 복귀 재조회는 `clean`·`saved`에서만 허용한다. 진입 시 `backup.revision >= 서버 revision`이고 내용이 다르면 `RESTORE_BACKUP`, 아니면 백업을 지운다. 관찰: 모바일에서는 저장 상태 줄이 화면 맨 위에 있어 메모 입력 중 스크롤하면 `error`·`offline`이 보이지 않는다(Task 020 범위 밖, 하단 바 표시 검토 후보). `error` 상태에서 [순찰 완료]는 안내 없이 반환되며 Task 021에서 flush·실패 안내를 추가한다.
+  - 구현 메모(2026-10-20): `hooks/use-patrol-draft.ts`가 `{state, dispatch, handleComplete, flushing}`을 돌려주고 `patrol-form.tsx`가 이를 쓴다(저장 ref는 훅 내부에 둔다). 저장 중 입력은 진행 중 요청이 끝난 뒤 최신 내용 하나로 다시 저장한다(`inflightSaveRef`가 있으면 새 요청을 보내지 않고 `revision` 변화로 디바운스 effect가 재실행). 서버 초안이 비어 있고 로컬에 입력이 있으면 `RESOLVE_CONFLICT local`을 자동 dispatch해 다이얼로그 없이 재저장한다. 저장 시각은 `save_patrol_draft` 응답의 `updated_at`(migration `20261020160932_save_patrol_draft_return_updated_at`, 2026-10-20 원격 적용)을 쓰며 재조회하지 않는다. 서버 거절은 reducer `error` 상태(7종)로 처리하고 자동 재시도 없이 다음 입력(dirty)에서만 재저장한다. 포커스 복귀 재조회는 `clean`·`saved`에서만 허용한다. 진입 시 `backup.revision >= 서버 revision`이고 내용이 다르면 `RESTORE_BACKUP`, 아니면 백업을 지운다. 관찰: 모바일에서는 저장 상태 줄이 화면 맨 위에 있어 메모 입력 중 스크롤하면 `error`·`offline`이 보이지 않는다(Task 020 범위 밖, 하단 바 표시 검토 후보). `error` 상태에서 [순찰 완료]가 안내 없이 반환되던 동작은 Task 021에서 flush 후 실패 토스트로 바꿨다.
   - 테스트 결과(2026-10-20): `npm run check`(`typecheck`·`lint`·`format:check`)와 `npm run build` 통과. `grep -r "lib/dummy" app components lib hooks`와 `__fakePatrolAdapter` 결과 없음. DB는 Supabase MCP 롤백 트랜잭션에서 qa-manager로 `save_patrol_draft`를 호출해 신규·기존 행 저장의 `ok` 응답에 `updated_at`이 있고 `conflict` 응답이 이전과 같음을 확인한 뒤 migration을 적용했고, `get_advisors`에 신규 경고는 없다(기존 RPC 실행 권한 경고와 유출 비밀번호 보호 비활성만 남음). 화면은 Playwright MCP + 개발 서버, `qa-manager`·`qa-admin`·`qa-pending`으로 수행했다. 결과: ① 메모 입력 1초 후 "저장됨 HH:mm"이 DB `updated_at`(KST)과 일치, 요청 1회 ② 새로고침·두 번째 탭에서 초안 복원 ③ 연속 입력 25회에 요청 1건, 응답을 2.5초 지연시킨 저장 중 추가 입력은 총 2건·동시 최대 1건으로 합쳐짐 ④ 오프라인 입력 시 "오프라인 (기기에 임시 저장)"과 `draft:{user_id}` 백업 생성, 복귀 후 재전송·백업 삭제·DB 반영 ⑤ 두 탭 충돌 다이얼로그에서 "서버 내용"·"이 기기 내용" 선택이 각각 반영됨 ⑥ `execute_sql`로 서버 초안을 비운 뒤 입력하면 다이얼로그 없이 새 revision으로 재저장 ⑦ 포커스 복귀 시 `saved`는 서버 내용으로 교체, dirty는 덮어쓰지 않고 저장 시점에 충돌 다이얼로그 ⑧ RPC 응답을 403으로 가로채면 "저장 실패 (기기에 임시 저장)"·백업 유지·자동 재시도 없음, 다음 입력에서 재저장·백업 삭제 ⑨ `revision` 999 백업을 심고 새로고침하면 복원·재전송(DB `revision` 14) ⑩ [순찰 완료] 회귀: 기록 1건 생성, 입력·초안·백업 초기화 ⑪ `qa-admin`의 `/protected/admin/tags`가 DB 태그 5개를 `sort_order` 순으로 표시하고, 태그 하나를 임시 비활성화하면 관리자 목록에는 보이고 순찰 기록 화면에는 4개만 표시(원복) ⑫ manager는 태그 관리 접근 시 `/logs?notice=admin-required`, `pending`은 순찰 기록·태그 관리 접근 시 `/logs?notice=pending`, 비로그인은 `/auth/login?next=...` ⑬ 375x812 가로 스크롤 없음, [순찰 완료] 48px, 다크 모드에서 저장 상태 표시 가독 ⑭ 콘솔 경고·hydration 경고 0건(에러는 직접 만든 오프라인·403뿐). 테스트 데이터(`[QA020]` 기록, 초안, 태그 활성 상태)는 모두 원복했다. QA 계정(`qa-admin`·`qa-manager`·`qa-pending`)은 `auth.users.encrypted_password`만 임시 값으로 재설정한 뒤 원래 해시로 복원했다(임시 비밀번호는 문서에 기록하지 않음). 미확인: 실기기 폰↔태블릿 이어쓰기, 1024x768 태블릿 뷰포트, 포커스 이벤트는 실제 탭 전환이 아니라 `focus`·`visibilitychange` 이벤트를 발생시켜 확인, 연속 [순찰 완료] 멱등·충돌은 Task 021에서 확인.
 
-- **Task 021: 순찰 완료 구현**
+- **Task 021: 순찰 완료 구현** ✅
   - 관련 기능: F05
   - 설명: 대기 중인 저장을 먼저 보내고 `complete_patrol`을 멱등 호출한 뒤, 입력을 초기화해 다음 순찰 입력 상태로 돌아간다. 복사는 순찰 기록 화면에 두지 않고 `/logs`의 기록 항목에서만 한다.
   - 관련 파일: `hooks/use-patrol-draft.ts`, `app/protected/patrol/_components/patrol-action-bar.tsx`
   - 구현 사항:
-    - [ ] [순찰 완료]: 버튼 비활성화 → 대기 중 저장 즉시 flush 후 완료 대기 → `crypto.randomUUID()` 요청 ID 생성(같은 시도의 재시도에는 같은 ID 재사용) → `complete_patrol(id, revision)`
-    - [ ] `ok`/`duplicate` 응답: 로컬 입력 초기화, `revision`을 응답값으로 갱신, `draft:{user_id}` 백업 삭제, 곧바로 다음 순찰 입력 상태로 전환
-    - [ ] 저장 상태가 `error`(서버 거절)·`offline`이면 완료 전 flush로 저장을 재시도하고, 실패하면 완료를 진행하지 않고 실패 안내를 표시(Task 020 시점에는 `error`에서 [순찰 완료]가 안내 없이 반환됨)
-    - [ ] `conflict` 응답: 기록 미생성 안내 후 응답의 `server_draft`로 충돌 다이얼로그를 연결(재조회 없음)
-    - [ ] 네트워크 오류로 응답을 못 받은 경우 같은 요청 ID로 재시도 버튼 제공
+    - ✅ [순찰 완료]: 버튼 비활성화 → 대기 중 저장 즉시 flush 후 완료 대기 → `crypto.randomUUID()` 요청 ID 생성(같은 시도의 재시도에는 같은 ID 재사용) → `complete_patrol(id, revision)`
+    - ✅ `ok`/`duplicate` 응답: 로컬 입력 초기화, `revision`을 응답값으로 갱신, `draft:{user_id}` 백업 삭제, 곧바로 다음 순찰 입력 상태로 전환
+    - ✅ 저장 상태가 `error`(서버 거절)·`offline`이면 완료 전 flush로 저장을 재시도하고, 실패하면 완료를 진행하지 않고 실패 안내를 표시(Task 020 시점에는 `error`에서 [순찰 완료]가 안내 없이 반환됨)
+    - ✅ `conflict` 응답: 기록 미생성 안내 후 응답의 `server_draft`로 충돌 다이얼로그를 연결(재조회 없음)
+    - ✅ 네트워크 오류로 응답을 못 받은 경우 같은 요청 ID로 재시도 버튼 제공: 하단 바의 [순찰 완료] 버튼 문구를 '다시 시도'로 바꾸고(버튼은 하나만 둔다), 폼 상단에 안내 한 줄을 표시한다
+    - ✅ 재시도 대기(`completeRetry`) 중에는 입력을 잠근다: 서버가 이미 기록을 만들고 초안을 `revision + 1`로 비웠을 수 있어, 로컬 편집을 허용하면 저장 충돌 → 자동 local 해결 → `duplicate` → 다음 순찰 전환 순서로 입력이 사라지거나 서버 초안과 어긋난다. 같은 요청 ID·같은 `revision`으로만 재시도한다
+    - ✅ 서버가 완료를 거절한 경우(권한·검증·응답 형식 오류)는 요청 ID를 버리고 재시도 대기 없이 입력 상태로 복귀하며 실패 토스트를 표시
+    - ✅ `completingRef` 동기 가드로 같은 틱의 [순찰 완료] 연타를 막는다(React state만으로는 렌더 전 연타를 못 막음)
   - 완료 기준: 중복 탭·재시도에도 기록은 1건만 생기고, 완료한 기록을 `/logs`에서 복사하면 문구가 서버 시각과 일치한다.
   - 테스트 체크리스트:
     - 정상: `browser_click → 졸음 23, 메모 입력 후 [순찰 완료] → 입력 초기화 → `/logs`에서 해당 기록 [복사] → clipboard "HH:mm 순찰 → 완료 (메모, 23번 졸아서 깨움)"`
@@ -612,7 +615,11 @@ Phase 0 (완료)
     - 오류(충돌): 탭 B에서 입력·저장 후 탭 A에서 완료 → 충돌 안내, 기록 미생성
     - 엣지: 입력 직후(디바운스 1초 이내) 완료 → 마지막 입력까지 기록에 포함
     - 엣지: 완료 버튼 연타 → 처리 중 비활성으로 요청 1개
-  - 테스트 결과: (미수행)
+    - 오류(응답 유실): 완료 응답을 라우트 가로채기로 유실 → '다시 시도' 표시·입력 잠금, 가로채기 해제 후 같은 요청 ID로 재시도 → `duplicate`/`ok` 처리, 기록 1건
+    - 오류(저장 거절): 저장 RPC를 403으로 가로채 `error` 상태로 만든 뒤 [순찰 완료] → 안내 토스트, 완료 미진행
+    - 정상: 완료 성공 후 `localStorage`의 `draft:{user_id}` 키 삭제
+  - 구현 메모(2026-10-20): `lib/patrol-form-reducer.ts`에 `completeRetry`와 `COMPLETE_REJECTED`를 추가했다. 응답 유실(`PatrolDraftNetworkError`)이면 `COMPLETE_FAILED`로 재시도 대기에 들어가 입력·`SAVE_START`·서버 초안 교체를 막고, `COMPLETE_OK`·`COMPLETE_CONFLICT`·`COMPLETE_REJECTED`에서 해제한다. `handleComplete`는 `completingRef` 동기 가드 뒤 `inflightSaveRef` 대기와 `dirty`·`offline`·`error` flush 루프를 거치고, 저장이 끝나지 않으면 사유별 토스트(`offline`·`error`·`dirty`/`saving`)를 띄운 채 완료하지 않는다(`conflict`는 이미 떠 있는 다이얼로그로 대신한다). 재시도는 같은 요청 ID·같은 `revision`을 쓰고 서버 거절은 요청 ID를 버린다. `patrol-action-bar.tsx`는 `retrying`일 때 '다시 시도'를 표시하고 폼 상단에 `role="status"` 안내 한 줄을 둔다. 훅 반환값은 `{state, dispatch, handleComplete, flushing}`이다.
+  - 테스트 결과(2026-10-20): `npm run check` 통과. DB는 Supabase MCP의 롤백되는 `DO` 블록에서 qa-manager로 `complete_patrol`을 호출해, 같은 요청 ID 2회째가 `duplicate`(같은 `log_id`·`revision` 17)이고 기록 1건·초안 `revision` 16→17로 1회만 증가하며, 어긋난 `expected_revision`은 `conflict`로 기록이 생기지 않음을 확인했다(롤백 후 기록 0건). 화면은 Playwright MCP + 개발 서버, `qa-manager`로 수행했다. 결과: ① 졸음 23 + 메모 완료 시 입력 초기화, `/logs` [복사]가 "16:51 순찰 → 완료 ([QA021] 메모, 23번 졸아서 깨움)"과 일치 ② `/logs`에 기록 1건, `business_date`가 `private.business_date_of()` 값(2026-10-20)과 일치 ③ 빈 초안 완료 시 빈 내용 기록 1건 생성(`complete_patrol` 요청 1회, `/logs` 복사 문구는 미확인) ④ 라우트 가로채기로 같은 요청을 2회 보내 `ok`/`duplicate`, 같은 `log_id`, 기록 1건 ⑤ 탭 B 저장 후 탭 A에서 완료하면 "다른 기기에서 수정됨" 다이얼로그가 뜨고 기록 미생성(flush 단계 `conflict`라 별도 토스트 없음) ⑥ 입력 직후 즉시 완료해도 마지막 입력 포함 ⑦ 같은 틱 5회 클릭에 `complete_patrol` 요청 1개 ⑧ 응답을 `abort`로 유실시키면 '다시 시도'·안내 문구·토스트가 뜨고 좌석·메모 입력이 거부됨, 가로채기 해제 후 재시도는 같은 요청 ID로 1회 전송되어 "순찰 완료 기록됨"·기록 1건 ⑨ 저장 RPC를 403으로 가로챈 "저장 실패 (기기에 임시 저장)" 상태에서 [순찰 완료] 시 "저장에 실패해 완료하지 못했습니다" 토스트, `complete_patrol` 요청 없음, 기록 미생성 ⑩ 완료 후 `localStorage`의 `draft:` 키 없음 ⑪ 콘솔 에러는 직접 만든 응답 유실·403뿐이고 hydration 경고 없음(개발 모드 `cache-bypass-in-dev` 안내 1건만 있음). 테스트 데이터(`[QA021]` 기록 5건, 초안 메모)는 삭제·원복했고 `qa-manager`의 `auth.users.encrypted_password`는 임시 값으로 바꿨다가 원래 해시로 복원했다(임시 비밀번호는 문서에 기록하지 않음). 미확인: 실기기·태블릿 뷰포트, 실제 오프라인 전환 상태의 [순찰 완료](`offline` flush는 코드 경로만 확인), 375px 모바일에서 '다시 시도' 안내 줄의 가시성(저장 상태 줄과 같은 상단 위치라 스크롤 시 가려질 수 있음, 하단 바 표시 검토 후보).
 
 - **Task 022: 퀵 태그 관리 기능 구현**
   - 관련 기능: F11, F03

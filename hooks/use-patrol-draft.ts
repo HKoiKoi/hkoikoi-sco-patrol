@@ -118,6 +118,8 @@ export function usePatrolDraft({
   const refetchingRef = useRef(false);
   // 완료 재시도 시 같은 요청 ID를 써서 서버 멱등 처리를 탄다.
   const requestIdRef = useRef<string | null>(null);
+  // 같은 틱 연타를 막는 동기 가드. flushing(state)은 UI 표시용이다.
+  const completingRef = useRef(false);
   const [flushing, setFlushing] = useState(false);
 
   const dispatch = useCallback((action: PatrolFormAction) => {
@@ -260,59 +262,88 @@ export function usePatrolDraft({
   }, [adapter, dispatch, userId]);
 
   async function handleComplete() {
-    if (flushing || stateRef.current.completing) return;
+    // 같은 틱의 연타는 React state(flushing)가 갱신되기 전이라 ref로 동기 차단한다.
+    if (completingRef.current) return;
+    if (stateRef.current.completing) return;
+    completingRef.current = true;
     setFlushing(true);
     try {
-      // 대기 중인 저장을 먼저 끝낸다. 저장 중 입력이 들어오면 다시 dirty가 되므로 몇 번 반복한다.
-      for (let i = 0; i < MAX_FLUSH_ATTEMPTS; i++) {
+      // 재시도 대기 중에는 입력이 잠겨 있고 서버 초안이 이미 비워졌을 수 있으므로 저장 flush 없이 곧바로 재요청한다.
+      if (!stateRef.current.completeRetry) {
+        // 대기 중인 저장을 먼저 끝낸다. 저장 중 입력이 들어오면 다시 dirty가 되므로 몇 번 반복한다.
+        for (let i = 0; i < MAX_FLUSH_ATTEMPTS; i++) {
+          const { status } = stateRef.current;
+          if (status === "saving") {
+            await inflightSaveRef.current;
+          } else if (
+            status === "dirty" ||
+            status === "offline" ||
+            status === "error"
+          ) {
+            await save();
+          } else {
+            break;
+          }
+        }
         const { status } = stateRef.current;
-        if (status === "saving") {
-          await inflightSaveRef.current;
-        } else if (status === "dirty" || (status === "offline" && i === 0)) {
-          await save();
-        } else {
-          break;
+        if (status !== "saved" && status !== "clean") {
+          // conflict는 충돌 다이얼로그가 이미 떠 있으므로 토스트를 중복해서 띄우지 않는다.
+          if (status === "offline") {
+            toast.error("오프라인이라 완료할 수 없습니다");
+          } else if (status === "error") {
+            toast.error("저장에 실패해 완료하지 못했습니다");
+          } else if (status === "dirty" || status === "saving") {
+            toast.error("입력이 계속 바뀌어 완료하지 못했습니다");
+          }
+          return;
         }
-      }
-      const current = stateRef.current;
-      if (current.status !== "saved" && current.status !== "clean") {
-        if (current.status === "offline") {
-          toast.error("오프라인이라 완료할 수 없음");
-        }
-        return;
       }
 
       dispatch({ type: "COMPLETE_START" });
+      // 응답이 유실돼 재시도할 때도 같은 요청 ID·같은 revision을 보내 서버 멱등 처리(duplicate)를 탄다.
       requestIdRef.current ??= crypto.randomUUID();
       const requestId = requestIdRef.current;
       try {
         const result = await adapter.completePatrol(
           requestId,
-          current.revision,
+          stateRef.current.revision,
         );
+        requestIdRef.current = null;
         if (result.status === "conflict") {
-          requestIdRef.current = null;
           dispatch({
             type: "COMPLETE_CONFLICT",
             serverRevision: result.serverRevision,
             serverDraft: result.serverDraft,
           });
+          toast.error("다른 기기에서 수정되어 순찰이 기록되지 않았습니다");
         } else {
-          requestIdRef.current = null;
           dispatch({
             type: "COMPLETE_OK",
             logId: result.logId,
             patrolledAt: result.patrolledAt,
             revision: result.revision,
           });
+          clearDraftBackup(userId);
+          needsBackupRef.current = false;
           // 복사·다음 순찰 버튼이 없으므로 완료 즉시 다음 순찰 입력 상태로 돌아간다.
           dispatch({ type: "NEXT_PATROL" });
           toast.success("순찰 완료 기록됨");
         }
-      } catch {
-        dispatch({ type: "COMPLETE_FAILED" });
+      } catch (error) {
+        if (error instanceof PatrolDraftNetworkError) {
+          // 서버가 처리했는지 알 수 없으므로 요청 ID를 유지한 채 재시도를 기다린다.
+          dispatch({ type: "COMPLETE_FAILED" });
+          toast.error(
+            "연결이 끊겨 완료 여부를 확인하지 못했습니다. 다시 시도해 주세요",
+          );
+        } else {
+          requestIdRef.current = null;
+          dispatch({ type: "COMPLETE_REJECTED" });
+          toast.error("순찰을 기록하지 못했습니다");
+        }
       }
     } finally {
+      completingRef.current = false;
       setFlushing(false);
     }
   }

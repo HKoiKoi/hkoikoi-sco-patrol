@@ -12,6 +12,8 @@ export const ACTION_BAR_SPACER_CLASS = "pb-28";
 interface PatrolActionBarProps {
   /** 순찰 완료 요청 처리 중 여부 */
   completing: boolean;
+  /** 완료 응답을 받지 못해 같은 요청으로 다시 시도해야 하는 상태 */
+  retrying?: boolean;
   onComplete: () => void;
   className?: string;
 }
@@ -19,6 +21,7 @@ interface PatrolActionBarProps {
 // 하단 고정 액션바: [순찰 완료]
 export function PatrolActionBar({
   completing,
+  retrying = false,
   onComplete,
   className,
 }: PatrolActionBarProps) {
@@ -40,7 +43,7 @@ export function PatrolActionBar({
           {completing && (
             <Loader2 className="animate-spin" aria-hidden="true" />
           )}
-          {completing ? "처리 중" : "순찰 완료"}
+          {completing ? "처리 중" : retrying ? "다시 시도" : "순찰 완료"}
         </Button>
       </div>
     </div>
