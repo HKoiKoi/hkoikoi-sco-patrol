@@ -529,7 +529,7 @@ Phase 0 (완료)
   - 관련 파일: `app/logs/page.tsx`, `lib/queries/patrol-logs.ts`(신규, 서버 전용), `components/layout/app-header.tsx`, `lib/dummy/patrol-logs.ts`(삭제), `lib/dummy/viewers.ts`(삭제)
   - 구현 사항:
     - [ ] 페이지: `<Suspense>` 안의 비동기 컴포넌트에서 `await searchParams` → `await io()` 후 현재 시각으로 `getBusinessDate` 계산 → `?date` 검증 결과 적용 (`04-functions/io.md` 확인)
-    - [ ] `getPatrolLogsByDate(date)`: `patrol_logs` select `id, business_date, patrolled_at, author_id, standing, cafe_zone, drowsy, away, memo, staff_names(full_name)` + `eq("business_date", date)` + `order("patrolled_at", { ascending: false })`(최신순), 비로그인 키로 동작 확인
+    - [x] `getPatrolLogsByDate(date)`(`lib/queries/patrol-logs.ts`, 2026-10-20 작성. `/logs` 페이지 연결과 비로그인 키 동작 확인은 아래 진행 메모 참고): `patrol_logs` select `id, business_date, patrolled_at, author_id, standing, cafe_zone, drowsy, away, memo, staff_names(full_name)` + `eq("business_date", date)` + `order("patrolled_at", { ascending: false })`(최신순), 비로그인 키로 동작 확인
     - [ ] 헤더와 페이지의 더미 viewer를 `getViewer()`로 교체: pending 배너, 관리자 메뉴, 기록별 수정/삭제 노출은 `canEdit(log, viewer)` 그대로 사용(pending 본인은 미노출). 교체 후 `lib/dummy/patrol-logs.ts`, `lib/dummy/viewers.ts` 삭제
     - [ ] 조회 실패 시 에러 경계(`app/logs/error.tsx`)와 재시도 버튼, 로딩 스켈레톤(`loading` fallback)
     - [ ] 다음 날짜 이동은 현재 영업일 다음 날까지만 활성(미래 이동 제한)
@@ -541,6 +541,11 @@ Phase 0 (완료)
     - 오류: `browser_navigate → /logs?date=abc → 현재 영업일로 표시, 에러 없음`
     - 엣지: 03:59 완료 기록이 전일 날짜에서 조회됨(Supabase MCP로 `patrolled_at` 조정한 데이터)
     - 엣지: `browser_console_messages → hydration 경고 없음`(서버·클라이언트 HH:mm 일치)
+  - 진행 메모(2026-10-20, 작업 중): 하위 작업 7개 중 018-1~018-3 완료.
+    - 018-1 DB 조회 전제 확인(읽기 전용): `patrol_logs`·`staff_names`는 RLS가 켜져 있고 SELECT 정책이 anon·authenticated 대상 `using(true)`다.
+    - 018-2 `lib/queries/patrol-logs.ts` 신규: `import "server-only"`, 호출마다 `createClient()`, `business_date` 필터 + `patrolled_at` 내림차순, `staff_names(full_name)` 조인, 오류 시 `Error` throw. 작성자 이름이 없으면 빈 문자열을 넘기고 화면 폴백은 `PatrolLogItem`이 맡는다. 조회 select에 `client_request_id`가 없어 `lib/supabase/mappers.ts`의 `toPatrolLog` 인자 타입을 `Omit<Tables<"patrol_logs">, "client_request_id">`로 좁혔다(`as` 단언 없음). 검증은 `typecheck`·`eslint`·`prettier --check` 통과까지이며, 실제 DB 조회는 018-6에서 확인한다.
+    - 018-3 `components/layout/app-chrome.tsx` 신규: `getViewer()`를 await 하는 서버 컴포넌트가 `AppHeader`·`PendingBanner`에 같은 viewer를 주입하고, `app/layout.tsx`에서 `<Suspense>`로 감싼다(`ACTIVE_DUMMY_VIEWER` 제거).
+    - 남은 작업: 018-4 `/logs` 페이지 실데이터 전환과 `app/logs/error.tsx`, 018-5 더미 파일 삭제와 참조 제거 확인, 018-6 Playwright·Supabase 시나리오 검증, 018-7 이 항목의 완료 처리와 테스트 결과 기록.
   - 테스트 결과: (미수행)
 
 - **Task 019: 기록 수정/삭제 및 자리비움 사후 처리 구현**
