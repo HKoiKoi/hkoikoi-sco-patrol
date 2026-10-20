@@ -150,7 +150,7 @@ Phase 0 (완료)
     - ✅ `Role = "pending" | "manager" | "admin"`, `Viewer`(비로그인 | `{ userId, fullName, role }`) 타입
     - ✅ `SeatCategory = "standing" | "cafe_zone" | "drowsy" | "away"`, `SeatSet`(카테고리별 `number[]`), `PatrolContent = SeatSet & { memo: string }`
     - ✅ `PatrolLog`(id, businessDate, patrolledAt, authorId, authorName, 좌석 4종, memo), `PatrolDraft`(revision, updatedAt, content), `QuickTag`(id, label, sortOrder, isActive)
-    - ✅ RPC 응답 판별 유니온: `SaveDraftResult = { status: "ok"; revision } | { status: "conflict"; serverRevision; serverDraft }`, `CompletePatrolResult = { status: "ok" | "duplicate"; logId; patrolledAt; revision } | { status: "conflict"; serverRevision; serverDraft }`
+    - ✅ RPC 응답 판별 유니온: `SaveDraftResult = { status: "ok"; revision; updatedAt } | { status: "conflict"; serverRevision; serverDraft }`(Task 020에서 `updatedAt` 추가), `CompletePatrolResult = { status: "ok" | "duplicate"; logId; patrolledAt; revision } | { status: "conflict"; serverRevision; serverDraft }`
     - ✅ Server Action 공통 결과 타입 `ActionResult<T> = { ok: true; data: T } | { ok: false; error: string }`
     - ✅ 로컬 백업 타입 `DraftBackup = { revision; savedAt; payload: PatrolContent }`
   - 완료 기준: 타입 파일이 런타임 코드 없이 export되고 `npm run typecheck` 통과. PRD 데이터 모델의 모든 필드가 타입에 대응된다.
@@ -271,10 +271,10 @@ Phase 0 (완료)
 
 - **Task 008: 순찰 기록 페이지 UI 구현 (더미 데이터, 가짜 저장 어댑터)** ✅
   - 관련 기능: F02, F03, F04, F05, F06, F07(표시)
-  - 설명: 모바일 우선(좌석 4종 1열)·태블릿 2x2·하단 고정 [순찰 완료] 바 구조로 입력 화면을 완성한다. 상태는 처음부터 Phase 5와 같은 형태(`revision` + 저장 상태 6종)의 `useReducer`로 관리하고, 저장·완료는 Task 002 RPC 응답 타입을 그대로 돌려주는 가짜 어댑터로 흉내 낸다. Task 020에서 어댑터만 RPC 호출로 교체한다.
+  - 설명: 모바일 우선(좌석 4종 1열)·태블릿 2x2·하단 고정 [순찰 완료] 바 구조로 입력 화면을 완성한다. 상태는 처음부터 Phase 5와 같은 형태(`revision` + 저장 상태 6종, Task 020에서 `error` 추가해 7종)의 `useReducer`로 관리하고, 저장·완료는 Task 002 RPC 응답 타입을 그대로 돌려주는 가짜 어댑터로 흉내 낸다. Task 020에서 어댑터만 RPC 호출로 교체한다.
   - 관련 파일: `app/protected/patrol/page.tsx`, `app/protected/patrol/_components/patrol-form.tsx`, `_components/seat-category-input.tsx`, `_components/number-keypad.tsx`, `_components/quick-tag-bar.tsx`, `_components/memo-input.tsx`, `_components/save-status.tsx`, `_components/patrol-action-bar.tsx`, `_components/conflict-dialog.tsx`, `lib/patrol-form-reducer.ts`, `lib/types/patrol.ts`, `lib/dummy/quick-tags.ts`, `lib/dummy/patrol-draft-adapter.ts`(신규)
   - 구현 사항:
-    - ✅ `lib/patrol-form-reducer.ts`: 상태에 `content`(Task 002 `PatrolContent`), `revision`, 저장 상태 `clean / dirty / saving / saved / offline / conflict` 6종, 마지막 저장 시각, 완료 결과를 처음부터 포함. 액션(입력 변경, 저장 시작/성공/충돌/실패, 충돌 해결, 완료 성공, 다음 순찰)별 전이를 순수 함수로 정의
+    - ✅ `lib/patrol-form-reducer.ts`: 상태에 `content`(Task 002 `PatrolContent`), `revision`, 저장 상태 `clean / dirty / saving / saved / offline / conflict` 6종(Task 020에서 서버 거절용 `error` 추가: `clean / dirty / saving / saved / offline / error / conflict` 7종), 마지막 저장 시각, 완료 결과를 처음부터 포함. 액션(입력 변경, 저장 시작/성공/충돌/실패, 충돌 해결, 완료 성공, 다음 순찰)별 전이를 순수 함수로 정의
     - ✅ 어댑터 인터페이스 `PatrolDraftAdapter { saveDraft(baseRevision, content): Promise<SaveDraftResult>; completePatrol(requestId, expectedRevision): Promise<CompletePatrolResult> }`를 `lib/types/patrol.ts`에 추가하고 폼은 이 인터페이스에만 의존
     - ✅ `lib/dummy/patrol-draft-adapter.ts`: 메모리 내 서버 초안·`revision`을 두고 지연(300~800ms) 후 Task 002 `SaveDraftResult`·`CompletePatrolResult` 형태 그대로 응답. 같은 요청 ID 재호출 시 `duplicate`, 흉내 모드(`ok`/`conflict`/`offline`)는 모듈 상수와 개발 환경 전용 `window.__fakePatrolAdapter.setMode()`로 전환(`offline`은 네트워크 오류 throw)
     - ✅ 카테고리 4종 섹션(모바일 1열, 768px 이상 2x2: 스탠딩 | 카페존 / 졸음·딴짓 | 자리비움) + 섹션별 숫자 입력란(숫자만, Enter·추가) 아래에 칩(탭하여 삭제). `lib/seat-numbers.ts`로 양의 정수·카테고리 내 중복 거부, 거부 시 짧은 안내
@@ -282,7 +282,7 @@ Phase 0 (완료)
     - ✅ 저장 상태 표시 컴포넌트: `저장 중` / `저장됨 HH:mm` / `오프라인(기기에 임시 저장)` / `충돌`. 입력 후 1초 디바운스로 가짜 어댑터 `saveDraft` 호출(동시 요청 1개 제한·로컬 백업·포커스 재조회는 Task 020)
     - ✅ 하단 고정 액션바에는 [순찰 완료](처리 중 비활성화, 가짜 어댑터 `completePatrol` 호출)만 두고, 완료 응답 후 곧바로 `NEXT_PATROL`로 다음 순찰 입력 상태로 돌아간다(복사는 `/logs`에서). 충돌 선택 다이얼로그 "다른 기기에서 수정됨, 어느 쪽을 쓸까요?"(이 기기 내용 / 서버 내용)
     - ✅ 페이지와 폼은 `viewer` prop만 받고 권한 판정은 `lib/permissions.ts`로만 한다. 좌석 섹션은 모바일 1열·768px 이상 2x2, 메모 영역은 라벨 → 퀵 태그 → 입력창 순서
-  - 완료 기준: reducer가 `revision`과 저장 상태 6종을 모두 표현하고, 가짜 어댑터의 `ok`/`conflict`/`duplicate`/`offline` 응답에 따라 화면이 기대 상태로 전이한다. 입력 → 저장 → 완료 → 다음 순찰 입력이 끊김 없이 동작하고 키패드 버튼이 48px 이상이다. 폼 코드에 `lib/dummy` 직접 의존은 어댑터 주입 지점 한 곳뿐이다.
+  - 완료 기준: reducer가 `revision`과 저장 상태(6종, Task 020 이후 `error` 포함 7종)를 모두 표현하고, 가짜 어댑터의 `ok`/`conflict`/`duplicate`/`offline` 응답에 따라 화면이 기대 상태로 전이한다. 입력 → 저장 → 완료 → 다음 순찰 입력이 끊김 없이 동작하고 키패드 버튼이 48px 이상이다. 폼 코드에 `lib/dummy` 직접 의존은 어댑터 주입 지점 한 곳뿐이다.
   - 테스트 체크리스트:
     - 정상: `browser_click → 졸음/딴짓 탭, 2·3·[추가] → 칩 "23" 표시 → 1초 뒤 "저장 중" → "저장됨 HH:mm"`
     - 정상: `browser_click → 퀵 태그 "화장실 정리" 2회 → 메모에 두 줄 추가`
@@ -437,7 +437,7 @@ Phase 0 (완료)
   - 관련 파일: `supabase/migrations/<ts>_create_patrol_rpcs.sql`, `<ts>_create_swap_quick_tag_order.sql`
   - 구현 사항:
     - ✅ 공통: `set search_path = ''`, 본문 첫 줄에서 `private.is_staff()`(태그는 `private.is_admin()`) 검사 후 위반 시 예외, `revoke execute ... from public, anon` + `grant execute ... to authenticated`
-    - ✅ `save_patrol_draft(base_revision bigint, standing int[], cafe_zone int[], drowsy int[], away int[], memo text)` → `jsonb`: 행이 없으면 `base_revision = 0`일 때만 생성(그 외 충돌), 있으면 `for update` 잠금 후 `revision = base_revision`일 때만 저장하고 `revision + 1`, `updated_at = now()`. 좌석은 양의 정수만 남기고 카테고리 내 중복 제거·정렬, 메모 2,000자 초과는 오류. 충돌 시 `{status:"conflict", server_revision, server_draft}`, 성공 시 `{status:"ok", revision}`. 응답 키는 snake_case이고 `server_draft`는 `{revision, updated_at, standing, cafe_zone, drowsy, away, memo}` 평평한 형태(camelCase·`content` 중첩 변환은 Task 020 어댑터가 담당, PRD "RPC 응답 키 규칙")
+    - ✅ `save_patrol_draft(base_revision bigint, standing int[], cafe_zone int[], drowsy int[], away int[], memo text)` → `jsonb`: 행이 없으면 `base_revision = 0`일 때만 생성(그 외 충돌), 있으면 `for update` 잠금 후 `revision = base_revision`일 때만 저장하고 `revision + 1`, `updated_at = now()`. 좌석은 양의 정수만 남기고 카테고리 내 중복 제거·정렬, 메모 2,000자 초과는 오류. 충돌 시 `{status:"conflict", server_revision, server_draft}`, 성공 시 `{status:"ok", revision}`(Task 020에서 `updated_at` 추가: migration `20261020160932_save_patrol_draft_return_updated_at`, `{status:"ok", revision, updated_at}`). 응답 키는 snake_case이고 `server_draft`는 `{revision, updated_at, standing, cafe_zone, drowsy, away, memo}` 평평한 형태(camelCase·`content` 중첩 변환은 Task 020 어댑터가 담당, PRD "RPC 응답 키 규칙")
     - ✅ `complete_patrol(client_request_id uuid, expected_revision bigint)` → `jsonb`, PRD 순서 그대로: ① 초안 행 보장 후 `for update` ② 같은 `client_request_id`의 기록(작성자 본인)이 있으면 초안을 건드리지 않고 `{status:"duplicate", log_id, patrolled_at, revision}` ③ `expected_revision` 불일치 시 `{status:"conflict", server_revision, server_draft}`(저장 RPC와 같은 형태) ④ 서버 초안 내용으로 `patrol_logs` insert(`patrolled_at = now()`, `business_date = ((now() at time zone 'Asia/Seoul') - interval '4 hours')::date`, `author_id = auth.uid()`) ⑤ 초안을 빈 값 + `revision + 1`로 초기화. 응답 `{status:"ok", log_id, patrolled_at, revision}`
     - ✅ 빈 초안이라도 `revision`이 일치하면 완료 허용
     - ✅ `swap_quick_tag_order(tag_a uuid, tag_b uuid)`: 두 행 잠금 후 `sort_order` 맞바꿈(한 트랜잭션), 존재하지 않으면 예외
@@ -566,18 +566,19 @@ Phase 0 (완료)
   - 구현 메모(2026-10-20): `app/logs/actions.ts`(`"use server"`)에 `updatePatrolLog`·`deletePatrolLog`·`moveAwaySeat`·`removeAwaySeat`를 추가했다. 모두 `ActionResult<null>`을 반환하고, `requireStaff("/logs")`를 try/catch 밖에서 먼저 호출해 `redirect`가 삼켜지지 않게 했다. 서버 검증은 `id` 비어 있지 않은 문자열, 좌석 4종 `validateSeatList`(`lib/seat-numbers.ts`에 신규, 양의 안전 정수 배열만 허용하고 정렬·중복 제거), 메모 `MEMO_MAX_LENGTH` 이하, `seat` 양의 안전 정수, `target` 화이트리스트(`standing`/`cafe_zone`)다. update payload는 `standing`·`cafe_zone`·`drowsy`·`away`·`memo` 5개 키만 명시적으로 구성하며 완료 시각·영업일·작성자는 받지 않는다. `update`/`delete`에 `.select("id")`를 붙여 결과가 0행이면 "권한이 없거나 삭제된 기록입니다"를 반환하고 DB 오류 원문은 노출하지 않는다. 자리비움 처리는 현재 행을 읽어 순수 함수(`moveAwaySeat` 별칭 import, `removeSeat`)를 적용한 뒤 해당 컬럼만 update하며 동시 수정은 마지막 저장 우선이다. 현재 `away`에 없는 번호는 "이미 처리된 자리비움 번호입니다"를 반환한다. 성공 시 `next/cache`의 `refresh()`를 호출한다(`revalidatePath`는 쓰지 않음). `edit-log-dialog.tsx`는 로컬 `MEMO_MAX_LENGTH`를 지우고 `lib/patrol-format`에서 import하며 `useTransition`으로 저장 중 중복 제출을 막는다. `DeleteLogDialog`는 `logId` prop을 받아 확인 후 삭제한다. `away-seat-actions.tsx`는 이동 후 기존 `toast.custom`을 유지하고 PRD F10에 따라 메뉴에 [삭제] 항목을 추가했다. PRD는 구현과 일치해 수정하지 않았다.
   - 테스트 결과(2026-10-20): `npm run check`(`typecheck`·`lint`·`format:check`) 통과. 순수 함수는 커밋하지 않는 임시 스크립트로 0·음수·소수·문자열·NaN·중복·비배열 입력을 확인했다. DB는 Supabase MCP `execute_sql` 롤백 트랜잭션에서 수행: ① 타인 기록 update/delete 0행 ② 본인 기록 update 1행 ③ admin의 타인 기록 delete 1행 ④ 강등(pending) 계정 update/delete 0행 ⑤ `patrolled_at`·`business_date`·`author_id` update는 42501 ⑥ 좌석 0·메모 2,001자는 23514(CHECK). 롤백 후 `[QA019]` 행 0건, `get_advisors`에 신규 경고 없음. `qa-pending`이 `staff_names`에 없어 `qa-manager`를 임시 강등해 대체했고 role 원복을 확인했다. 화면은 Playwright MCP + 개발 서버에서 수행했다. `[QA019]` 기록을 `execute_sql`로 넣었다가 검증 후 삭제했고, QA 계정은 `auth.users.encrypted_password`만 임시 값으로 재설정한 뒤 4개 계정 모두 원복했다(임시 비밀번호는 문서에 기록하지 않음, 비밀번호 관리자에 새로 보관 필요). 결과: ① `qa-manager` 본인 기록 메모 수정 후 목록·DB 갱신 ② 자리비움 7 → 스탠딩 이동 시 `standing` [3,7], `away` [8] ③ 대상에 7이 이미 있으면 `away`에서만 제거, 중복 없음 ④ 자리비움 [삭제] 메뉴 동작 ⑤ 좌석 0은 인라인 오류로 거부, 메모는 `maxLength` 2,000으로 입력 불가, 우회해도 토스트로 저장 거부 ⑥ `qa-admin`이 확인 다이얼로그를 거쳐 타인 기록 삭제 ⑦ 강등된 계정이 열어 둔 화면에서 수정하면 `/logs?notice=pending`으로 리디렉션되고 DB 불변 ⑧ `Next-Action` 요청을 fetch로 재전송해 타인 기록은 "권한이 없거나 삭제된 기록입니다", 좌석 0·메모 초과·빈 `id`는 검증 오류 응답이며 DB 불변 ⑨ 콘솔 에러·경고·hydration 경고 0건. 미확인: 모바일 뷰포트·다크 모드, 자리비움 이동 성공 토스트(하단 중앙 `toast.custom`)의 직접 확인, `deletePatrolLog`·`moveAwaySeat`·`removeAwaySeat`의 직접 Action 재전송(`updatePatrolLog`만 재전송했고 나머지는 같은 `requireStaff`와 0행 판정 구조이며 DB 검증 ①~⑥으로 보완).
 
-- **Task 020: 순찰 초안 자동 저장·복원 구현 (가짜 어댑터 교체, 더미 삭제)**
+- **Task 020: 순찰 초안 자동 저장·복원 구현 (가짜 어댑터 교체, 더미 삭제)** ✅
   - 관련 기능: F07, F02, F03, F04
   - 설명: PRD "자동 저장 규칙"을 클라이언트 훅으로 구현한다. Task 008의 가짜 어댑터를 RPC 호출로 교체하고 `lib/dummy`를 삭제한다. 저장은 브라우저 Supabase 클라이언트에서 `save_patrol_draft` RPC를 직접 호출한다(함수 내부 역할 검사가 방어선).
   - 관련 파일: `app/protected/patrol/page.tsx`, `hooks/use-patrol-draft.ts`(신규), `lib/patrol-draft-rpc.ts`(신규), `lib/draft-backup.ts`(신규), `lib/queries/patrol-draft.ts`, `lib/queries/quick-tags.ts`, `app/protected/patrol/_components/*`, `app/protected/admin/tags/page.tsx`, `lib/dummy/*`(삭제)
   - 구현 사항:
-    - [ ] 가짜 어댑터 교체: `PatrolDraftAdapter`의 실제 구현 `lib/patrol-draft-rpc.ts`(브라우저 클라이언트로 `save_patrol_draft`/`complete_patrol` 호출 후 snake_case 응답을 Task 002 `SaveDraftResult`·`CompletePatrolResult`로 변환. `server_revision`→`serverRevision`, `log_id`→`logId`, `patrolled_at`→`patrolledAt`, 평평한 `server_draft`→`PatrolDraft{revision, updatedAt, content}`)를 주입하고 `lib/dummy/patrol-draft-adapter.ts`·`window.__fakePatrolAdapter` 제거
-    - [ ] 페이지: Task 016의 `requireStaff()` 호출 뒤 본인 초안(`revision`, 내용, `updated_at`)과 활성 퀵 태그(`sort_order` 순)를 서버에서 조회해 초기값으로 전달(초안 행이 없으면 `revision 0`)
-    - [ ] `lib/dummy` 디렉터리 삭제: 남은 더미 참조(태그 관리 페이지의 목록 조회)는 `lib/queries/quick-tags.ts` 조회로 교체(조작 Action은 Task 022). `grep -r "lib/dummy" app components lib hooks` 결과 없음
-    - [ ] 디바운스 1초 저장, 기기당 동시 요청 1개, 대기 중 변경은 최신 상태 하나로 합침. 상태는 Task 008 reducer의 `clean / dirty / saving / saved / offline / conflict` 그대로 사용
-    - [ ] 충돌 응답 처리: 서버 초안이 비어 있으면 로컬 입력을 `server_revision` 기준으로 재저장, 아니면 선택 다이얼로그(이 기기 내용 → `server_revision` 기준 재저장 / 서버 내용 → 로컬 교체)
-    - [ ] 네트워크 실패 시 `localStorage["draft:{user_id}"] = { revision, savedAt, payload }` 백업, `online` 이벤트에서 `base_revision`과 함께 재전송, 진입 시 백업이 서버보다 새로우면 복원 후 재전송
-    - [ ] `visibilitychange`/`focus` 복귀 시 clean 상태에서만 서버 초안 재조회, 서버 `revision`이 더 크면 교체(dirty·saving이면 덮어쓰지 않음). 저장 상태 표시의 시각은 서버 `updated_at`을 `formatKstTime`으로 표시(클라이언트 시계 미사용)
+    - ✅ 가짜 어댑터 교체: `PatrolDraftAdapter`의 실제 구현 `lib/patrol-draft-rpc.ts`(브라우저 클라이언트로 `save_patrol_draft`/`complete_patrol` 호출 후 snake_case 응답을 Task 002 `SaveDraftResult`·`CompletePatrolResult`로 변환. `server_revision`→`serverRevision`, `updated_at`→`updatedAt`(저장 `ok`), `log_id`→`logId`, `patrolled_at`→`patrolledAt`, 평평한 `server_draft`→`PatrolDraft{revision, updatedAt, content}`)를 주입하고 `lib/dummy/patrol-draft-adapter.ts`·`window.__fakePatrolAdapter` 제거
+    - ✅ 페이지: Task 016의 `requireStaff()` 호출 뒤 본인 초안(`revision`, 내용, `updated_at`)과 활성 퀵 태그(`sort_order` 순)를 서버에서 조회해 초기값으로 전달(초안 행이 없으면 `revision 0`)
+    - ✅ `lib/dummy` 디렉터리 삭제: 남은 더미 참조(태그 관리 페이지의 목록 조회)는 `lib/queries/quick-tags.ts` 조회로 교체(조작 Action은 Task 022). `grep -r "lib/dummy" app components lib hooks` 결과 없음
+    - ✅ 디바운스 1초 저장, 기기당 동시 요청 1개, 대기 중 변경은 최신 상태 하나로 합침. 상태는 Task 008 reducer의 `clean / dirty / saving / saved / offline / conflict`에 서버 거절용 `error`를 더한 7종 사용
+    - ✅ 충돌 응답 처리: 서버 초안이 비어 있으면 로컬 입력을 `server_revision` 기준으로 재저장, 아니면 선택 다이얼로그(이 기기 내용 → `server_revision` 기준 재저장 / 서버 내용 → 로컬 교체)
+    - ✅ 네트워크 실패 시 `localStorage["draft:{user_id}"] = { revision, savedAt, payload }` 백업, `online` 이벤트에서 `base_revision`과 함께 재전송, 진입 시 백업이 서버보다 새로우면 복원 후 재전송
+    - ✅ `visibilitychange`/`focus` 복귀 시 `clean`·`saved` 상태에서만 서버 초안 재조회, 서버 `revision`이 더 크면 교체(dirty·saving·offline·error·conflict면 덮어쓰지 않음). 저장 상태 표시의 시각은 저장 `ok` 응답의 서버 `updated_at`을 `formatKstTime`으로 표시(클라이언트 시계 미사용, 재조회 없음)
+    - ✅ 서버 거절(`PatrolDraftRpcError` 등)은 reducer `error` 상태로 처리: "저장 실패 (기기에 임시 저장)" 표시, 로컬 백업 유지, 자동 재시도 없이 다음 입력(dirty)에서만 재저장(네트워크 실패는 기존 `offline`)
   - 완료 기준: 폰 → 태블릿 이어쓰기와 오프라인 복귀가 입력 유실 없이 동작하고, 늦게 도착한 옛 저장이 서버 초안을 덮어쓰지 않는다. `lib/dummy`가 존재하지 않고 참조도 없다.
   - 테스트 체크리스트:
     - 정상: `browser_type → 메모 입력 → 1초 대기 → "저장됨 HH:mm" 표시, execute_sql로 patrol_drafts.revision 증가 확인`
@@ -589,7 +590,8 @@ Phase 0 (완료)
     - 엣지: 서버 초안이 정리(cron)로 비워진 뒤 탭 A에서 입력 → 다이얼로그 없이 새 revision으로 재저장
     - 엣지: 빠른 연속 입력 20회 → 네트워크 탭에서 동시 요청 1개 이하(`browser_network_requests`)
     - 엣지: 탭 A가 dirty인 상태에서 포커스 복귀 → 서버 내용으로 덮어쓰지 않음
-  - 테스트 결과: (미수행)
+  - 구현 메모(2026-10-20): `hooks/use-patrol-draft.ts`가 `{state, dispatch, stateRef, inflightSaveRef, save}`를 돌려주고 `patrol-form.tsx`가 이를 쓴다. 저장 중 입력은 진행 중 요청이 끝난 뒤 최신 내용 하나로 다시 저장한다(`inflightSaveRef`가 있으면 새 요청을 보내지 않고 `revision` 변화로 디바운스 effect가 재실행). 서버 초안이 비어 있고 로컬에 입력이 있으면 `RESOLVE_CONFLICT local`을 자동 dispatch해 다이얼로그 없이 재저장한다. 저장 시각은 `save_patrol_draft` 응답의 `updated_at`(migration `20261020160932_save_patrol_draft_return_updated_at`, 2026-10-20 원격 적용)을 쓰며 재조회하지 않는다. 서버 거절은 reducer `error` 상태(7종)로 처리하고 자동 재시도 없이 다음 입력(dirty)에서만 재저장한다. 포커스 복귀 재조회는 `clean`·`saved`에서만 허용한다. 진입 시 `backup.revision >= 서버 revision`이고 내용이 다르면 `RESTORE_BACKUP`, 아니면 백업을 지운다. 관찰: 모바일에서는 저장 상태 줄이 화면 맨 위에 있어 메모 입력 중 스크롤하면 `error`·`offline`이 보이지 않는다(Task 020 범위 밖, 하단 바 표시 검토 후보). `error` 상태에서 [순찰 완료]는 안내 없이 반환되며 Task 021에서 flush·실패 안내를 추가한다.
+  - 테스트 결과(2026-10-20): `npm run check`(`typecheck`·`lint`·`format:check`)와 `npm run build` 통과. `grep -r "lib/dummy" app components lib hooks`와 `__fakePatrolAdapter` 결과 없음. DB는 Supabase MCP 롤백 트랜잭션에서 qa-manager로 `save_patrol_draft`를 호출해 신규·기존 행 저장의 `ok` 응답에 `updated_at`이 있고 `conflict` 응답이 이전과 같음을 확인한 뒤 migration을 적용했고, `get_advisors`에 신규 경고는 없다(기존 RPC 실행 권한 경고와 유출 비밀번호 보호 비활성만 남음). 화면은 Playwright MCP + 개발 서버, `qa-manager`·`qa-admin`·`qa-pending`으로 수행했다. 결과: ① 메모 입력 1초 후 "저장됨 HH:mm"이 DB `updated_at`(KST)과 일치, 요청 1회 ② 새로고침·두 번째 탭에서 초안 복원 ③ 연속 입력 25회에 요청 1건, 응답을 2.5초 지연시킨 저장 중 추가 입력은 총 2건·동시 최대 1건으로 합쳐짐 ④ 오프라인 입력 시 "오프라인 (기기에 임시 저장)"과 `draft:{user_id}` 백업 생성, 복귀 후 재전송·백업 삭제·DB 반영 ⑤ 두 탭 충돌 다이얼로그에서 "서버 내용"·"이 기기 내용" 선택이 각각 반영됨 ⑥ `execute_sql`로 서버 초안을 비운 뒤 입력하면 다이얼로그 없이 새 revision으로 재저장 ⑦ 포커스 복귀 시 `saved`는 서버 내용으로 교체, dirty는 덮어쓰지 않고 저장 시점에 충돌 다이얼로그 ⑧ RPC 응답을 403으로 가로채면 "저장 실패 (기기에 임시 저장)"·백업 유지·자동 재시도 없음, 다음 입력에서 재저장·백업 삭제 ⑨ `revision` 999 백업을 심고 새로고침하면 복원·재전송(DB `revision` 14) ⑩ [순찰 완료] 회귀: 기록 1건 생성, 입력·초안·백업 초기화 ⑪ `qa-admin`의 `/protected/admin/tags`가 DB 태그 5개를 `sort_order` 순으로 표시하고, 태그 하나를 임시 비활성화하면 관리자 목록에는 보이고 순찰 기록 화면에는 4개만 표시(원복) ⑫ manager는 태그 관리 접근 시 `/logs?notice=admin-required`, `pending`은 순찰 기록·태그 관리 접근 시 `/logs?notice=pending`, 비로그인은 `/auth/login?next=...` ⑬ 375x812 가로 스크롤 없음, [순찰 완료] 48px, 다크 모드에서 저장 상태 표시 가독 ⑭ 콘솔 경고·hydration 경고 0건(에러는 직접 만든 오프라인·403뿐). 테스트 데이터(`[QA020]` 기록, 초안, 태그 활성 상태)는 모두 원복했다. QA 계정(`qa-admin`·`qa-manager`·`qa-pending`)은 `auth.users.encrypted_password`만 임시 값으로 재설정한 뒤 원래 해시로 복원했다(임시 비밀번호는 문서에 기록하지 않음). 미확인: 실기기 폰↔태블릿 이어쓰기, 1024x768 태블릿 뷰포트, 포커스 이벤트는 실제 탭 전환이 아니라 `focus`·`visibilitychange` 이벤트를 발생시켜 확인, 연속 [순찰 완료] 멱등·충돌은 Task 021에서 확인.
 
 - **Task 021: 순찰 완료 구현**
   - 관련 기능: F05
@@ -598,6 +600,7 @@ Phase 0 (완료)
   - 구현 사항:
     - [ ] [순찰 완료]: 버튼 비활성화 → 대기 중 저장 즉시 flush 후 완료 대기 → `crypto.randomUUID()` 요청 ID 생성(같은 시도의 재시도에는 같은 ID 재사용) → `complete_patrol(id, revision)`
     - [ ] `ok`/`duplicate` 응답: 로컬 입력 초기화, `revision`을 응답값으로 갱신, `draft:{user_id}` 백업 삭제, 곧바로 다음 순찰 입력 상태로 전환
+    - [ ] 저장 상태가 `error`(서버 거절)·`offline`이면 완료 전 flush로 저장을 재시도하고, 실패하면 완료를 진행하지 않고 실패 안내를 표시(Task 020 시점에는 `error`에서 [순찰 완료]가 안내 없이 반환됨)
     - [ ] `conflict` 응답: 기록 미생성 안내 후 응답의 `server_draft`로 충돌 다이얼로그를 연결(재조회 없음)
     - [ ] 네트워크 오류로 응답을 못 받은 경우 같은 요청 ID로 재시도 버튼 제공
   - 완료 기준: 중복 탭·재시도에도 기록은 1건만 생기고, 완료한 기록을 `/logs`에서 복사하면 문구가 서버 시각과 일치한다.
