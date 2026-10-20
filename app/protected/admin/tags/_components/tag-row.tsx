@@ -29,10 +29,12 @@ interface TagRowProps {
   position: number;
   isFirst: boolean;
   isLast: boolean;
-  onRename: (id: string, label: string) => TagActionResult;
-  onToggle: (id: string) => TagActionResult;
-  onMove: (id: string, direction: "up" | "down") => TagActionResult;
-  onDelete: (id: string) => TagActionResult;
+  /** 다른 조작이 진행 중이면 모든 조작을 막는다. */
+  disabled: boolean;
+  onRename: (id: string, label: string) => Promise<TagActionResult>;
+  onToggle: (id: string) => Promise<TagActionResult>;
+  onMove: (id: string, direction: "up" | "down") => Promise<TagActionResult>;
+  onDelete: (id: string) => Promise<TagActionResult>;
 }
 
 // 퀵 태그 한 줄: 순서 번호, 문구(인라인 수정), 노출 스위치, 이동·수정·삭제 버튼
@@ -41,6 +43,7 @@ export function TagRow({
   position,
   isFirst,
   isLast,
+  disabled,
   onRename,
   onToggle,
   onMove,
@@ -61,9 +64,10 @@ export function TagRow({
     setError(null);
   };
 
-  const handleEditSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleEditSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const result = onRename(tag.id, draft);
+    if (disabled) return;
+    const result = await onRename(tag.id, draft);
     if (!result.ok) {
       setError(result.error);
       return;
@@ -111,6 +115,7 @@ export function TagRow({
                 size="icon"
                 className="size-10 shrink-0"
                 aria-label="문구 저장"
+                disabled={disabled}
               >
                 <Check aria-hidden="true" />
               </Button>
@@ -144,6 +149,7 @@ export function TagRow({
         <Switch
           checked={tag.isActive}
           aria-label={`${tag.label} ${tag.isActive ? "숨기기" : "노출하기"}`}
+          disabled={disabled}
           // 보이는 크기는 그대로 두고 가상 요소로 터치 영역을 40px 이상으로 넓힌다
           className="relative mr-2 after:absolute after:-inset-3 after:content-['']"
           onCheckedChange={() => {
@@ -156,7 +162,7 @@ export function TagRow({
           size="icon"
           className="size-10"
           aria-label={`${tag.label} 위로 이동`}
-          disabled={isFirst}
+          disabled={disabled || isFirst}
           onClick={() => onMove(tag.id, "up")}
         >
           <ArrowUp aria-hidden="true" />
@@ -167,7 +173,7 @@ export function TagRow({
           size="icon"
           className="size-10"
           aria-label={`${tag.label} 아래로 이동`}
-          disabled={isLast}
+          disabled={disabled || isLast}
           onClick={() => onMove(tag.id, "down")}
         >
           <ArrowDown aria-hidden="true" />
@@ -178,7 +184,7 @@ export function TagRow({
           size="icon"
           className="size-10"
           aria-label={`${tag.label} 문구 수정`}
-          disabled={isEditing}
+          disabled={disabled || isEditing}
           onClick={startEdit}
         >
           <Pencil aria-hidden="true" />
@@ -193,6 +199,7 @@ export function TagRow({
               size="icon"
               className="size-10"
               aria-label={`${tag.label} 삭제`}
+              disabled={disabled}
             >
               <Trash2 aria-hidden="true" />
             </Button>

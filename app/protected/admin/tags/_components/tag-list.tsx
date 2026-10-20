@@ -1,107 +1,119 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useTransition } from "react";
 import { toast } from "sonner";
 
-import {
-  addTag,
-  hasDuplicateLabel,
-  moveTag,
-  removeTag,
-  renameTag,
-  sortTags,
-  toggleTag,
-} from "@/lib/quick-tag-list";
 import { validateTagLabel } from "@/lib/quick-tag-label";
-import type { QuickTag } from "@/lib/types/patrol";
+import { hasDuplicateLabel, sortTags } from "@/lib/quick-tag-list";
+import type { ActionResult, QuickTag } from "@/lib/types/patrol";
 
+import {
+  createTag,
+  deleteTag,
+  swapTagOrder,
+  toggleTagActive,
+  updateTagLabel,
+} from "../actions";
 import { AddTagForm } from "./add-tag-form";
 import { TagRow } from "./tag-row";
 
-/** 태그 조작 결과. Task 018에서 Server Action 반환값으로 그대로 교체한다. */
+/** 태그 조작 결과. 행·폼 컴포넌트가 성공일 때만 입력을 닫거나 비운다. */
 export type TagActionResult = { ok: true } | { ok: false; error: string };
 
 const DUPLICATE_ERROR = "이미 있는 문구입니다";
+const UNEXPECTED_ERROR =
+  "요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요";
 
 interface TagListProps {
   initialTags: QuickTag[];
 }
 
-// 퀵 태그 관리 목록. 더미 단계에서는 클라이언트 상태만 갱신한다.
+// 퀵 태그 관리 목록. 서버가 진실이며 Action 성공 후 refresh()로 새 initialTags가 내려온다.
 export function TagList({ initialTags }: TagListProps) {
-  const [tags, setTags] = useState<QuickTag[]>(initialTags);
-  // 클라이언트 임시 id 생성용 카운터 (Task 018에서 DB id로 교체)
-  const idCounter = useRef(0);
+  const [pending, startTransition] = useTransition();
 
-  const sorted = sortTags(tags);
+  const sorted = sortTags(initialTags);
 
-  const handleAdd = (rawLabel: string): TagActionResult => {
+  // Action을 transition 안에서 실행해 목록이 갱신될 때까지 pending을 유지하고 결과를 돌려준다.
+  const run = (
+    action: () => Promise<ActionResult<null>>,
+    successMessage: string,
+  ): Promise<TagActionResult> =>
+    new Promise((resolve) => {
+      startTransition(async () => {
+        try {
+          const result = await action();
+          if (result.ok) {
+            toast.success(successMessage);
+            resolve({ ok: true });
+          } else {
+            toast.error(result.error);
+            resolve({ ok: false, error: result.error });
+          }
+        } catch {
+          toast.error(UNEXPECTED_ERROR);
+          resolve({ ok: false, error: UNEXPECTED_ERROR });
+        }
+      });
+    });
+
+  const handleAdd = async (rawLabel: string): Promise<TagActionResult> => {
     const validated = validateTagLabel(rawLabel);
     if (!validated.ok) return validated;
-    if (hasDuplicateLabel(tags, validated.label)) {
+    if (hasDuplicateLabel(initialTags, validated.label)) {
       return { ok: false, error: DUPLICATE_ERROR };
     }
-    idCounter.current += 1;
-    // TODO: Task 018에서 Server Action(태그 추가)으로 교체
-    setTags((prev) =>
-      addTag(prev, validated.label, `client-tag-${idCounter.current}`),
+    return run(() => createTag(validated.label), "태그를 추가했습니다");
+  };
+
+  const handleRename = async (
+    id: string,
+    rawLabel: string,
+  ): Promise<TagActionResult> => {
+    const validated = validateTagLabel(rawLabel);
+    if (!validated.ok) return validated;
+    if (hasDuplicateLabel(initialTags, validated.label, id)) {
+      return { ok: false, error: DUPLICATE_ERROR };
+    }
+    return run(
+      () => updateTagLabel(id, validated.label),
+      "문구를 수정했습니다",
     );
-    toast.success("태그를 추가했습니다 (더미)");
-    return { ok: true };
   };
 
-  const handleRename = (id: string, rawLabel: string): TagActionResult => {
-    const validated = validateTagLabel(rawLabel);
-    if (!validated.ok) return validated;
-    if (hasDuplicateLabel(tags, validated.label, id)) {
-      return { ok: false, error: DUPLICATE_ERROR };
-    }
-    // TODO: Task 018에서 Server Action(문구 수정)으로 교체
-    setTags((prev) => renameTag(prev, id, validated.label));
-    toast.success("문구를 수정했습니다 (더미)");
-    return { ok: true };
-  };
-
-  const handleToggle = (id: string): TagActionResult => {
-    const target = tags.find((tag) => tag.id === id);
+  const handleToggle = async (id: string): Promise<TagActionResult> => {
+    const target = initialTags.find((tag) => tag.id === id);
     if (!target) return { ok: false, error: "태그를 찾을 수 없습니다" };
-    // TODO: Task 018에서 Server Action(노출 전환)으로 교체
-    setTags((prev) => toggleTag(prev, id));
-    toast.success(
-      target.isActive ? "태그를 숨겼습니다 (더미)" : "태그를 노출합니다 (더미)",
+    const nextActive = !target.isActive;
+    return run(
+      () => toggleTagActive(id, nextActive),
+      nextActive ? "태그를 노출합니다" : "태그를 숨겼습니다",
     );
-    return { ok: true };
   };
 
-  const handleMove = (
+  const handleMove = async (
     id: string,
     direction: "up" | "down",
-  ): TagActionResult => {
+  ): Promise<TagActionResult> => {
     const index = sorted.findIndex((tag) => tag.id === id);
-    const targetIndex = direction === "up" ? index - 1 : index + 1;
-    if (index < 0 || targetIndex < 0 || targetIndex >= sorted.length) {
+    const neighbor = sorted[direction === "up" ? index - 1 : index + 1];
+    if (index < 0 || !neighbor) {
       return { ok: false, error: "더 이상 이동할 수 없습니다" };
     }
-    // TODO: Task 018에서 Server Action(순서 변경)으로 교체
-    setTags((prev) => moveTag(prev, id, direction));
-    toast.success("순서를 변경했습니다 (더미)");
-    return { ok: true };
+    return run(() => swapTagOrder(id, neighbor.id), "순서를 변경했습니다");
   };
 
-  const handleDelete = (id: string): TagActionResult => {
-    if (!tags.some((tag) => tag.id === id)) {
+  const handleDelete = async (id: string): Promise<TagActionResult> => {
+    if (!initialTags.some((tag) => tag.id === id)) {
       return { ok: false, error: "태그를 찾을 수 없습니다" };
     }
-    // TODO: Task 018에서 Server Action(태그 삭제)으로 교체
-    setTags((prev) => removeTag(prev, id));
-    toast.success("태그를 삭제했습니다 (더미)");
-    return { ok: true };
+    return run(() => deleteTag(id), "태그를 삭제했습니다");
   };
 
   return (
     <div className="space-y-6">
       {/* 태그 추가 폼 */}
-      <AddTagForm onAdd={handleAdd} />
+      <AddTagForm onAdd={handleAdd} disabled={pending} />
 
       {/* 전체 태그 목록 (숨김 포함) */}
       {sorted.length === 0 ? (
@@ -117,6 +129,7 @@ export function TagList({ initialTags }: TagListProps) {
               position={index + 1}
               isFirst={index === 0}
               isLast={index === sorted.length - 1}
+              disabled={pending}
               onRename={handleRename}
               onToggle={handleToggle}
               onMove={handleMove}
