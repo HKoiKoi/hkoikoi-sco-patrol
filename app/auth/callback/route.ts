@@ -31,6 +31,6 @@ export async function GET(request: NextRequest) {
   }
 
   return NextResponse.redirect(
-    `${origin}/auth/error?error=${encodeURIComponent("No authorization code")}`,
+    `${origin}/auth/error?error=${encodeURIComponent("인증 코드가 없습니다.")}`,
   );
 }

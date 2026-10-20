@@ -495,17 +495,17 @@ Phase 0 (완료)
 
 ### Phase 5: 핵심 기능 구현
 
-- **Task 017: 인증 흐름 완성 (리디렉션·원래 화면 복귀·이메일 확인·로그아웃)**
+- **Task 017: 인증 흐름 완성 (리디렉션·원래 화면 복귀·이메일 확인·로그아웃)** ✅
   - 관련 기능: F01
   - 설명: 로그인 후/로그아웃 후 이동을 `/logs`로 통일하고 `next` 복귀를 모든 경로에서 같은 방식으로 처리한다.
   - 관련 파일: `components/login-form.tsx`, `components/sign-up-form.tsx`, `components/google-login-button.tsx`, `components/logout-button.tsx`, `app/auth/callback/route.ts`, `app/auth/confirm/route.ts`, `app/auth/login/page.tsx`
   - 구현 사항:
-    - [ ] 로그인 페이지가 `?next`를 읽어(`<Suspense>` 안) 로그인 폼과 Google 버튼에 전달, 성공 시 `getSafeNextPath(next)`(기본 `/logs`)로 이동
+    - [x] 로그인 페이지가 `?next`를 읽어(`<Suspense>` 안) 로그인 폼과 Google 버튼에 전달, 성공 시 `getSafeNextPath(next)`(기본 `/logs`)로 이동
     - [ ] Google `redirectTo`: `/auth/callback?next=<검증된 next>`, 콜백 기본값 `/logs`
-    - [ ] 이메일 가입: `options.data.full_name`에 이름 전달, `emailRedirectTo`를 `/auth/confirm` 기반으로 변경
-    - [ ] `/auth/confirm`: `next`를 `getSafeNextPath`로 검증, 기본값 `/logs`, 에러 메시지 인코딩
-    - [ ] Supabase 대시보드 확인 메일 템플릿을 `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/logs`로 변경, Site URL·Redirect URLs(로컬, HTTPS 터널, 운영 도메인) 등록 (수동 작업, 체크리스트로 기록)
-    - [ ] 로그아웃: `signOut` 후 `localStorage`의 `draft:`로 시작하는 키 전부 삭제, `/logs`로 이동
+    - [x] 이메일 가입: `options.data.full_name`에 이름 전달, `emailRedirectTo`를 `/auth/confirm` 기반으로 변경
+    - [x] `/auth/confirm`: `next`를 `getSafeNextPath`로 검증, 기본값 `/logs`, 에러 메시지 인코딩
+    - [x] Supabase 대시보드 확인 메일 템플릿을 `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/logs`로 변경, Site URL·Redirect URLs(로컬, HTTPS 터널, 운영 도메인) 등록 (수동 작업, 체크리스트로 기록)
+    - [x] 로그아웃: `signOut` 후 `localStorage`의 `draft:`로 시작하는 키 전부 삭제, `/logs`로 이동
   - 완료 기준: 아래 흐름이 모두 기대대로 동작하고 외부 주소로의 리디렉션이 불가능하다.
   - 테스트 체크리스트:
     - 정상: `browser_navigate → /protected/patrol (비로그인) → 로그인 페이지 → qa-manager 이메일 로그인 → /protected/patrol 복귀`
@@ -515,7 +515,13 @@ Phase 0 (완료)
     - 오류: `browser_navigate → /auth/login?next=https://evil.com → 로그인 → /logs`
     - 오류: `browser_navigate → /auth/confirm?token_hash=bad&type=email → /auth/error에 사유 표시`
     - 엣지: 가입한 기기와 다른 브라우저에서 확인 링크 열기 → 정상 확인(token_hash 방식)
-  - 테스트 결과: (미수행)
+  - Supabase 대시보드 수동 설정 체크리스트(사용자가 직접 수행, 완료 확인 전에는 이메일 가입 시나리오를 실행하지 않는다):
+    - [x] Authentication → Email Templates → Confirm signup의 링크를 `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/logs`로 변경 (템플릿 수정에는 커스텀 SMTP가 필요해 Resend `hkoikoi.dev` 도메인으로 연결, 2026-10-15)
+    - [x] Authentication → URL Configuration → Site URL 설정 (테스트 중 `http://localhost:3000`, 운영 배포 시 `https://sco.hkoikoi.dev`로 변경)
+    - [x] Redirect URLs에 로컬(`http://localhost:3000/**`), HTTPS 터널·운영 도메인(`https://sco.hkoikoi.dev/**`) 등록
+    - [x] Confirm email 옵션이 켜져 있는지 확인
+  - 코드 변경 검증(2026-10-15): `npm run check` — `typecheck`·`lint` 통과, `format:check`는 저장소 밖 로컬 파일 `.claude/settings.local.json`(전역 gitignore 대상)의 Prettier 경고 1건만 남았으며 이번 변경과 무관
+  - 테스트 결과(2026-10-20): Playwright MCP로 개발 서버(`npm run dev`)에서 수행. `qa-manager`의 `auth.users.encrypted_password`만 임시 값으로 재설정해 로그인했다(임시 비밀번호는 문서에 기록하지 않음, 비밀번호 관리자에 새로 보관 필요). 결과: ① 비로그인 `/protected/patrol` → `/auth/login?next=%2Fprotected%2Fpatrol` → `qa-manager` 로그인 → `/protected/patrol` 복귀 통과. ② `/auth/login` → 로그인 → `/logs` 통과. ③ `localStorage`에 `draft:x`·`other` 설정 후 로그아웃 → `/logs`, `draft:x`만 삭제되고 `other`는 유지 통과. ④ `/auth/login?next=` 값이 `https://evil.com`, `//evil.com`, `/\evil.com`일 때 로그인 후 모두 `/logs`, 외부 주소 이동 없음 통과. ⑤ `/auth/confirm?token_hash=bad&type=email` → `/auth/error`에 "오류 코드: Email link is invalid or has expired" 표시 통과. ⑥ 이메일 가입(이름 "테스트", `koikoilove99+qa-signup@gmail.com`): 처음에는 `POST /auth/v1/signup`이 500이었고 Auth 로그 원인은 `lookup stmp.resend.com ... no such host`(대시보드 커스텀 SMTP 호스트 오타)였다. 사용자가 `smtp.resend.com`으로 수정한 뒤 재수행해 `/auth/sign-up-success`로 이동, 확인 메일 수신 후 사용자가 Playwright가 아닌 다른 브라우저에서 확인 링크를 열어 `/logs`에 도착했다(token_hash 방식). `execute_sql` 확인: `email_confirmed_at` 기록, `profiles.full_name='테스트'`, `role='pending'`. 확인 후 테스트 계정을 삭제하고 `auth.users`·`profiles` 0건을 확인했다. 확인 메일이 처음에는 스팸함으로 분류됨(발신 도메인 인증·평판 점검 필요). 미확인: Google 로그인 `redirectTo`와 `/auth/callback`의 성공 경로. ⑦ 콘솔: warning 이상 기준 에러 0·경고 0(hydration 경고 없음). 최초 가입 시도의 SMTP 500 네트워크 에러 1건은 위 설정 오타 때문이며 수정 후 재수행에서는 0건. 관찰 사항: 헤더는 여전히 `ACTIVE_DUMMY_VIEWER` 기준이라 로그아웃 상태에서도 "관리자"로 표시된다(Task 018 범위).
 
 - **Task 018: 일지 조회 실데이터 연동**
   - 관련 기능: F08, F06, F01
