@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { Pencil, StickyNote, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 
@@ -34,19 +34,21 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { MEMO_MAX_LENGTH } from "@/lib/patrol-format";
 import { addSeat, parseSeatInput, removeSeat } from "@/lib/seat-numbers";
 import { cn } from "@/lib/utils";
 import type { PatrolLog, SeatCategory } from "@/lib/types/patrol";
 
-const MEMO_MAX_LENGTH = 2000;
+import { deletePatrolLog, updatePatrolLog } from "../actions";
 
 interface EditLogDialogProps {
   log: PatrolLog;
 }
 
-// 순찰 기록 수정 다이얼로그 (좌석 4종 칩 편집 + 메모). 저장은 토스트로 흉내 낸다.
+// 순찰 기록 수정 다이얼로그 (좌석 4종 칩 편집 + 메모). 저장은 Server Action이 최종 검증한다.
 export function EditLogDialog({ log }: EditLogDialogProps) {
   const [open, setOpen] = useState(false);
+  const [pending, startTransition] = useTransition();
   const [seats, setSeats] = useState<Record<SeatCategory, number[]>>({
     standing: log.standing,
     cafe_zone: log.cafe_zone,
@@ -100,9 +102,27 @@ export function EditLogDialog({ log }: EditLogDialogProps) {
   };
 
   const handleSave = () => {
-    // TODO: Task 018·019에서 Server Action(기록 수정)으로 교체
-    toast.success("기록을 수정했습니다 (더미)");
-    setOpen(false);
+    if (memo.length > MEMO_MAX_LENGTH) {
+      toast.error(
+        `메모는 ${MEMO_MAX_LENGTH.toLocaleString("ko-KR")}자 이하로 입력하세요`,
+      );
+      return;
+    }
+    startTransition(async () => {
+      const result = await updatePatrolLog(log.id, {
+        standing: seats.standing,
+        cafe_zone: seats.cafe_zone,
+        drowsy: seats.drowsy,
+        away: seats.away,
+        memo,
+      });
+      if (result.ok) {
+        toast.success("기록을 수정했습니다");
+        setOpen(false);
+      } else {
+        toast.error(result.error);
+      }
+    });
   };
 
   return (
@@ -222,8 +242,13 @@ export function EditLogDialog({ log }: EditLogDialogProps) {
           >
             취소
           </Button>
-          <Button type="button" className="min-h-12" onClick={handleSave}>
-            저장
+          <Button
+            type="button"
+            className="min-h-12"
+            disabled={pending}
+            onClick={handleSave}
+          >
+            {pending ? "저장 중..." : "저장"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -231,8 +256,25 @@ export function EditLogDialog({ log }: EditLogDialogProps) {
   );
 }
 
-// 순찰 기록 삭제 확인 다이얼로그. 삭제는 토스트로 흉내 낸다.
-export function DeleteLogDialog() {
+interface DeleteLogDialogProps {
+  logId: string;
+}
+
+// 순찰 기록 삭제 확인 다이얼로그. 확인 버튼은 클릭 시 닫히므로 실패는 토스트로 알린다.
+export function DeleteLogDialog({ logId }: DeleteLogDialogProps) {
+  const [pending, startTransition] = useTransition();
+
+  const handleDelete = () => {
+    startTransition(async () => {
+      const result = await deletePatrolLog(logId);
+      if (result.ok) {
+        toast.success("기록을 삭제했습니다");
+      } else {
+        toast.error(result.error);
+      }
+    });
+  };
+
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
@@ -252,10 +294,8 @@ export function DeleteLogDialog() {
           <AlertDialogCancel className="min-h-12">취소</AlertDialogCancel>
           <AlertDialogAction
             className="min-h-12"
-            onClick={() => {
-              // TODO: Task 018·019에서 Server Action(기록 삭제)으로 교체
-              toast.success("기록을 삭제했습니다 (더미)");
-            }}
+            disabled={pending}
+            onClick={handleDelete}
           >
             삭제
           </AlertDialogAction>

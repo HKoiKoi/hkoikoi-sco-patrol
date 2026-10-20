@@ -150,7 +150,7 @@ Phase 0 (완료)
     - ✅ `Role = "pending" | "manager" | "admin"`, `Viewer`(비로그인 | `{ userId, fullName, role }`) 타입
     - ✅ `SeatCategory = "standing" | "cafe_zone" | "drowsy" | "away"`, `SeatSet`(카테고리별 `number[]`), `PatrolContent = SeatSet & { memo: string }`
     - ✅ `PatrolLog`(id, businessDate, patrolledAt, authorId, authorName, 좌석 4종, memo), `PatrolDraft`(revision, updatedAt, content), `QuickTag`(id, label, sortOrder, isActive)
-    - ✅ RPC 응답 판별 유니온: `SaveDraftResult = { status: "ok"; revision } | { status: "conflict"; serverRevision; serverDraft }`, `CompletePatrolResult = { status: "ok" | "duplicate"; logId; patrolledAt; revision } | { status: "conflict"; serverRevision; serverDraft }`
+    - ✅ RPC 응답 판별 유니온: `SaveDraftResult = { status: "ok"; revision; updatedAt } | { status: "conflict"; serverRevision; serverDraft }`(Task 020에서 `updatedAt` 추가), `CompletePatrolResult = { status: "ok" | "duplicate"; logId; patrolledAt; revision } | { status: "conflict"; serverRevision; serverDraft }`
     - ✅ Server Action 공통 결과 타입 `ActionResult<T> = { ok: true; data: T } | { ok: false; error: string }`
     - ✅ 로컬 백업 타입 `DraftBackup = { revision; savedAt; payload: PatrolContent }`
   - 완료 기준: 타입 파일이 런타임 코드 없이 export되고 `npm run typecheck` 통과. PRD 데이터 모델의 모든 필드가 타입에 대응된다.
@@ -271,10 +271,10 @@ Phase 0 (완료)
 
 - **Task 008: 순찰 기록 페이지 UI 구현 (더미 데이터, 가짜 저장 어댑터)** ✅
   - 관련 기능: F02, F03, F04, F05, F06, F07(표시)
-  - 설명: 모바일 우선(좌석 4종 1열)·태블릿 2x2·하단 고정 [순찰 완료] 바 구조로 입력 화면을 완성한다. 상태는 처음부터 Phase 5와 같은 형태(`revision` + 저장 상태 6종)의 `useReducer`로 관리하고, 저장·완료는 Task 002 RPC 응답 타입을 그대로 돌려주는 가짜 어댑터로 흉내 낸다. Task 020에서 어댑터만 RPC 호출로 교체한다.
+  - 설명: 모바일 우선(좌석 4종 1열)·태블릿 2x2·하단 고정 [순찰 완료] 바 구조로 입력 화면을 완성한다. 상태는 처음부터 Phase 5와 같은 형태(`revision` + 저장 상태 6종, Task 020에서 `error` 추가해 7종)의 `useReducer`로 관리하고, 저장·완료는 Task 002 RPC 응답 타입을 그대로 돌려주는 가짜 어댑터로 흉내 낸다. Task 020에서 어댑터만 RPC 호출로 교체한다.
   - 관련 파일: `app/protected/patrol/page.tsx`, `app/protected/patrol/_components/patrol-form.tsx`, `_components/seat-category-input.tsx`, `_components/number-keypad.tsx`, `_components/quick-tag-bar.tsx`, `_components/memo-input.tsx`, `_components/save-status.tsx`, `_components/patrol-action-bar.tsx`, `_components/conflict-dialog.tsx`, `lib/patrol-form-reducer.ts`, `lib/types/patrol.ts`, `lib/dummy/quick-tags.ts`, `lib/dummy/patrol-draft-adapter.ts`(신규)
   - 구현 사항:
-    - ✅ `lib/patrol-form-reducer.ts`: 상태에 `content`(Task 002 `PatrolContent`), `revision`, 저장 상태 `clean / dirty / saving / saved / offline / conflict` 6종, 마지막 저장 시각, 완료 결과를 처음부터 포함. 액션(입력 변경, 저장 시작/성공/충돌/실패, 충돌 해결, 완료 성공, 다음 순찰)별 전이를 순수 함수로 정의
+    - ✅ `lib/patrol-form-reducer.ts`: 상태에 `content`(Task 002 `PatrolContent`), `revision`, 저장 상태 `clean / dirty / saving / saved / offline / conflict` 6종(Task 020에서 서버 거절용 `error` 추가: `clean / dirty / saving / saved / offline / error / conflict` 7종), 마지막 저장 시각, 완료 결과를 처음부터 포함. 액션(입력 변경, 저장 시작/성공/충돌/실패, 충돌 해결, 완료 성공, 다음 순찰)별 전이를 순수 함수로 정의
     - ✅ 어댑터 인터페이스 `PatrolDraftAdapter { saveDraft(baseRevision, content): Promise<SaveDraftResult>; completePatrol(requestId, expectedRevision): Promise<CompletePatrolResult> }`를 `lib/types/patrol.ts`에 추가하고 폼은 이 인터페이스에만 의존
     - ✅ `lib/dummy/patrol-draft-adapter.ts`: 메모리 내 서버 초안·`revision`을 두고 지연(300~800ms) 후 Task 002 `SaveDraftResult`·`CompletePatrolResult` 형태 그대로 응답. 같은 요청 ID 재호출 시 `duplicate`, 흉내 모드(`ok`/`conflict`/`offline`)는 모듈 상수와 개발 환경 전용 `window.__fakePatrolAdapter.setMode()`로 전환(`offline`은 네트워크 오류 throw)
     - ✅ 카테고리 4종 섹션(모바일 1열, 768px 이상 2x2: 스탠딩 | 카페존 / 졸음·딴짓 | 자리비움) + 섹션별 숫자 입력란(숫자만, Enter·추가) 아래에 칩(탭하여 삭제). `lib/seat-numbers.ts`로 양의 정수·카테고리 내 중복 거부, 거부 시 짧은 안내
@@ -282,7 +282,7 @@ Phase 0 (완료)
     - ✅ 저장 상태 표시 컴포넌트: `저장 중` / `저장됨 HH:mm` / `오프라인(기기에 임시 저장)` / `충돌`. 입력 후 1초 디바운스로 가짜 어댑터 `saveDraft` 호출(동시 요청 1개 제한·로컬 백업·포커스 재조회는 Task 020)
     - ✅ 하단 고정 액션바에는 [순찰 완료](처리 중 비활성화, 가짜 어댑터 `completePatrol` 호출)만 두고, 완료 응답 후 곧바로 `NEXT_PATROL`로 다음 순찰 입력 상태로 돌아간다(복사는 `/logs`에서). 충돌 선택 다이얼로그 "다른 기기에서 수정됨, 어느 쪽을 쓸까요?"(이 기기 내용 / 서버 내용)
     - ✅ 페이지와 폼은 `viewer` prop만 받고 권한 판정은 `lib/permissions.ts`로만 한다. 좌석 섹션은 모바일 1열·768px 이상 2x2, 메모 영역은 라벨 → 퀵 태그 → 입력창 순서
-  - 완료 기준: reducer가 `revision`과 저장 상태 6종을 모두 표현하고, 가짜 어댑터의 `ok`/`conflict`/`duplicate`/`offline` 응답에 따라 화면이 기대 상태로 전이한다. 입력 → 저장 → 완료 → 다음 순찰 입력이 끊김 없이 동작하고 키패드 버튼이 48px 이상이다. 폼 코드에 `lib/dummy` 직접 의존은 어댑터 주입 지점 한 곳뿐이다.
+  - 완료 기준: reducer가 `revision`과 저장 상태(6종, Task 020 이후 `error` 포함 7종)를 모두 표현하고, 가짜 어댑터의 `ok`/`conflict`/`duplicate`/`offline` 응답에 따라 화면이 기대 상태로 전이한다. 입력 → 저장 → 완료 → 다음 순찰 입력이 끊김 없이 동작하고 키패드 버튼이 48px 이상이다. 폼 코드에 `lib/dummy` 직접 의존은 어댑터 주입 지점 한 곳뿐이다.
   - 테스트 체크리스트:
     - 정상: `browser_click → 졸음/딴짓 탭, 2·3·[추가] → 칩 "23" 표시 → 1초 뒤 "저장 중" → "저장됨 HH:mm"`
     - 정상: `browser_click → 퀵 태그 "화장실 정리" 2회 → 메모에 두 줄 추가`
@@ -345,30 +345,31 @@ Phase 0 (완료)
     - 점검 범위: viewer 4종 × 3개 뷰포트 × `/logs`·`/protected/patrol`·`/protected/admin/tags`·`/auth/login`(admin·비로그인은 `/auth/sign-up`까지, admin은 `/auth/forgot-password`도). 가로 넘침·메뉴/버튼 노출·배너는 DOM 수집으로, 레이아웃은 admin 스크린샷(375·768, 다크/라이트 일부)으로 확인
     - 통과: 전 조합 가로 넘침 없음, 콘솔 에러·경고(hydration 포함) 0건. 메뉴·버튼 노출이 PRD 권한 규칙과 일치(admin: 메뉴 3종·수정/삭제 전체 / manager: 퀵 태그 관리 메뉴 없음, 수정·삭제는 본인 기록만 / pending: 승인 대기 배너, 복사만, 작성 버튼 탭 시 안내 / 비로그인: 로그인·가입 버튼). 엣지 더미(03:59·04:00, 2,000자 메모, 여러 줄 메모, 빈 메모·빈 좌석, 빈 날짜, 강등된 작성자, 잘못된 `?date`)는 깨지지 않음. 768px 이상 레이아웃(메뉴 노출, 2열 좌석 카드)과 라이트 모드 정상
     - 발견 사항:
-      1. [UI 수정] 상단 중앙 토스트(`position="top-center"`)가 768px 이상에서 헤더 메뉴와 승인 대기 배너를 가린다(pending이 [새 순찰 일지 작성] 탭 시 확인). 대상: `app/layout.tsx`, `components/ui/sonner.tsx` ([x] 반영: `position="bottom-center"`, offset 96으로 하단 액션바 위에 표시)
-      2. [UI 수정] 일지 카드의 복사/수정/삭제 버튼 아래 여백이 위쪽보다 커 보인다(약 30px, 원인 미확정). 대상: `app/logs/_components/patrol-log-item.tsx` ([x] 반영: 원인은 `CardContent` 기본 `pb-6`, `pb-0` 지정으로 위 18px·아래 17px)
+      1. [UI 수정] 상단 중앙 토스트(`position="top-center"`)가 768px 이상에서 헤더 메뉴와 승인 대기 배너를 가린다(pending이 [새 순찰 일지 작성] 탭 시 확인). 대상: `app/layout.tsx`, `components/ui/sonner.tsx` (✅ 반영: `position="bottom-center"`, offset 96으로 하단 액션바 위에 표시)
+      2. [UI 수정] 일지 카드의 복사/수정/삭제 버튼 아래 여백이 위쪽보다 커 보인다(약 30px, 원인 미확정). 대상: `app/logs/_components/patrol-log-item.tsx` (✅ 반영: 원인은 `CardContent` 기본 `pb-6`, `pb-0` 지정으로 위 18px·아래 17px)
       3. [MVP 이후 보류] 2,000자 메모 기록은 375px에서 카드 높이가 약 3,000px로 길어진다. 메모 접기/더 보기는 MVP 이후 검토. 대상: `app/logs/_components/patrol-log-item.tsx`
       4. [조치 없음] 순찰 기록 화면의 제목 아래 빈 영역과 좌석 카드 하단 빈 공간은 저장 상태 줄(`SaveStatus`, `min-h-6`)과 좌석 칩 영역 예약으로 확인됨(1024x768에서 저장 상태 줄과 칩 표시 확인). 대상: `app/protected/patrol/_components/*`
       5. [조치 없음] 더미 단계에서 권한 미달 접근은 리디렉션 대신 인라인 안내를 표시하고, `/auth/*`에서도 더미 viewer 헤더가 보인다. Task 018에서 `requireStaff()`/`requireAdmin()`과 `getViewer()`로 교체되므로 수정하지 않는다
-      6. [요구사항 변경] 완료 요청이 `conflict`일 때 응답에 서버 초안이 없어(`CompletePatrolResult`는 `serverRevision`만) 다이얼로그의 "서버 내용"을 골라도 화면은 로컬 내용 그대로 "저장됨"이 된다(재현: 저장 후 `conflict` 모드에서 [순찰 완료] → [서버 내용] → 스탠딩 `[3]` 유지, 서버 초안은 다른 내용). `complete_patrol`은 서버에 저장된 초안으로 기록을 만들므로 화면과 다른 내용이 기록될 수 있다. 사용자 결정 필요: (A, 권장) `complete_patrol`의 `conflict` 응답에도 `server_draft`를 포함해 저장 RPC와 맞춤 / (B) 충돌 후 서버 초안을 다시 조회. 대상: PRD "자동 저장 규칙", Task 014, `lib/types/patrol.ts`, `lib/dummy/patrol-draft-adapter.ts`, `patrol-form.tsx` ([x] 결정: A안(사용자 확정, 2026-10-14). PRD 자동 저장 규칙, `CompletePatrolResult`, 가짜 어댑터, `COMPLETE_CONFLICT` 액션(`serverDraft` 필수), `patrol-form.tsx`, Task 014 명세 반영)
-      7. [UI 수정] 순찰 완료 성공 시 결과 화면 없이 곧바로 빈 폼으로 돌아가며 완료 안내가 없다. offline 상태에서 [순찰 완료]를 눌러도 아무 안내 없이 입력만 유지된다. 권장: Sonner 토스트로 "순찰 완료 기록됨"과 "오프라인이라 완료할 수 없음"을 안내. 대상: `app/protected/patrol/_components/patrol-form.tsx` ([x] 반영: 완료 시 "순찰 완료 기록됨", offline 완료 시도 시 "오프라인이라 완료할 수 없음" 토스트)
+      6. [요구사항 변경] 완료 요청이 `conflict`일 때 응답에 서버 초안이 없어(`CompletePatrolResult`는 `serverRevision`만) 다이얼로그의 "서버 내용"을 골라도 화면은 로컬 내용 그대로 "저장됨"이 된다(재현: 저장 후 `conflict` 모드에서 [순찰 완료] → [서버 내용] → 스탠딩 `[3]` 유지, 서버 초안은 다른 내용). `complete_patrol`은 서버에 저장된 초안으로 기록을 만들므로 화면과 다른 내용이 기록될 수 있다. 사용자 결정 필요: (A, 권장) `complete_patrol`의 `conflict` 응답에도 `server_draft`를 포함해 저장 RPC와 맞춤 / (B) 충돌 후 서버 초안을 다시 조회. 대상: PRD "자동 저장 규칙", Task 014, `lib/types/patrol.ts`, `lib/dummy/patrol-draft-adapter.ts`, `patrol-form.tsx` (✅ 결정: A안(사용자 확정, 2026-10-14). PRD 자동 저장 규칙, `CompletePatrolResult`, 가짜 어댑터, `COMPLETE_CONFLICT` 액션(`serverDraft` 필수), `patrol-form.tsx`, Task 014 명세 반영)
+      7. [UI 수정] 순찰 완료 성공 시 결과 화면 없이 곧바로 빈 폼으로 돌아가며 완료 안내가 없다. offline 상태에서 [순찰 완료]를 눌러도 아무 안내 없이 입력만 유지된다. 권장: Sonner 토스트로 "순찰 완료 기록됨"과 "오프라인이라 완료할 수 없음"을 안내. 대상: `app/protected/patrol/_components/patrol-form.tsx` (✅ 반영: 완료 시 "순찰 완료 기록됨", offline 완료 시도 시 "오프라인이라 완료할 수 없음" 토스트)
       8. [조치 없음] offline 상태 문구가 "기기에 임시 저장"이지만 `localStorage` `draft:{user_id}` 백업은 아직 없다. Task 020(ROADMAP `localStorage` 백업 항목)에서 구현하므로 더미 단계에서는 수정하지 않는다
     - 순찰 흐름·가짜 어댑터 검증 (Task 011-2, 375x812·1024x768, admin viewer): ok(입력 → "저장 대기 중" → "저장됨 HH:mm" → 완료 → 빈 폼)와 offline 후 복귀(오프라인 표시, 입력 유지, 복귀 후 [순찰 완료] 한 번으로 저장·완료)는 PRD와 일치. `conflict` 모드는 저장·완료 모두 "충돌" 표시와 "다른 기기에서 수정됨, 어느 쪽을 쓸까요?" 다이얼로그(둘 중 하나를 골라야 닫힘)가 뜨고, 저장 충돌의 "서버 내용"·"이 기기 내용"은 PRD대로 동작(6번 제외). 같은 요청 ID 재완료(`crypto.randomUUID` 고정으로 재현)는 `duplicate`가 성공으로 처리되어 한 번만 반영되고 폼이 초기화됨. 이어지는 `conflict`는 같은 ID를 일부러 재사용한 테스트의 부산물(실제 재시도에서는 서버 초안이 이미 초기화됨). 콘솔 에러·경고 0건, 가로 넘침 없음
     - 요구사항 변경 반영 검증 (Task 011-4): `npm run check` 통과. 375x812에서 저장 후 `conflict` 모드로 [순찰 완료] → 충돌 다이얼로그 → [서버 내용] 선택 시 스탠딩 `7`·메모 "다른 기기에서 저장한 내용"으로 화면이 교체됨(6번 해소). 콘솔 경고·에러 0건
     - 데이터 모델 대조 (Task 011-5, 2026-10-14): 결정 — RPC는 snake_case를 반환하고 Supabase 어댑터(Task 020 `lib/patrol-draft-rpc.ts`)가 camelCase TS 타입으로 변환한다(사용자 확정). 대조 결과 불일치 5건을 해소해 잔여 0건
-      | 항목                                   | PRD                              | TS 타입(Task 002)                                    | 가짜 어댑터    | Task 012~014 명세                                                    | 결과                                                     |
-      | -------------------------------------- | -------------------------------- | ---------------------------------------------------- | -------------- | -------------------------------------------------------------------- | -------------------------------------------------------- |
-      | RPC 응답 키                            | snake_case 규칙 명시             | `serverRevision`·`serverDraft`·`logId`·`patrolledAt` | TS 타입 그대로 | `server_revision`·`server_draft`·`log_id`·`patrolled_at`             | 해소: PRD "RPC 응답 키 규칙"과 Task 020 어댑터 변환 명시 |
-      | `server_draft` 형태                    | 평평한 형태 정의                 | `PatrolDraft{revision, updatedAt, content}`          | 같음           | 형태 미정 → Task 014에 `{revision, updated_at, 좌석 4종, memo}` 명시 | 해소                                                     |
-      | 완료 `conflict` 응답                   | `server_revision`+`server_draft` | `serverDraft` 포함                                   | 포함           | Task 014 반영                                                        | 해소(011-4)                                              |
-      | `quick_tags.created_at`                | 행 없음 → 추가(DB 전용)          | 미노출                                               | -              | `timestamptz default now()`                                          | 해소                                                     |
-      | `id` 타입                              | "고유 식별자"                    | `string`                                             | `string`       | `quick_tags`·`patrol_logs`에 `uuid default gen_random_uuid()` 명시   | 해소                                                     |
-      | `client_request_id`                    | `patrol_logs` 유일               | `PatrolLog` 미노출(의도)                             | 어댑터 내부 맵 | `uuid not null unique`                                               | 해소: PRD "TS 타입 노출 범위" 한 줄 명시                 |
-      | `avatar_url`·`updated_at`·`created_at` | DB 컬럼                          | 미노출(의도)                                         | -              | 012 기존 컬럼 유지                                                   | 일치: 위 "TS 타입 노출 범위"에 명시                      |
-      | `revision`                             | bigint                           | `number`                                             | `number`       | `bigint`(JSON 숫자, 2^53 미만)                                       | 일치                                                     |
-      | 좌석 4종·`memo`                        | int[] 양수·중복 불가, 2,000자    | `SeatSet`·`PatrolContent`                            | 동일           | `not null default '{}'` + check                                      | 일치                                                     |
-      | `business_date`·`patrolled_at`         | 04:00 KST 경계, 서버 시각        | `string`(날짜·ISO)                                   | 문자열         | `date`·`timestamptz`                                                 | 일치                                                     |
-      | `role`·`full_name`                     | `pending/manager/admin`, 이름    | `Role`, `AuthenticatedViewer`                        | 더미 viewer    | `check`·`default 'pending'`                                          | 일치                                                     |
+      | 항목                           | PRD                              | TS 타입(Task 002)                                    | 가짜 어댑터    | Task 012~014 명세                                                    | 결과                                                     |
+      | ------------------------------ | -------------------------------- | ---------------------------------------------------- | -------------- | -------------------------------------------------------------------- | -------------------------------------------------------- |
+      | RPC 응답 키                    | snake_case 규칙 명시             | `serverRevision`·`serverDraft`·`logId`·`patrolledAt` | TS 타입 그대로 | `server_revision`·`server_draft`·`log_id`·`patrolled_at`             | 해소: PRD "RPC 응답 키 규칙"과 Task 020 어댑터 변환 명시 |
+      | `server_draft` 형태            | 평평한 형태 정의                 | `PatrolDraft{revision, updatedAt, content}`          | 같음           | 형태 미정 → Task 014에 `{revision, updated_at, 좌석 4종, memo}` 명시 | 해소                                                     |
+      | 완료 `conflict` 응답           | `server_revision`+`server_draft` | `serverDraft` 포함                                   | 포함           | Task 014 반영                                                        | 해소(011-4)                                              |
+      | `quick_tags.created_at`        | 행 없음 → 추가(DB 전용)          | 미노출                                               | -              | `timestamptz default now()`                                          | 해소                                                     |
+      | `id` 타입                      | "고유 식별자"                    | `string`                                             | `string`       | `quick_tags`·`patrol_logs`에 `uuid default gen_random_uuid()` 명시   | 해소                                                     |
+      | `client_request_id`            | `patrol_logs` 유일               | `PatrolLog` 미노출(의도)                             | 어댑터 내부 맵 | `uuid not null unique`                                               | 해소: PRD "TS 타입 노출 범위" 한 줄 명시                 |
+      | `updated_at`·`created_at`      | DB 컬럼                          | 미노출(의도)                                         | -              | 012 기존 컬럼 유지                                                   | 일치: 위 "TS 타입 노출 범위"에 명시                      |
+      | `avatar_url`                   | 컬럼 삭제(MVP 범위 밖)           | 없음                                                 | -              | 012에서 컬럼 제거                                                    | 일치                                                     |
+      | `revision`                     | bigint                           | `number`                                             | `number`       | `bigint`(JSON 숫자, 2^53 미만)                                       | 일치                                                     |
+      | 좌석 4종·`memo`                | int[] 양수·중복 불가, 2,000자    | `SeatSet`·`PatrolContent`                            | 동일           | `not null default '{}'` + check                                      | 일치                                                     |
+      | `business_date`·`patrolled_at` | 04:00 KST 경계, 서버 시각        | `string`(날짜·ISO)                                   | 문자열         | `date`·`timestamptz`                                                 | 일치                                                     |
+      | `role`·`full_name`             | `pending/manager/admin`, 이름    | `Role`, `AuthenticatedViewer`                        | 더미 viewer    | `check`·`default 'pending'`                                          | 일치                                                     |
     - 미확인: manager·pending·비로그인 viewer의 스크린샷 육안 확인과 1024x768 스크린샷(DOM 수치로만 확인), 다크 모드의 `/auth/*`
   - 완료 기준: "검토 결과"의 모든 항목이 반영 또는 보류로 처리되고, PRD·타입·Phase 4 명세 대조에서 불일치가 0건이다. 프로젝트 공통 완료 조건(`npm run check` 통과, Playwright MCP 시나리오 통과, 콘솔 에러·hydration 경고 없음)을 만족한다.
   - 테스트 체크리스트:
@@ -379,21 +380,21 @@ Phase 0 (완료)
     - 엣지: `browser_console_messages → 전 화면 에러·hydration 경고 없음`
   - 테스트 결과(2026-10-14): `npm run check` 통과. Playwright(Supabase env를 비운 dev 서버): `/logs`, `/protected/patrol`, `/protected/admin/tags`, `/auth/login`, `/auth/sign-up` 콘솔 에러·경고(hydration 포함) 0건. 검토 결과 8건 중 UI 수정 3건(1·2·7) 반영, 요구사항 변경 1건(6) A안 반영, 보류 1건(3)은 "MVP 이후"에 기록, 조치 없음 3건(4·5·8). 데이터 모델 대조 불일치 잔여 0건. `git diff`에 임시 viewer 전환·env 변경 없음(`ACTIVE_DUMMY_VIEWER`는 admin 그대로). 미확인(manager·pending·비로그인 스크린샷 육안, 다크 모드 `/auth/*`)은 DOM 수치와 권한 규칙 점검으로 갈음
 
-### Phase 4: 데이터베이스 스키마·RLS·RPC·DAL
+### Phase 4: 데이터베이스 스키마·RLS·RPC·DAL ✅
 
 > Task 011에서 PRD·데이터 모델이 확정된 뒤 시작한다. DB 검증은 Supabase MCP `execute_sql`에서 트랜잭션 안에 `set local role authenticated; set local request.jwt.claims = '{"sub":"<uuid>","role":"authenticated"}';`로 사용자를 흉내 내고 `rollback`하는 방식으로 한다. 비로그인은 `set local role anon`. Task 015 이전 시나리오의 `qa-*`는 트랜잭션 안에서 만든 같은 역할의 임시 사용자다. 각 Task 후 `get_advisors`(security)를 확인한다.
 
-- **Task 012: profiles 재정비, 역할 판별 함수, staff_names 동기화 구축**
+- **Task 012: profiles 재정비, 역할 판별 함수, staff_names 동기화 구축** ✅
   - 관련 기능: F01, F08
   - 설명: 스타터 `profiles`를 PRD 모델로 바꾸고 역할 판별 함수와 작성자 이름 공개용 `staff_names`를 만든다.
   - 관련 파일: `supabase/migrations/<ts>_reshape_profiles_roles.sql`, `supabase/migrations/<ts>_create_staff_names.sql`
   - 구현 사항:
-    - [ ] `profiles`: `username`(unique)·`website` 컬럼과 `username_length` 제약 제거, `role text not null default 'pending' check (role in ('pending','manager','admin'))` 추가, `updated_at` 기본값/갱신 트리거
-    - [ ] `handle_new_user` 재작성: `full_name` ← `raw_user_meta_data->>'full_name'` → 없으면 `->>'name'` → 없으면 이메일 앞부분. `role`은 메타데이터에서 읽지 않고 항상 `pending`. 기존 행 `full_name` 공백 backfill
-    - [ ] `profiles` 정책/권한 재설정: "누구나 조회" 정책과 insert 정책 삭제, 본인 행만 select(`authenticated`), `revoke all ... from anon, authenticated` 후 `grant select` + `grant update (full_name)`만 `authenticated`에 부여(컬럼 GRANT로 `role` 변경 차단)
-    - [ ] `create schema private` + `private.is_staff()`, `private.is_admin()`(`security definer`, `set search_path = ''`, `stable`, `auth.uid()` 기준). `revoke execute ... from public, anon`, `grant usage on schema private` 및 `grant execute`는 `authenticated`에만. `private` 스키마는 Data API 노출 스키마에 넣지 않는다
-    - [ ] `staff_names(id uuid pk references profiles(id), full_name text)`: RLS 켜고 `anon`, `authenticated`에 select만 부여(정책 `using (true)`), 쓰기 권한 없음
-    - [ ] 동기화 트리거 `sync_staff_name`(`security definer`): `profiles` insert/update(`role`, `full_name`) 시 역할이 `manager`/`admin`이면 upsert, 강등 시 행 유지(이름 변경은 기존 행이 있으면 반영)
+    - ✅ `profiles`: `username`(unique)·`website`·`avatar_url` 컬럼과 `username_length` 제약 제거, `role text not null default 'pending' check (role in ('pending','manager','admin'))` 추가, `updated_at` 기본값/갱신 트리거
+    - ✅ `handle_new_user` 재작성: `full_name` ← `raw_user_meta_data->>'full_name'` → 없으면 `->>'name'` → 없으면 이메일 앞부분. `role`은 메타데이터에서 읽지 않고 항상 `pending`. 기존 행 `full_name` 공백 backfill
+    - ✅ `profiles` 정책/권한 재설정: "누구나 조회" 정책과 insert 정책 삭제, 본인 행만 select(`authenticated`), `revoke all ... from anon, authenticated` 후 `grant select` + `grant update (full_name)`만 `authenticated`에 부여(컬럼 GRANT로 `role` 변경 차단)
+    - ✅ `create schema private` + `private.is_staff()`, `private.is_admin()`(`security definer`, `set search_path = ''`, `stable`, `auth.uid()` 기준). `revoke execute ... from public, anon`, `grant usage on schema private` 및 `grant execute`는 `authenticated`에만. `private` 스키마는 Data API 노출 스키마에 넣지 않는다
+    - ✅ `staff_names(id uuid pk references profiles(id), full_name text)`: RLS 켜고 `anon`, `authenticated`에 select만 부여(정책 `using (true)`), 쓰기 권한 없음
+    - ✅ 동기화 트리거 `sync_staff_name`(`security definer`): `profiles` insert/update(`role`, `full_name`) 시 역할이 `manager`/`admin`이면 upsert, 강등 시 행 유지(이름 변경은 기존 행이 있으면 반영)
   - 완료 기준: 마이그레이션이 원격 DB에 적용되고 아래 SQL 시나리오가 모두 기대대로 동작한다. `get_advisors(security)`에 신규 경고 없음.
   - 테스트 체크리스트:
     - 정상: `execute_sql → auth.users에 메타데이터 {full_name:"홍길동"}인 사용자 insert(트랜잭션) → profiles.role='pending', full_name='홍길동'`
@@ -403,19 +404,19 @@ Phase 0 (완료)
     - 오류: `execute_sql(authenticated) → select private.is_admin() via REST(/rest/v1/rpc/is_admin) → 404/노출되지 않음`
     - 엣지: 메타데이터에 `role:"admin"`을 넣어 가입 → `pending`으로 생성
     - 엣지: `full_name`·`name` 모두 없음 → 이메일 앞부분으로 생성
-  - 테스트 결과: (미수행)
+  - 테스트 결과(2026-10-15): 마이그레이션 3개 적용(`20261015055853_reshape_profiles_roles`, `20261015060059_create_private_role_functions`, `20261015060140_create_staff_names`, 로컬 파일명과 원격 version 일치). `execute_sql` 트랜잭션 + `rollback`(임시 사용자 4명, 롤백 후 `staff_names` 0행·기존 2명 `pending` 유지): 메타데이터 `full_name:"홍길동"` 가입 → `pending/홍길동`. manager 승격 → `staff_names` 1행, pending 강등 후에도 1행 유지(이름 변경은 반영). authenticated 흉내로 본인 `role='admin'` update → `permission denied for table profiles`(`full_name` update는 성공, 본인 행만 1건 조회). anon `select profiles` → `permission denied for table profiles`(REST도 401). 메타데이터 `role:"admin"` 가입 → `pending`. `full_name`·`name` 없음 → `noname`(이메일 앞부분), `name`만 있음 → `이름만`. `staff_names`는 anon select 가능, anon·authenticated insert/update/delete → `permission denied`. `private.is_staff()/is_admin()`은 anon이 호출하면 `permission denied for schema private`, authenticated(pending)는 둘 다 `false`. REST(publishable key): `/rest/v1/rpc/is_admin`·`is_staff` → 404, `Content-Profile: private` → 406, `/rest/v1/staff_names` → 200. `get_advisors(security)`: 신규 경고 없음(기존 `auth_leaked_password_protection` 1건만 있으며 이번 변경과 무관한 Auth 설정). `npm run check` 통과. 추가 검증(같은 날, 트랜잭션 + `rollback`): `is_staff()/is_admin()`은 manager `true/false`, admin `true/true`, pending `false/false`. admin 승격 시 `staff_names` 행 생성, `profiles`를 `role='manager'`로 직접 insert해도 `staff_names` 행 생성, `updated_at`은 update 시 현재 시각으로 갱신. 사용자 C 흉내로 `profiles` 조회 시 본인 1행만 보이고 다른 사용자(A) 행은 0건, A 행 update는 0행이며 이름 유지. 롤백 후 `staff_names` 0행, 기존 2명 `pending`, `auth.users` 2명. 미확인: 인증된 실제 세션의 REST rpc 호출(anon 키로만 확인, QA 계정이 생기는 Task 015 이후)
 
-- **Task 013: 핵심 테이블·제약·RLS·초기 데이터 구축**
+- **Task 013: 핵심 테이블·제약·RLS·초기 데이터 구축** ✅
   - 관련 기능: F02, F03, F04, F07, F08, F09, F10, F11
   - 설명: `quick_tags`, `patrol_logs`, `patrol_drafts`를 PRD의 제약·권한 규칙 그대로 만든다. DB 기본 시간대를 한국으로 설정한다.
   - 관련 파일: `supabase/migrations/<ts>_set_timezone_seoul.sql`, `<ts>_create_quick_tags.sql`, `<ts>_create_patrol_logs.sql`, `<ts>_create_patrol_drafts.sql`
   - 구현 사항:
-    - [ ] `alter database postgres set timezone to 'Asia/Seoul'` (SQL 함수에서는 그래도 `at time zone 'Asia/Seoul'`을 명시)
-    - [ ] 좌석 배열 검증 함수 `private.is_valid_seats(int[])`(`immutable`): 모든 원소 > 0, 중복 없음, null 원소 없음. 4개 배열 컬럼 `not null default '{}'` + `check`
-    - [ ] `quick_tags(id uuid default gen_random_uuid(), label, sort_order int, is_active bool default true, created_at timestamptz default now())`: `label` check(트림 후 비어 있지 않음, `\r`/`\n` 불포함), 유일 인덱스 `lower(regexp_replace(btrim(label), '\s+', ' ', 'g'))`. 정책: `anon` select `is_active`, `authenticated` select `is_active or private.is_admin()`, insert/update/delete는 `private.is_admin()`. 초기 데이터 5종(퇴실자 탭 디스플레이 종료 / 화장실 정리 / 제빙기 물 보충 / 정수기 및 커피머신 청소 / 전 열람실 에어컨 종료) seed
-    - [ ] `patrol_logs(id uuid default gen_random_uuid(), client_request_id uuid not null unique, business_date date, patrolled_at timestamptz, author_id uuid, standing, cafe_zone, drowsy, away int[], memo text check (char_length(memo) <= 2000))`: `author_id`가 `profiles(id)`와 `staff_names(id)`를 모두 참조(작성자 이름 embed용), 인덱스 `(business_date, patrolled_at)`, `(author_id)`
-    - [ ] `patrol_logs` 권한: `anon`/`authenticated` select(정책 `using (true)`), insert 권한 없음, `grant update (standing, cafe_zone, drowsy, away, memo)`과 `grant delete`를 `authenticated`에 부여, update/delete 정책 `(author_id = auth.uid() and private.is_staff()) or private.is_admin()`
-    - [ ] `patrol_drafts(user_id pk references profiles(id), 좌석 4종, memo, revision bigint not null default 0, updated_at timestamptz default now())`: 본인 행 select만, 쓰기 권한 없음(RPC 전용)
+    - ✅ `alter database postgres set timezone to 'Asia/Seoul'` (SQL 함수에서는 그래도 `at time zone 'Asia/Seoul'`을 명시)
+    - ✅ 좌석 배열 검증 함수 `private.is_valid_seats(int[])`(`immutable`): 모든 원소 > 0, 중복 없음, null 원소 없음. 4개 배열 컬럼 `not null default '{}'` + `check`
+    - ✅ `quick_tags(id uuid default gen_random_uuid(), label, sort_order int, is_active bool default true, created_at timestamptz default now())`: `label` check(트림 후 비어 있지 않음, `\r`/`\n` 불포함), 유일 인덱스 `lower(regexp_replace(btrim(label), '\s+', ' ', 'g'))`. 정책: `anon` select `is_active`, `authenticated` select `is_active or private.is_admin()`, insert/update/delete는 `private.is_admin()`. 초기 데이터 5종(퇴실자 탭 디스플레이 종료 / 화장실 정리 / 제빙기 물 보충 / 정수기 및 커피머신 청소 / 전 열람실 에어컨 종료) seed
+    - ✅ `patrol_logs(id uuid default gen_random_uuid(), client_request_id uuid not null unique, business_date date, patrolled_at timestamptz, author_id uuid, standing, cafe_zone, drowsy, away int[], memo text check (char_length(memo) <= 2000))`: `author_id`가 `profiles(id)`와 `staff_names(id)`를 모두 참조(작성자 이름 embed용), 인덱스 `(business_date, patrolled_at)`, `(author_id)`
+    - ✅ `patrol_logs` 권한: `anon`/`authenticated` select(정책 `using (true)`), insert 권한 없음, `grant update (standing, cafe_zone, drowsy, away, memo)`과 `grant delete`를 `authenticated`에 부여, update/delete 정책 `(author_id = auth.uid() and private.is_staff()) or private.is_admin()`
+    - ✅ `patrol_drafts(user_id pk references profiles(id), 좌석 4종, memo, revision bigint not null default 0, updated_at timestamptz default now())`: 본인 행 select만, 쓰기 권한 없음(RPC 전용)
   - 완료 기준: 테이블·제약·정책이 적용되고, PostgREST에서 `patrol_logs?select=*,staff_names(full_name)`이 비로그인 키로 동작한다(구현 전 확인 항목). `get_advisors(security, performance)` 신규 경고 없음.
   - 테스트 체크리스트:
     - 정상: `execute_sql(anon) → select from quick_tags → 활성 태그 5개`
@@ -428,19 +429,19 @@ Phase 0 (완료)
     - 오류: `execute_sql(qa-admin) → insert quick_tags label=' 화장실   정리 ' → unique 위반` / `label=E'a\nb' → check 위반`
     - 엣지: 같은 번호를 서로 다른 카테고리(`standing={5}`, `away={5}`)에 넣기 → 허용
     - 엣지: `qa-manager`를 pending으로 강등 후 본인 기록 update → 0행, 일지 조회 시 작성자 이름 유지
-  - 테스트 결과: (미수행)
+  - 테스트 결과(2026-10-15): 마이그레이션 4개 적용(`20261015061451_set_timezone_seoul`, `20261015151459_create_quick_tags`, `20261015151645_create_patrol_logs`, `20261015151739_create_patrol_drafts`, 로컬 파일명과 원격 version 일치). QA 계정은 Task 015 이후라 트랜잭션 안의 임시 사용자(admin 1·manager 2·pending 1)로 대체했고 `execute_sql` + `set local role`/`request.jwt.claims` + `rollback`으로 검증했다. anon: `quick_tags` 활성 5개, `patrol_logs` join `staff_names`로 작성자 이름 반환, REST(publishable key) `/rest/v1/patrol_logs?select=id,staff_names(full_name)` 200(FK 2개여도 embed 모호성 없음), `patrol_drafts` 조회·`patrol_logs` insert는 permission denied. manager: 본인 기록 memo update 1행, 타인 기록 update/delete 0행, `patrolled_at`·`author_id` update와 `patrol_logs`/`patrol_drafts` 직접 insert는 permission denied, `patrol_drafts`는 본인 1행만 조회. pending: 기록 update 0행, `quick_tags`는 활성 5개. admin: 타인 기록 update 1행, `quick_tags` label `' 화장실   정리 '` unique 위반·`E'a\nb'`·공백만 있는 label check 위반. 제약: `standing={0}`·`{3,3}`·memo 2001자·초안 `drowsy={2,2}` check 위반, `standing={5}`와 `away={5}` 동시 허용. `private.is_valid_seats`는 `{}`·`{1,2}` true, `{1,1}`·`{0}`·`{1,null}` false. 강등(manager→pending) 후 본인 기록 update/delete 0행, 일지 조회 시 작성자 이름 유지(`staff_names` 행 유지). 롤백 후 `patrol_logs`·`patrol_drafts`·`staff_names` 0행, `quick_tags` 5행, `auth.users` 2명(모두 pending) 유지. 새 연결에서 `show timezone` = `Asia/Seoul`. `get_advisors`: security는 기존 `auth_leaked_password_protection` 1건뿐이고 신규 없음, performance는 신규 테이블 `patrol_logs` 인덱스 2개 `unused_index`(INFO, 아직 쿼리가 없어서 발생하며 유지). 구현 메모: 한글 정책명은 63바이트 제한으로 잘려 update/delete 정책명이 충돌하므로 짧게 지었다. `patrol_drafts.memo`는 초기화 값이 빈 값이라 `not null default ''`로 했다(`patrol_logs.memo`는 nullable). PRD "TS 타입 노출 범위"에서 존재하지 않는 `patrol_logs.created_at` 언급을 제거했다. 미확인: 인증된 실제 세션의 REST 호출(QA 계정이 생기는 Task 015 이후)
 
-- **Task 014: 저장·완료·태그 순서 RPC 구현**
+- **Task 014: 저장·완료·태그 순서 RPC 구현** ✅
   - 관련 기능: F05, F07, F11
   - 설명: `save_patrol_draft`, `complete_patrol`, `swap_quick_tag_order`를 `security definer` 함수로 만들고 함수 본문에서 호출자 역할을 다시 검사한다. 응답 형태는 Task 002 `SaveDraftResult`·`CompletePatrolResult`(Task 008 가짜 어댑터와 동일)와 일치시킨다.
   - 관련 파일: `supabase/migrations/<ts>_create_patrol_rpcs.sql`, `<ts>_create_swap_quick_tag_order.sql`
   - 구현 사항:
-    - [ ] 공통: `set search_path = ''`, 본문 첫 줄에서 `private.is_staff()`(태그는 `private.is_admin()`) 검사 후 위반 시 예외, `revoke execute ... from public, anon` + `grant execute ... to authenticated`
-    - [ ] `save_patrol_draft(base_revision bigint, standing int[], cafe_zone int[], drowsy int[], away int[], memo text)` → `jsonb`: 행이 없으면 `base_revision = 0`일 때만 생성(그 외 충돌), 있으면 `for update` 잠금 후 `revision = base_revision`일 때만 저장하고 `revision + 1`, `updated_at = now()`. 좌석은 양의 정수만 남기고 카테고리 내 중복 제거·정렬, 메모 2,000자 초과는 오류. 충돌 시 `{status:"conflict", server_revision, server_draft}`, 성공 시 `{status:"ok", revision}`. 응답 키는 snake_case이고 `server_draft`는 `{revision, updated_at, standing, cafe_zone, drowsy, away, memo}` 평평한 형태(camelCase·`content` 중첩 변환은 Task 020 어댑터가 담당, PRD "RPC 응답 키 규칙")
-    - [ ] `complete_patrol(client_request_id uuid, expected_revision bigint)` → `jsonb`, PRD 순서 그대로: ① 초안 행 보장 후 `for update` ② 같은 `client_request_id`의 기록(작성자 본인)이 있으면 초안을 건드리지 않고 `{status:"duplicate", log_id, patrolled_at, revision}` ③ `expected_revision` 불일치 시 `{status:"conflict", server_revision, server_draft}`(저장 RPC와 같은 형태) ④ 서버 초안 내용으로 `patrol_logs` insert(`patrolled_at = now()`, `business_date = ((now() at time zone 'Asia/Seoul') - interval '4 hours')::date`, `author_id = auth.uid()`) ⑤ 초안을 빈 값 + `revision + 1`로 초기화. 응답 `{status:"ok", log_id, patrolled_at, revision}`
-    - [ ] 빈 초안이라도 `revision`이 일치하면 완료 허용
-    - [ ] `swap_quick_tag_order(tag_a uuid, tag_b uuid)`: 두 행 잠금 후 `sort_order` 맞바꿈(한 트랜잭션), 존재하지 않으면 예외
-    - [ ] SQL 영업일 경계값 검증용으로 계산식을 `private.business_date_of(timestamptz)` 함수로 분리해 재사용
+    - ✅ 공통: `set search_path = ''`, 본문 첫 줄에서 `private.is_staff()`(태그는 `private.is_admin()`) 검사 후 위반 시 예외, `revoke execute ... from public, anon` + `grant execute ... to authenticated`
+    - ✅ `save_patrol_draft(base_revision bigint, standing int[], cafe_zone int[], drowsy int[], away int[], memo text)` → `jsonb`: 행이 없으면 `base_revision = 0`일 때만 생성(그 외 충돌), 있으면 `for update` 잠금 후 `revision = base_revision`일 때만 저장하고 `revision + 1`, `updated_at = now()`. 좌석은 양의 정수만 남기고 카테고리 내 중복 제거·정렬, 메모 2,000자 초과는 오류. 충돌 시 `{status:"conflict", server_revision, server_draft}`, 성공 시 `{status:"ok", revision}`(Task 020에서 `updated_at` 추가: migration `20261020160932_save_patrol_draft_return_updated_at`, `{status:"ok", revision, updated_at}`). 응답 키는 snake_case이고 `server_draft`는 `{revision, updated_at, standing, cafe_zone, drowsy, away, memo}` 평평한 형태(camelCase·`content` 중첩 변환은 Task 020 어댑터가 담당, PRD "RPC 응답 키 규칙")
+    - ✅ `complete_patrol(client_request_id uuid, expected_revision bigint)` → `jsonb`, PRD 순서 그대로: ① 초안 행 보장 후 `for update` ② 같은 `client_request_id`의 기록(작성자 본인)이 있으면 초안을 건드리지 않고 `{status:"duplicate", log_id, patrolled_at, revision}` ③ `expected_revision` 불일치 시 `{status:"conflict", server_revision, server_draft}`(저장 RPC와 같은 형태) ④ 서버 초안 내용으로 `patrol_logs` insert(`patrolled_at = now()`, `business_date = ((now() at time zone 'Asia/Seoul') - interval '4 hours')::date`, `author_id = auth.uid()`) ⑤ 초안을 빈 값 + `revision + 1`로 초기화. 응답 `{status:"ok", log_id, patrolled_at, revision}`
+    - ✅ 빈 초안이라도 `revision`이 일치하면 완료 허용
+    - ✅ `swap_quick_tag_order(tag_a uuid, tag_b uuid)`: 두 행 잠금 후 `sort_order` 맞바꿈(한 트랜잭션), 존재하지 않으면 예외
+    - ✅ SQL 영업일 경계값 검증용으로 계산식을 `private.business_date_of(timestamptz)` 함수로 분리해 재사용
   - 완료 기준: 아래 시나리오 전부 통과. `anon`으로 RPC 호출 시 권한 오류. `pending`이 호출하면 함수 내부 검사에서 거부.
   - 테스트 체크리스트:
     - 정상: `execute_sql(qa-manager) → save_patrol_draft(0, '{1}', ...) → status ok, revision 1` → `save_patrol_draft(1, ...) → revision 2`
@@ -453,34 +454,34 @@ Phase 0 (완료)
     - 오류: `execute_sql(qa-manager) → swap_quick_tag_order → 예외`
     - 엣지: `private.business_date_of` 경계표 7건(03:59:59 → 전일, 04:00:00 → 당일, 00:00:00 → 전일, 월말 03:59:59 → 말일, 월초 04:00:00 → 1일, 12/31 23:59:59 → 12/31, 1/1 03:59:59 → 12/31) 일치
     - 엣지: 좌석 입력 `{3,3,-1,0,2}` → 저장값 `{2,3}`
-  - 테스트 결과: (미수행)
+  - 테스트 결과(2026-10-15): 마이그레이션 2개 적용(`20261015152500_create_patrol_rpcs`, `20261015152502_create_swap_quick_tag_order`, 로컬 파일명과 원격 version 일치). QA 계정은 Task 015 이후라 트랜잭션 안의 임시 사용자(admin 1·manager 2·pending 1)로 대체했고 `execute_sql` + `set local role`/`request.jwt.claims` + 예외로 롤백해 검증했다. 정상: `save(0)` → ok revision 1, `save(1, {3,3,-1,0,2}...)` → revision 2·저장값 `{2,3}`, `complete(A,2)` → ok·기록 1건(영업일 2026-10-15)·초안 빈 값 revision 3, 재호출 → duplicate·같은 `log_id`·기록 1건·revision 3 유지, 빈 초안 `complete(C,0)` → ok, 메모 2,000자 ok. 오류: `save(1)`(서버 3) → conflict `server_revision` 3·`server_draft` 포함, 초안 행 없음 + `save(5)` → conflict `server_revision` 0, `complete(B,1)` → conflict·`server_draft` 포함·기록 미생성, 메모 2,001자 → 22023, pending의 `save`/`complete` → 42501, anon의 RPC 3종 → `permission denied for function`, manager의 `swap_quick_tag_order` → 42501, 없는 태그 → P0002, 같은 태그 → 22023. admin `swap` → `sort_order` 1,2 → 2,1. `private.business_date_of` 경계표 7건 모두 일치. 롤백 후 `patrol_logs`·`patrol_drafts`·테스트 사용자 0건, `quick_tags` 순서 1~5 유지. `get_advisors`: security 신규 WARN 3건(`authenticated_security_definer_function_executable`: 3개 RPC, 설계상 의도이며 함수 본문의 역할 검사가 방어선이고 anon 노출은 없음), 기존 `auth_leaked_password_protection` 1건 유지. performance는 `patrol_logs_business_date_patrolled_at_idx` `unused_index`(INFO, 기존). `npm run check` 통과. 구현 메모: 초안 행이 없고 `base_revision`이 0이 아니면 빈 초안(revision 0)을 만든 뒤 conflict로 응답한다(`server_draft`를 항상 돌려주기 위함). 파라미터명이 컬럼명과 같아 본문은 `v_*` 변수만 쓴다. `private.draft_json`은 `timestamptz`의 jsonb 변환이 타임존에 의존해 `stable`이다. 미확인: 인증된 실제 세션의 REST `supabase.rpc` 호출(Task 015 이후), 동시 호출 경합(`for update` 잠금)
 
-- **Task 015: 방치 초안 정리 스케줄, DB 타입 생성, 테스트 계정 준비**
+- **Task 015: 방치 초안 정리 스케줄, DB 타입 생성, 테스트 계정 준비** ✅
   - 관련 기능: F07, F01
   - 설명: `pg_cron`으로 방치 초안을 비우고, 생성된 DB 타입을 Supabase 클라이언트에 연결한다. QA용 계정을 만든다.
   - 관련 파일: `supabase/migrations/<ts>_schedule_stale_draft_reset.sql`, `lib/supabase/database.types.ts`(생성), `lib/supabase/client.ts`, `lib/supabase/server.ts`
   - 구현 사항:
-    - [ ] `pg_cron` 확장 활성화 여부 확인(구현 전 확인 항목). 비활성 시 대시보드에서 활성화하거나 마이그레이션에 `create extension if not exists pg_cron`
-    - [ ] 정리 함수 `private.reset_stale_drafts()`: `updated_at < now() - interval '2 hours'`이고 내용이 비어 있지 않은 초안만 빈 값 + `revision + 1` + `updated_at = now()`(행 삭제 없음, 이미 빈 초안은 제외해 불필요한 revision 증가 방지)
-    - [ ] `cron.schedule('reset-stale-patrol-drafts', '*/30 * * * *', 'select private.reset_stale_drafts()')`
-    - [ ] Supabase MCP `generate_typescript_types`로 `lib/supabase/database.types.ts` 생성, `createBrowserClient<Database>`/`createServerClient<Database>` 제네릭 적용, Task 002 타입과 매핑 함수(`toPatrolLog` 등) 작성
-    - [ ] 테스트 계정 4종 생성 후 대시보드(Table Editor)에서 역할 지정, 첫 관리자 지정 절차를 README 운영 메모에 기록
+    - ✅ `pg_cron` 확장 활성화 여부 확인(구현 전 확인 항목). 비활성 시 대시보드에서 활성화하거나 마이그레이션에 `create extension if not exists pg_cron`
+    - ✅ 정리 함수 `private.reset_stale_drafts()`: `updated_at < now() - interval '2 hours'`이고 내용이 비어 있지 않은 초안만 빈 값 + `revision + 1` + `updated_at = now()`(행 삭제 없음, 이미 빈 초안은 제외해 불필요한 revision 증가 방지)
+    - ✅ `cron.schedule('reset-stale-patrol-drafts', '*/30 * * * *', 'select private.reset_stale_drafts()')`
+    - ✅ Supabase MCP `generate_typescript_types`로 `lib/supabase/database.types.ts` 생성, `createBrowserClient<Database>`/`createServerClient<Database>` 제네릭 적용, Task 002 타입과 매핑 함수(`toPatrolLog` 등) 작성
+    - ✅ 테스트 계정 4종 생성 후 대시보드(Table Editor)에서 역할 지정, 첫 관리자 지정 절차를 README 운영 메모에 기록
   - 완료 기준: `cron.job`에 작업이 등록되고 정리 함수를 수동 실행해 규칙대로 동작한다. 타입 생성 후 `npm run typecheck` 통과.
   - 테스트 체크리스트:
     - 정상: `execute_sql → 초안 updated_at을 3시간 전으로 바꾸고 reset_stale_drafts() → 내용 비고 revision +1`
     - 엣지: `updated_at` 1시간 전(영업일 04:00 경계를 넘긴 작성 중 초안) → 유지
     - 엣지: 이미 빈 초안 → revision 변화 없음
     - 정상: `execute_sql → select * from cron.job_run_details order by start_time desc limit 1 → 30분 뒤 succeeded`
-  - 테스트 결과: (미수행)
+  - 테스트 결과(2026-10-15): 마이그레이션 `20261015153727_schedule_stale_draft_reset` 적용(로컬 파일명과 원격 version 일치). `pg_cron` 1.6.4 활성, `cron.job`에 `reset-stale-patrol-drafts`(`*/30 * * * *`, active) 등록, `private.reset_stale_drafts()`는 anon·authenticated 모두 execute 불가. `execute_sql` 트랜잭션 + 예외 롤백으로 초안 3건을 만들어 실행: 3시간 전 비어 있지 않은 초안 → 빈 값·`revision` 5→6·`updated_at` 갱신, 1시간 전 초안 → 내용·`revision` 유지, 3시간 전이지만 이미 빈 초안 → `revision` 5 유지. 롤백 후 `patrol_drafts` 0행. 타입 생성: `lib/supabase/database.types.ts` 저장, `client.ts`/`server.ts`에 `Database` 제네릭 적용, `lib/supabase/mappers.ts`에 `toPatrolLog`·`toPatrolDraft`·`toQuickTag`·`toSaveDraftResult`·`toCompletePatrolResult` 작성. QA 계정 4종은 대시보드(Add user, Auto Confirm User)로 만들고 `profiles.role`을 `qa-admin`=`admin`, `qa-manager`·`qa-manager2`=`manager`, `qa-pending`=`pending`으로 지정(Gmail `+` 별칭 이메일, 조회로 확인). README 운영 메모에 첫 관리자 지정 절차, QA 계정 표, `cron.job`·`cron.job_run_details` 확인 쿼리를 추가했다. `get_advisors`: security는 `authenticated_security_definer_function_executable` WARN 3건(Task 014의 3개 RPC, 설계상 의도)과 기존 `auth_leaked_password_protection` 1건이고 신규 없음, performance는 `patrol_logs_business_date_patrolled_at_idx` `unused_index`(INFO, 기존). `npm run check`: `typecheck`·`lint`는 통과했고 `format:check`는 저장소 밖 로컬 파일 `.claude/settings.local.json`(전역 gitignore 대상)의 Prettier 경고 1건만 남았으며 이번 변경과 무관하다. 미확인: 30분 주기 첫 실행 결과(`cron.job_run_details`, 등록 직후 확인 시 실행 이력 0건이라 16:00 이후 재확인 필요), QA 계정으로 실제 로그인한 세션의 REST `supabase.rpc` 호출(Task 012~014에서 미확인으로 남긴 항목), 콘솔 에러·hydration 경고(화면 변경이 없어 Playwright 시나리오는 수행하지 않음)
 
-- **Task 016: 서버 권한 검증(DAL) 구현**
+- **Task 016: 서버 권한 검증(DAL) 구현** ✅
   - 관련 기능: F01
   - 설명: Task 012의 `profiles.role`을 읽는 `lib/auth/dal.ts`의 `getViewer()`/`requireStaff()`/`requireAdmin()`을 만들고 보호 페이지에 연결한다. `next`·`notice` 처리는 Task 005의 함수를 쓴다.
   - 관련 파일: `lib/auth/dal.ts`(신규, `import "server-only"`), `app/protected/patrol/page.tsx`, `app/protected/admin/tags/page.tsx`
   - 구현 사항:
-    - [ ] `getViewer()`(React `cache`): `getClaims()` → 본인 `profiles`(`full_name`, `role`) 조회 후 Task 002 `Viewer`로 반환, 비로그인은 `null`
-    - [ ] `requireStaff()`: 비로그인 → `/auth/login?next=<현재 경로>`(`getSafeNextPath`로 검증), `pending` → `/logs?notice=pending`. `requireAdmin()`: 비로그인 → 로그인, `pending` → `notice=pending`, `manager` → `/logs?notice=admin-required`
-    - [ ] `/protected/patrol`은 `requireStaff()`, `/protected/admin/tags`는 `requireAdmin()`을 `<Suspense>` 안의 비동기 컴포넌트에서 호출(레이아웃 검사만으로 끝내지 않음). 화면 데이터는 아직 더미이며 실데이터 연결은 Task 020·022
+    - ✅ `getViewer()`(React `cache`): `getClaims()` → 본인 `profiles`(`full_name`, `role`) 조회 후 Task 002 `Viewer`로 반환, 비로그인은 `null`
+    - ✅ `requireStaff()`: 비로그인 → `/auth/login?next=<현재 경로>`(`getSafeNextPath`로 검증), `pending` → `/logs?notice=pending`. `requireAdmin()`: 비로그인 → 로그인, `pending` → `notice=pending`, `manager` → `/logs?notice=admin-required`
+    - ✅ `/protected/patrol`은 `requireStaff()`, `/protected/admin/tags`는 `requireAdmin()`을 `<Suspense>` 안의 비동기 컴포넌트에서 호출(레이아웃 검사만으로 끝내지 않음). 화면 데이터는 아직 더미이며 실데이터 연결은 Task 020·022
   - 완료 기준: QA 계정 4종과 비로그인에서 두 보호 페이지의 접근 결과가 PRD 권한 규칙과 일치한다. `npm run check` 통과.
   - 테스트 체크리스트:
     - 정상: `browser_navigate → /protected/patrol (qa-manager) → 200, 페이지 표시`
@@ -490,21 +491,21 @@ Phase 0 (완료)
     - 오류: `browser_navigate → /protected/admin/tags (비로그인) → /auth/login?next=%2Fprotected%2Fadmin%2Ftags`
     - 엣지: `execute_sql → qa-manager를 pending으로 강등 → /protected/patrol 새로고침 → /logs?notice=pending` (확인 후 원복)
     - 엣지: `browser_console_messages → 에러·hydration 경고 없음`
-  - 테스트 결과: (미수행)
+  - 테스트 결과(2026-10-15): Playwright MCP + Supabase MCP로 개발 서버(`npm run dev`)에서 수행. QA 계정 비밀번호를 알 수 없어 `execute_sql`로 4개 계정(`koikoilove99+qa-*`)의 `auth.users.encrypted_password`만 임시 값으로 재설정한 뒤 로그인했다(임시 비밀번호는 문서에 기록하지 않음, 비밀번호 관리자에 새로 보관 필요). 결과: ① `qa-manager` → `/protected/patrol` 200, URL 유지, 순찰 기록 폼(좌석 4종·퀵 태그·메모·[순찰 완료]) 표시. ② `qa-admin` → `/protected/admin/tags` URL 유지. ③ `qa-pending` → `/protected/patrol` → `/logs?notice=pending`, 배너 "관리자 승인이 완료되지 않아 작성할 수 없습니다. 승인 후 이용해 주세요." ④ `qa-manager` → `/protected/admin/tags` → `/logs?notice=admin-required`, 배너 "관리자 권한이 필요합니다." ⑤ 비로그인 → `/protected/admin/tags` → `/auth/login?next=%2Fprotected%2Fadmin%2Ftags`. ⑥ `qa-manager`로 로그인한 채 `profiles.role`을 `pending`으로 강등(`update ... returning`으로 확인) → `/protected/patrol` 새로고침 → `/logs?notice=pending`, 즉시 `manager`로 원복하고 4개 계정 역할(`admin`/`manager`/`manager`/`pending`)을 조회로 확인(강등 중 세션 재로그인 없이 바로 반영되어 `getViewer()`가 요청마다 DB에서 역할을 읽음을 확인). ⑦ `browser_console_messages`(전체 세션, warning 이상): 에러 0·경고 0(hydration 경고 없음). 관찰 사항: 헤더 `AppHeader`·`PendingBanner`는 아직 `ACTIVE_DUMMY_VIEWER`(admin) 기준이라 어느 계정으로 로그인해도 "관리자"로 표시되며 실제 역할과 다르다(`app/layout.tsx`, `app/logs/page.tsx`, `lib/dummy/viewers.ts`, Task 018 범위이므로 이번에 수정하지 않음). 로그인 폼은 `?next=/protected/patrol`이 있어도 `/logs`로 이동했다(로그인 후 이동·`next` 연결은 Phase 5 인증 흐름에서 확인 필요). 추가 확인(2026-10-15): `qa-manager2`·`qa-admin`의 임시 비밀번호를 재설정해 로그인한 뒤 각각 `/protected/patrol`에 접근했고, 둘 다 URL이 유지되며 순찰 기록 폼(좌석 입력·태그와 메모·[순찰 완료])이 표시됐다. 이때 콘솔 에러는 개발 서버 HMR WebSocket 연결 거부 12건뿐이며 hydration 경고는 없었다. 미확인: `qa-admin`·`qa-pending`의 나머지 경로 조합, 로그아웃 시 `draft:` 백업 키 삭제, 모바일 뷰포트 화면. `npm run check`: `typecheck`·`lint` 통과, `format:check`는 저장소 밖 로컬 파일 `.claude/settings.local.json`(전역 gitignore 대상)의 Prettier 경고 1건만 남았으며 이번 변경과 무관(Task 015 기록과 동일)
 
 ### Phase 5: 핵심 기능 구현
 
-- **Task 017: 인증 흐름 완성 (리디렉션·원래 화면 복귀·이메일 확인·로그아웃)**
+- **Task 017: 인증 흐름 완성 (리디렉션·원래 화면 복귀·이메일 확인·로그아웃)** ✅
   - 관련 기능: F01
   - 설명: 로그인 후/로그아웃 후 이동을 `/logs`로 통일하고 `next` 복귀를 모든 경로에서 같은 방식으로 처리한다.
   - 관련 파일: `components/login-form.tsx`, `components/sign-up-form.tsx`, `components/google-login-button.tsx`, `components/logout-button.tsx`, `app/auth/callback/route.ts`, `app/auth/confirm/route.ts`, `app/auth/login/page.tsx`
   - 구현 사항:
-    - [ ] 로그인 페이지가 `?next`를 읽어(`<Suspense>` 안) 로그인 폼과 Google 버튼에 전달, 성공 시 `getSafeNextPath(next)`(기본 `/logs`)로 이동
+    - ✅ 로그인 페이지가 `?next`를 읽어(`<Suspense>` 안) 로그인 폼과 Google 버튼에 전달, 성공 시 `getSafeNextPath(next)`(기본 `/logs`)로 이동
     - [ ] Google `redirectTo`: `/auth/callback?next=<검증된 next>`, 콜백 기본값 `/logs`
-    - [ ] 이메일 가입: `options.data.full_name`에 이름 전달, `emailRedirectTo`를 `/auth/confirm` 기반으로 변경
-    - [ ] `/auth/confirm`: `next`를 `getSafeNextPath`로 검증, 기본값 `/logs`, 에러 메시지 인코딩
-    - [ ] Supabase 대시보드 확인 메일 템플릿을 `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/logs`로 변경, Site URL·Redirect URLs(로컬, HTTPS 터널, 운영 도메인) 등록 (수동 작업, 체크리스트로 기록)
-    - [ ] 로그아웃: `signOut` 후 `localStorage`의 `draft:`로 시작하는 키 전부 삭제, `/logs`로 이동
+    - ✅ 이메일 가입: `options.data.full_name`에 이름 전달, `emailRedirectTo`를 `/auth/confirm` 기반으로 변경
+    - ✅ `/auth/confirm`: `next`를 `getSafeNextPath`로 검증, 기본값 `/logs`, 에러 메시지 인코딩
+    - ✅ Supabase 대시보드 확인 메일 템플릿을 `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/logs`로 변경, Site URL·Redirect URLs(로컬, HTTPS 터널, 운영 도메인) 등록 (수동 작업, 체크리스트로 기록)
+    - ✅ 로그아웃: `signOut` 후 `localStorage`의 `draft:`로 시작하는 키 전부 삭제, `/logs`로 이동
   - 완료 기준: 아래 흐름이 모두 기대대로 동작하고 외부 주소로의 리디렉션이 불가능하다.
   - 테스트 체크리스트:
     - 정상: `browser_navigate → /protected/patrol (비로그인) → 로그인 페이지 → qa-manager 이메일 로그인 → /protected/patrol 복귀`
@@ -514,18 +515,24 @@ Phase 0 (완료)
     - 오류: `browser_navigate → /auth/login?next=https://evil.com → 로그인 → /logs`
     - 오류: `browser_navigate → /auth/confirm?token_hash=bad&type=email → /auth/error에 사유 표시`
     - 엣지: 가입한 기기와 다른 브라우저에서 확인 링크 열기 → 정상 확인(token_hash 방식)
-  - 테스트 결과: (미수행)
+  - Supabase 대시보드 수동 설정 체크리스트(사용자가 직접 수행, 완료 확인 전에는 이메일 가입 시나리오를 실행하지 않는다):
+    - ✅ Authentication → Email Templates → Confirm signup의 링크를 `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/logs`로 변경 (템플릿 수정에는 커스텀 SMTP가 필요해 Resend `hkoikoi.dev` 도메인으로 연결, 2026-10-15)
+    - ✅ Authentication → URL Configuration → Site URL 설정 (테스트 중 `http://localhost:3000`, 운영 배포 시 `https://sco.hkoikoi.dev`로 변경)
+    - ✅ Redirect URLs에 로컬(`http://localhost:3000/**`), HTTPS 터널·운영 도메인(`https://sco.hkoikoi.dev/**`) 등록
+    - ✅ Confirm email 옵션이 켜져 있는지 확인
+  - 코드 변경 검증(2026-10-15): `npm run check` — `typecheck`·`lint` 통과, `format:check`는 저장소 밖 로컬 파일 `.claude/settings.local.json`(전역 gitignore 대상)의 Prettier 경고 1건만 남았으며 이번 변경과 무관
+  - 테스트 결과(2026-10-20): Playwright MCP로 개발 서버(`npm run dev`)에서 수행. `qa-manager`의 `auth.users.encrypted_password`만 임시 값으로 재설정해 로그인했다(임시 비밀번호는 문서에 기록하지 않음, 비밀번호 관리자에 새로 보관 필요). 결과: ① 비로그인 `/protected/patrol` → `/auth/login?next=%2Fprotected%2Fpatrol` → `qa-manager` 로그인 → `/protected/patrol` 복귀 통과. ② `/auth/login` → 로그인 → `/logs` 통과. ③ `localStorage`에 `draft:x`·`other` 설정 후 로그아웃 → `/logs`, `draft:x`만 삭제되고 `other`는 유지 통과. ④ `/auth/login?next=` 값이 `https://evil.com`, `//evil.com`, `/\evil.com`일 때 로그인 후 모두 `/logs`, 외부 주소 이동 없음 통과. ⑤ `/auth/confirm?token_hash=bad&type=email` → `/auth/error`에 "오류 코드: Email link is invalid or has expired" 표시 통과. ⑥ 이메일 가입(이름 "테스트", `koikoilove99+qa-signup@gmail.com`): 처음에는 `POST /auth/v1/signup`이 500이었고 Auth 로그 원인은 `lookup stmp.resend.com ... no such host`(대시보드 커스텀 SMTP 호스트 오타)였다. 사용자가 `smtp.resend.com`으로 수정한 뒤 재수행해 `/auth/sign-up-success`로 이동, 확인 메일 수신 후 사용자가 Playwright가 아닌 다른 브라우저에서 확인 링크를 열어 `/logs`에 도착했다(token_hash 방식). `execute_sql` 확인: `email_confirmed_at` 기록, `profiles.full_name='테스트'`, `role='pending'`. 확인 후 테스트 계정을 삭제하고 `auth.users`·`profiles` 0건을 확인했다. 확인 메일이 처음에는 스팸함으로 분류됨(발신 도메인 인증·평판 점검 필요). 미확인: Google 로그인 `redirectTo`와 `/auth/callback`의 성공 경로. ⑦ 콘솔: warning 이상 기준 에러 0·경고 0(hydration 경고 없음). 최초 가입 시도의 SMTP 500 네트워크 에러 1건은 위 설정 오타 때문이며 수정 후 재수행에서는 0건. 관찰 사항: 헤더는 여전히 `ACTIVE_DUMMY_VIEWER` 기준이라 로그아웃 상태에서도 "관리자"로 표시된다(Task 018 범위).
 
-- **Task 018: 일지 조회 실데이터 연동**
+- **Task 018: 일지 조회 실데이터 연동** ✅
   - 관련 기능: F08, F06, F01
   - 설명: `/logs`를 Supabase 데이터로 교체하고, Task 006·007에서 더미 viewer로 확인하던 헤더·페이지에 `getViewer()`를 연결해 역할에 따라 버튼을 노출한다.
   - 관련 파일: `app/logs/page.tsx`, `lib/queries/patrol-logs.ts`(신규, 서버 전용), `components/layout/app-header.tsx`, `lib/dummy/patrol-logs.ts`(삭제), `lib/dummy/viewers.ts`(삭제)
   - 구현 사항:
-    - [ ] 페이지: `<Suspense>` 안의 비동기 컴포넌트에서 `await searchParams` → `await io()` 후 현재 시각으로 `getBusinessDate` 계산 → `?date` 검증 결과 적용 (`04-functions/io.md` 확인)
-    - [ ] `getPatrolLogsByDate(date)`: `patrol_logs` select `id, business_date, patrolled_at, author_id, standing, cafe_zone, drowsy, away, memo, staff_names(full_name)` + `eq("business_date", date)` + `order("patrolled_at", { ascending: false })`(최신순), 비로그인 키로 동작 확인
-    - [ ] 헤더와 페이지의 더미 viewer를 `getViewer()`로 교체: pending 배너, 관리자 메뉴, 기록별 수정/삭제 노출은 `canEdit(log, viewer)` 그대로 사용(pending 본인은 미노출). 교체 후 `lib/dummy/patrol-logs.ts`, `lib/dummy/viewers.ts` 삭제
-    - [ ] 조회 실패 시 에러 경계(`app/logs/error.tsx`)와 재시도 버튼, 로딩 스켈레톤(`loading` fallback)
-    - [ ] 다음 날짜 이동은 현재 영업일 다음 날까지만 활성(미래 이동 제한)
+    - ✅ 페이지: `<Suspense>` 안의 비동기 컴포넌트에서 `await searchParams` → `await io()` 후 현재 시각으로 `getBusinessDate` 계산 → `?date` 검증 결과 적용 (`04-functions/io.md` 확인)
+    - ✅ `getPatrolLogsByDate(date)`(`lib/queries/patrol-logs.ts`, 2026-10-20 작성. `/logs` 페이지 연결과 비로그인 키 동작 확인은 아래 진행 메모 참고): `patrol_logs` select `id, business_date, patrolled_at, author_id, standing, cafe_zone, drowsy, away, memo, staff_names(full_name)` + `eq("business_date", date)` + `order("patrolled_at", { ascending: false })`(최신순), 비로그인 키로 동작 확인
+    - ✅ 헤더와 페이지의 더미 viewer를 `getViewer()`로 교체(헤더·배너는 `components/layout/app-chrome.tsx`, 페이지는 `app/logs/page.tsx`, 2026-10-20): pending 배너, 관리자 메뉴, 기록별 수정/삭제 노출은 `canEdit(log, viewer)` 그대로 사용(pending 본인은 미노출). 교체 후 `lib/dummy/patrol-logs.ts`, `lib/dummy/viewers.ts` 삭제
+    - ✅ 조회 실패 시 에러 경계(`app/logs/error.tsx`)와 재시도 버튼, 로딩 스켈레톤(`loading` fallback)
+    - ✅ 다음 날짜 이동은 현재 영업일 다음 날까지만 활성(미래 이동 제한)
   - 완료 기준: 비로그인/pending/manager/admin 4개 상태에서 같은 날짜의 기록이 동일하게 보이고 버튼 노출만 다르다. 복사 문구가 서버 `patrolled_at` 기준 KST로 만들어진다. `lib/dummy/patrol-logs.ts`·`viewers.ts`를 참조하는 코드가 없다.
   - 테스트 체크리스트:
     - 정상: `browser_navigate → /logs (비로그인) → 현재 영업일 기록 목록, 작성자 이름 표시, 수정 버튼 없음`
@@ -534,18 +541,19 @@ Phase 0 (완료)
     - 오류: `browser_navigate → /logs?date=abc → 현재 영업일로 표시, 에러 없음`
     - 엣지: 03:59 완료 기록이 전일 날짜에서 조회됨(Supabase MCP로 `patrolled_at` 조정한 데이터)
     - 엣지: `browser_console_messages → hydration 경고 없음`(서버·클라이언트 HH:mm 일치)
-  - 테스트 결과: (미수행)
+  - 구현 메모(2026-10-20): `lib/queries/patrol-logs.ts`는 `import "server-only"`, 호출마다 `createClient()`, `business_date` 필터 + `patrolled_at` 내림차순, `staff_names(full_name)` 조인, 오류 시 `Error` throw. 작성자 이름이 없으면 빈 문자열을 넘기고 화면 폴백은 `PatrolLogItem`이 맡는다. select에 `client_request_id`가 없어 `toPatrolLog` 인자 타입을 `Omit<Tables<"patrol_logs">, "client_request_id">`로 좁혔다(`as` 단언 없음). `components/layout/app-chrome.tsx`가 `getViewer()`를 await 해 `AppHeader`·`PendingBanner`에 같은 viewer를 주입하고 `app/layout.tsx`에서 `<Suspense>`로 감싼다. `app/logs/page.tsx`는 `getViewer()`와 `getPatrolLogsByDate()`를 `Promise.all`로 호출하고, `app/logs/error.tsx`(`retry` prop, [다시 시도] 버튼)를 추가했다. `lib/dummy/viewers.ts`·`patrol-logs.ts`를 삭제했고 참조가 없음을 검색과 `typecheck`·`eslint .`로 확인했다(`quick-tags.ts`·`patrol-draft-adapter.ts`는 유지).
+  - 테스트 결과(2026-10-20): `typecheck`·`eslint`·`prettier --check` 통과. Playwright MCP + Supabase MCP로 개발 서버에서 수행. `patrol_logs`가 비어 있어 `execute_sql`로 `[QA018]` 테스트 기록 5건(manager·manager2·admin 기록, 03:59·04:00 경계)을 넣고 검증 후 삭제했다. `qa-manager`·`qa-admin`·`qa-pending`의 `auth.users.encrypted_password`만 임시 값으로 재설정해 로그인했다(임시 비밀번호는 문서에 기록하지 않음, 비밀번호 관리자에 새로 보관 필요). 결과: ① 비로그인: 현재 영업일 4건, 작성자 이름 표시, 수정·삭제 없음, 헤더에 로그인·가입. ② `qa-manager`: 본인 기록 2건에만 수정·삭제, 타인 기록은 복사만. ③ `qa-admin`: 4건 모두 수정·삭제, 헤더에 퀵 태그 관리. ④ `qa-pending`: 4건 모두 복사만, 승인 대기 배너 표시. ⑤ `?date=abc`: 리디렉션 없이 현재 영업일 표시. ⑥ 03:59(KST) 기록은 전일(10/19)에만, 04:00 기록은 당일에만 조회됨(DB `private.business_date_of` 계산). ⑦ 콘솔: 비로그인·manager·pending에서 warning 이상 0건(hydration 경고 없음). 미확인: `error.tsx`의 에러 경계·[다시 시도] 동작(조회 실패를 재현하지 않음), 복사 문구의 서버 `patrolled_at` 기준 KST 일치(복사 버튼 미실행), 10/19 화면의 `HH:mm` 표시·hydration(HTML fetch로만 확인), admin 로그인 상태의 콘솔, 다음 날 이동 비활성(코드의 `shiftBusinessDate(currentDate, 1)`만 확인), 모바일 뷰포트·다크 모드.
 
-- **Task 019: 기록 수정/삭제 및 자리비움 사후 처리 구현**
+- **Task 019: 기록 수정/삭제 및 자리비움 사후 처리 구현** ✅
   - 관련 기능: F09, F10
   - 설명: Server Action으로 확정 기록 정정을 구현한다. 각 Action은 `requireStaff()`를 호출하고 RLS가 최종 판단한다.
   - 관련 파일: `app/logs/actions.ts`(신규, `"use server"`), `app/logs/_components/edit-log-dialog.tsx`, `app/logs/_components/away-seat-actions.tsx`, `app/logs/_components/patrol-log-item.tsx`
   - 구현 사항:
-    - [ ] `updatePatrolLog(id, content)`: 좌석·메모를 `lib/seat-numbers.ts`/`MEMO_MAX_LENGTH`로 재검증 후 `update(...).eq("id", id).select("id")`, 0행이면 "권한이 없거나 삭제된 기록입니다"
-    - [ ] `deletePatrolLog(id)`: 삭제 후 0행 처리 동일
-    - [ ] `moveAwaySeat(id, seat, target: "standing" | "cafe_zone")`와 `removeAwaySeat(id, seat)`: 현재 행 조회 → `moveAwaySeat` 순수 함수 적용 → update (동시 수정은 마지막 저장 우선)
-    - [ ] 완료 시각·영업일·작성자는 payload에서 받지 않음
-    - [ ] 성공 시 `refresh()` 또는 `revalidatePath("/logs")`로 같은 페이지 갱신(Next 16 문서 확인 후 선택), 실패 시 토스트
+    - ✅ `updatePatrolLog(id, content)`: 좌석·메모를 `lib/seat-numbers.ts`/`MEMO_MAX_LENGTH`로 재검증 후 `update(...).eq("id", id).select("id")`, 0행이면 "권한이 없거나 삭제된 기록입니다"
+    - ✅ `deletePatrolLog(id)`: 삭제 후 0행 처리 동일
+    - ✅ `moveAwaySeat(id, seat, target: "standing" | "cafe_zone")`와 `removeAwaySeat(id, seat)`: 현재 행 조회 → `moveAwaySeat` 순수 함수 적용 → update (동시 수정은 마지막 저장 우선)
+    - ✅ 완료 시각·영업일·작성자는 payload에서 받지 않음
+    - ✅ 성공 시 `refresh()` 또는 `revalidatePath("/logs")`로 같은 페이지 갱신(Next 16 문서 확인 후 선택), 실패 시 토스트
   - 완료 기준: 권한 규칙이 UI 우회(직접 Action 호출) 상황에서도 지켜진다.
   - 테스트 체크리스트:
     - 정상: `browser_click → (qa-manager) 본인 기록 수정 → 메모 변경 저장 → 목록 갱신`
@@ -555,20 +563,22 @@ Phase 0 (완료)
     - 오류: 수정 다이얼로그에서 좌석 `0` 또는 메모 2,001자 → 저장 거부 안내
     - 엣지: 강등된 qa-manager(pending)가 열어둔 화면에서 수정 시도 → 거부(`requireStaff` 리디렉션 또는 RLS 0행)
     - 엣지: (qa-admin) 타인 기록 삭제 → 성공, 확인 다이얼로그 거침
-  - 테스트 결과: (미수행)
+  - 구현 메모(2026-10-20): `app/logs/actions.ts`(`"use server"`)에 `updatePatrolLog`·`deletePatrolLog`·`moveAwaySeat`·`removeAwaySeat`를 추가했다. 모두 `ActionResult<null>`을 반환하고, `requireStaff("/logs")`를 try/catch 밖에서 먼저 호출해 `redirect`가 삼켜지지 않게 했다. 서버 검증은 `id` 비어 있지 않은 문자열, 좌석 4종 `validateSeatList`(`lib/seat-numbers.ts`에 신규, 양의 안전 정수 배열만 허용하고 정렬·중복 제거), 메모 `MEMO_MAX_LENGTH` 이하, `seat` 양의 안전 정수, `target` 화이트리스트(`standing`/`cafe_zone`)다. update payload는 `standing`·`cafe_zone`·`drowsy`·`away`·`memo` 5개 키만 명시적으로 구성하며 완료 시각·영업일·작성자는 받지 않는다. `update`/`delete`에 `.select("id")`를 붙여 결과가 0행이면 "권한이 없거나 삭제된 기록입니다"를 반환하고 DB 오류 원문은 노출하지 않는다. 자리비움 처리는 현재 행을 읽어 순수 함수(`moveAwaySeat` 별칭 import, `removeSeat`)를 적용한 뒤 해당 컬럼만 update하며 동시 수정은 마지막 저장 우선이다. 현재 `away`에 없는 번호는 "이미 처리된 자리비움 번호입니다"를 반환한다. 성공 시 `next/cache`의 `refresh()`를 호출한다(`revalidatePath`는 쓰지 않음). `edit-log-dialog.tsx`는 로컬 `MEMO_MAX_LENGTH`를 지우고 `lib/patrol-format`에서 import하며 `useTransition`으로 저장 중 중복 제출을 막는다. `DeleteLogDialog`는 `logId` prop을 받아 확인 후 삭제한다. `away-seat-actions.tsx`는 이동 후 기존 `toast.custom`을 유지하고 PRD F10에 따라 메뉴에 [삭제] 항목을 추가했다. PRD는 구현과 일치해 수정하지 않았다.
+  - 테스트 결과(2026-10-20): `npm run check`(`typecheck`·`lint`·`format:check`) 통과. 순수 함수는 커밋하지 않는 임시 스크립트로 0·음수·소수·문자열·NaN·중복·비배열 입력을 확인했다. DB는 Supabase MCP `execute_sql` 롤백 트랜잭션에서 수행: ① 타인 기록 update/delete 0행 ② 본인 기록 update 1행 ③ admin의 타인 기록 delete 1행 ④ 강등(pending) 계정 update/delete 0행 ⑤ `patrolled_at`·`business_date`·`author_id` update는 42501 ⑥ 좌석 0·메모 2,001자는 23514(CHECK). 롤백 후 `[QA019]` 행 0건, `get_advisors`에 신규 경고 없음. `qa-pending`이 `staff_names`에 없어 `qa-manager`를 임시 강등해 대체했고 role 원복을 확인했다. 화면은 Playwright MCP + 개발 서버에서 수행했다. `[QA019]` 기록을 `execute_sql`로 넣었다가 검증 후 삭제했고, QA 계정은 `auth.users.encrypted_password`만 임시 값으로 재설정한 뒤 4개 계정 모두 원복했다(임시 비밀번호는 문서에 기록하지 않음, 비밀번호 관리자에 새로 보관 필요). 결과: ① `qa-manager` 본인 기록 메모 수정 후 목록·DB 갱신 ② 자리비움 7 → 스탠딩 이동 시 `standing` [3,7], `away` [8] ③ 대상에 7이 이미 있으면 `away`에서만 제거, 중복 없음 ④ 자리비움 [삭제] 메뉴 동작 ⑤ 좌석 0은 인라인 오류로 거부, 메모는 `maxLength` 2,000으로 입력 불가, 우회해도 토스트로 저장 거부 ⑥ `qa-admin`이 확인 다이얼로그를 거쳐 타인 기록 삭제 ⑦ 강등된 계정이 열어 둔 화면에서 수정하면 `/logs?notice=pending`으로 리디렉션되고 DB 불변 ⑧ `Next-Action` 요청을 fetch로 재전송해 타인 기록은 "권한이 없거나 삭제된 기록입니다", 좌석 0·메모 초과·빈 `id`는 검증 오류 응답이며 DB 불변 ⑨ 콘솔 에러·경고·hydration 경고 0건. 미확인: 모바일 뷰포트·다크 모드, 자리비움 이동 성공 토스트(하단 중앙 `toast.custom`)의 직접 확인, `deletePatrolLog`·`moveAwaySeat`·`removeAwaySeat`의 직접 Action 재전송(`updatePatrolLog`만 재전송했고 나머지는 같은 `requireStaff`와 0행 판정 구조이며 DB 검증 ①~⑥으로 보완).
 
-- **Task 020: 순찰 초안 자동 저장·복원 구현 (가짜 어댑터 교체, 더미 삭제)**
+- **Task 020: 순찰 초안 자동 저장·복원 구현 (가짜 어댑터 교체, 더미 삭제)** ✅
   - 관련 기능: F07, F02, F03, F04
   - 설명: PRD "자동 저장 규칙"을 클라이언트 훅으로 구현한다. Task 008의 가짜 어댑터를 RPC 호출로 교체하고 `lib/dummy`를 삭제한다. 저장은 브라우저 Supabase 클라이언트에서 `save_patrol_draft` RPC를 직접 호출한다(함수 내부 역할 검사가 방어선).
   - 관련 파일: `app/protected/patrol/page.tsx`, `hooks/use-patrol-draft.ts`(신규), `lib/patrol-draft-rpc.ts`(신규), `lib/draft-backup.ts`(신규), `lib/queries/patrol-draft.ts`, `lib/queries/quick-tags.ts`, `app/protected/patrol/_components/*`, `app/protected/admin/tags/page.tsx`, `lib/dummy/*`(삭제)
   - 구현 사항:
-    - [ ] 가짜 어댑터 교체: `PatrolDraftAdapter`의 실제 구현 `lib/patrol-draft-rpc.ts`(브라우저 클라이언트로 `save_patrol_draft`/`complete_patrol` 호출 후 snake_case 응답을 Task 002 `SaveDraftResult`·`CompletePatrolResult`로 변환. `server_revision`→`serverRevision`, `log_id`→`logId`, `patrolled_at`→`patrolledAt`, 평평한 `server_draft`→`PatrolDraft{revision, updatedAt, content}`)를 주입하고 `lib/dummy/patrol-draft-adapter.ts`·`window.__fakePatrolAdapter` 제거
-    - [ ] 페이지: Task 016의 `requireStaff()` 호출 뒤 본인 초안(`revision`, 내용, `updated_at`)과 활성 퀵 태그(`sort_order` 순)를 서버에서 조회해 초기값으로 전달(초안 행이 없으면 `revision 0`)
-    - [ ] `lib/dummy` 디렉터리 삭제: 남은 더미 참조(태그 관리 페이지의 목록 조회)는 `lib/queries/quick-tags.ts` 조회로 교체(조작 Action은 Task 022). `grep -r "lib/dummy" app components lib hooks` 결과 없음
-    - [ ] 디바운스 1초 저장, 기기당 동시 요청 1개, 대기 중 변경은 최신 상태 하나로 합침. 상태는 Task 008 reducer의 `clean / dirty / saving / saved / offline / conflict` 그대로 사용
-    - [ ] 충돌 응답 처리: 서버 초안이 비어 있으면 로컬 입력을 `server_revision` 기준으로 재저장, 아니면 선택 다이얼로그(이 기기 내용 → `server_revision` 기준 재저장 / 서버 내용 → 로컬 교체)
-    - [ ] 네트워크 실패 시 `localStorage["draft:{user_id}"] = { revision, savedAt, payload }` 백업, `online` 이벤트에서 `base_revision`과 함께 재전송, 진입 시 백업이 서버보다 새로우면 복원 후 재전송
-    - [ ] `visibilitychange`/`focus` 복귀 시 clean 상태에서만 서버 초안 재조회, 서버 `revision`이 더 크면 교체(dirty·saving이면 덮어쓰지 않음). 저장 상태 표시의 시각은 서버 `updated_at`을 `formatKstTime`으로 표시(클라이언트 시계 미사용)
+    - ✅ 가짜 어댑터 교체: `PatrolDraftAdapter`의 실제 구현 `lib/patrol-draft-rpc.ts`(브라우저 클라이언트로 `save_patrol_draft`/`complete_patrol` 호출 후 snake_case 응답을 Task 002 `SaveDraftResult`·`CompletePatrolResult`로 변환. `server_revision`→`serverRevision`, `updated_at`→`updatedAt`(저장 `ok`), `log_id`→`logId`, `patrolled_at`→`patrolledAt`, 평평한 `server_draft`→`PatrolDraft{revision, updatedAt, content}`)를 주입하고 `lib/dummy/patrol-draft-adapter.ts`·`window.__fakePatrolAdapter` 제거
+    - ✅ 페이지: Task 016의 `requireStaff()` 호출 뒤 본인 초안(`revision`, 내용, `updated_at`)과 활성 퀵 태그(`sort_order` 순)를 서버에서 조회해 초기값으로 전달(초안 행이 없으면 `revision 0`)
+    - ✅ `lib/dummy` 디렉터리 삭제: 남은 더미 참조(태그 관리 페이지의 목록 조회)는 `lib/queries/quick-tags.ts` 조회로 교체(조작 Action은 Task 022). `grep -r "lib/dummy" app components lib hooks` 결과 없음
+    - ✅ 디바운스 1초 저장, 기기당 동시 요청 1개, 대기 중 변경은 최신 상태 하나로 합침. 상태는 Task 008 reducer의 `clean / dirty / saving / saved / offline / conflict`에 서버 거절용 `error`를 더한 7종 사용
+    - ✅ 충돌 응답 처리: 서버 초안이 비어 있으면 로컬 입력을 `server_revision` 기준으로 재저장, 아니면 선택 다이얼로그(이 기기 내용 → `server_revision` 기준 재저장 / 서버 내용 → 로컬 교체)
+    - ✅ 네트워크 실패 시 `localStorage["draft:{user_id}"] = { revision, savedAt, payload }` 백업, `online` 이벤트에서 `base_revision`과 함께 재전송, 진입 시 백업이 서버보다 새로우면 복원 후 재전송
+    - ✅ `visibilitychange`/`focus` 복귀 시 `clean`·`saved` 상태에서만 서버 초안 재조회, 서버 `revision`이 더 크면 교체(dirty·saving·offline·error·conflict면 덮어쓰지 않음). 저장 상태 표시의 시각은 저장 `ok` 응답의 서버 `updated_at`을 `formatKstTime`으로 표시(클라이언트 시계 미사용, 재조회 없음)
+    - ✅ 서버 거절(`PatrolDraftRpcError` 등)은 reducer `error` 상태로 처리: "저장 실패 (기기에 임시 저장)" 표시, 로컬 백업 유지, 자동 재시도 없이 다음 입력(dirty)에서만 재저장(네트워크 실패는 기존 `offline`)
   - 완료 기준: 폰 → 태블릿 이어쓰기와 오프라인 복귀가 입력 유실 없이 동작하고, 늦게 도착한 옛 저장이 서버 초안을 덮어쓰지 않는다. `lib/dummy`가 존재하지 않고 참조도 없다.
   - 테스트 체크리스트:
     - 정상: `browser_type → 메모 입력 → 1초 대기 → "저장됨 HH:mm" 표시, execute_sql로 patrol_drafts.revision 증가 확인`
@@ -580,17 +590,22 @@ Phase 0 (완료)
     - 엣지: 서버 초안이 정리(cron)로 비워진 뒤 탭 A에서 입력 → 다이얼로그 없이 새 revision으로 재저장
     - 엣지: 빠른 연속 입력 20회 → 네트워크 탭에서 동시 요청 1개 이하(`browser_network_requests`)
     - 엣지: 탭 A가 dirty인 상태에서 포커스 복귀 → 서버 내용으로 덮어쓰지 않음
-  - 테스트 결과: (미수행)
+  - 구현 메모(2026-10-20): `hooks/use-patrol-draft.ts`가 `{state, dispatch, handleComplete, flushing}`을 돌려주고 `patrol-form.tsx`가 이를 쓴다(저장 ref는 훅 내부에 둔다). 저장 중 입력은 진행 중 요청이 끝난 뒤 최신 내용 하나로 다시 저장한다(`inflightSaveRef`가 있으면 새 요청을 보내지 않고 `revision` 변화로 디바운스 effect가 재실행). 서버 초안이 비어 있고 로컬에 입력이 있으면 `RESOLVE_CONFLICT local`을 자동 dispatch해 다이얼로그 없이 재저장한다. 저장 시각은 `save_patrol_draft` 응답의 `updated_at`(migration `20261020160932_save_patrol_draft_return_updated_at`, 2026-10-20 원격 적용)을 쓰며 재조회하지 않는다. 서버 거절은 reducer `error` 상태(7종)로 처리하고 자동 재시도 없이 다음 입력(dirty)에서만 재저장한다. 포커스 복귀 재조회는 `clean`·`saved`에서만 허용한다. 진입 시 `backup.revision >= 서버 revision`이고 내용이 다르면 `RESTORE_BACKUP`, 아니면 백업을 지운다. 관찰: 모바일에서는 저장 상태 줄이 화면 맨 위에 있어 메모 입력 중 스크롤하면 `error`·`offline`이 보이지 않는다(Task 020 범위 밖, 하단 바 표시 검토 후보). `error` 상태에서 [순찰 완료]가 안내 없이 반환되던 동작은 Task 021에서 flush 후 실패 토스트로 바꿨다.
+  - 테스트 결과(2026-10-20): `npm run check`(`typecheck`·`lint`·`format:check`)와 `npm run build` 통과. `grep -r "lib/dummy" app components lib hooks`와 `__fakePatrolAdapter` 결과 없음. DB는 Supabase MCP 롤백 트랜잭션에서 qa-manager로 `save_patrol_draft`를 호출해 신규·기존 행 저장의 `ok` 응답에 `updated_at`이 있고 `conflict` 응답이 이전과 같음을 확인한 뒤 migration을 적용했고, `get_advisors`에 신규 경고는 없다(기존 RPC 실행 권한 경고와 유출 비밀번호 보호 비활성만 남음). 화면은 Playwright MCP + 개발 서버, `qa-manager`·`qa-admin`·`qa-pending`으로 수행했다. 결과: ① 메모 입력 1초 후 "저장됨 HH:mm"이 DB `updated_at`(KST)과 일치, 요청 1회 ② 새로고침·두 번째 탭에서 초안 복원 ③ 연속 입력 25회에 요청 1건, 응답을 2.5초 지연시킨 저장 중 추가 입력은 총 2건·동시 최대 1건으로 합쳐짐 ④ 오프라인 입력 시 "오프라인 (기기에 임시 저장)"과 `draft:{user_id}` 백업 생성, 복귀 후 재전송·백업 삭제·DB 반영 ⑤ 두 탭 충돌 다이얼로그에서 "서버 내용"·"이 기기 내용" 선택이 각각 반영됨 ⑥ `execute_sql`로 서버 초안을 비운 뒤 입력하면 다이얼로그 없이 새 revision으로 재저장 ⑦ 포커스 복귀 시 `saved`는 서버 내용으로 교체, dirty는 덮어쓰지 않고 저장 시점에 충돌 다이얼로그 ⑧ RPC 응답을 403으로 가로채면 "저장 실패 (기기에 임시 저장)"·백업 유지·자동 재시도 없음, 다음 입력에서 재저장·백업 삭제 ⑨ `revision` 999 백업을 심고 새로고침하면 복원·재전송(DB `revision` 14) ⑩ [순찰 완료] 회귀: 기록 1건 생성, 입력·초안·백업 초기화 ⑪ `qa-admin`의 `/protected/admin/tags`가 DB 태그 5개를 `sort_order` 순으로 표시하고, 태그 하나를 임시 비활성화하면 관리자 목록에는 보이고 순찰 기록 화면에는 4개만 표시(원복) ⑫ manager는 태그 관리 접근 시 `/logs?notice=admin-required`, `pending`은 순찰 기록·태그 관리 접근 시 `/logs?notice=pending`, 비로그인은 `/auth/login?next=...` ⑬ 375x812 가로 스크롤 없음, [순찰 완료] 48px, 다크 모드에서 저장 상태 표시 가독 ⑭ 콘솔 경고·hydration 경고 0건(에러는 직접 만든 오프라인·403뿐). 테스트 데이터(`[QA020]` 기록, 초안, 태그 활성 상태)는 모두 원복했다. QA 계정(`qa-admin`·`qa-manager`·`qa-pending`)은 `auth.users.encrypted_password`만 임시 값으로 재설정한 뒤 원래 해시로 복원했다(임시 비밀번호는 문서에 기록하지 않음). 미확인: 실기기 폰↔태블릿 이어쓰기, 1024x768 태블릿 뷰포트, 포커스 이벤트는 실제 탭 전환이 아니라 `focus`·`visibilitychange` 이벤트를 발생시켜 확인, 연속 [순찰 완료] 멱등·충돌은 Task 021에서 확인.
 
-- **Task 021: 순찰 완료 구현**
+- **Task 021: 순찰 완료 구현** ✅
   - 관련 기능: F05
   - 설명: 대기 중인 저장을 먼저 보내고 `complete_patrol`을 멱등 호출한 뒤, 입력을 초기화해 다음 순찰 입력 상태로 돌아간다. 복사는 순찰 기록 화면에 두지 않고 `/logs`의 기록 항목에서만 한다.
   - 관련 파일: `hooks/use-patrol-draft.ts`, `app/protected/patrol/_components/patrol-action-bar.tsx`
   - 구현 사항:
-    - [ ] [순찰 완료]: 버튼 비활성화 → 대기 중 저장 즉시 flush 후 완료 대기 → `crypto.randomUUID()` 요청 ID 생성(같은 시도의 재시도에는 같은 ID 재사용) → `complete_patrol(id, revision)`
-    - [ ] `ok`/`duplicate` 응답: 로컬 입력 초기화, `revision`을 응답값으로 갱신, `draft:{user_id}` 백업 삭제, 곧바로 다음 순찰 입력 상태로 전환
-    - [ ] `conflict` 응답: 기록 미생성 안내 후 응답의 `server_draft`로 충돌 다이얼로그를 연결(재조회 없음)
-    - [ ] 네트워크 오류로 응답을 못 받은 경우 같은 요청 ID로 재시도 버튼 제공
+    - ✅ [순찰 완료]: 버튼 비활성화 → 대기 중 저장 즉시 flush 후 완료 대기 → `crypto.randomUUID()` 요청 ID 생성(같은 시도의 재시도에는 같은 ID 재사용) → `complete_patrol(id, revision)`
+    - ✅ `ok`/`duplicate` 응답: 로컬 입력 초기화, `revision`을 응답값으로 갱신, `draft:{user_id}` 백업 삭제, 곧바로 다음 순찰 입력 상태로 전환
+    - ✅ 저장 상태가 `error`(서버 거절)·`offline`이면 완료 전 flush로 저장을 재시도하고, 실패하면 완료를 진행하지 않고 실패 안내를 표시(Task 020 시점에는 `error`에서 [순찰 완료]가 안내 없이 반환됨)
+    - ✅ `conflict` 응답: 기록 미생성 안내 후 응답의 `server_draft`로 충돌 다이얼로그를 연결(재조회 없음)
+    - ✅ 네트워크 오류로 응답을 못 받은 경우 같은 요청 ID로 재시도 버튼 제공: 하단 바의 [순찰 완료] 버튼 문구를 '다시 시도'로 바꾸고(버튼은 하나만 둔다), 폼 상단에 안내 한 줄을 표시한다
+    - ✅ 재시도 대기(`completeRetry`) 중에는 입력을 잠근다: 서버가 이미 기록을 만들고 초안을 `revision + 1`로 비웠을 수 있어, 로컬 편집을 허용하면 저장 충돌 → 자동 local 해결 → `duplicate` → 다음 순찰 전환 순서로 입력이 사라지거나 서버 초안과 어긋난다. 같은 요청 ID·같은 `revision`으로만 재시도한다
+    - ✅ 서버가 완료를 거절한 경우(권한·검증·응답 형식 오류)는 요청 ID를 버리고 재시도 대기 없이 입력 상태로 복귀하며 실패 토스트를 표시
+    - ✅ `completingRef` 동기 가드로 같은 틱의 [순찰 완료] 연타를 막는다(React state만으로는 렌더 전 연타를 못 막음)
   - 완료 기준: 중복 탭·재시도에도 기록은 1건만 생기고, 완료한 기록을 `/logs`에서 복사하면 문구가 서버 시각과 일치한다.
   - 테스트 체크리스트:
     - 정상: `browser_click → 졸음 23, 메모 입력 후 [순찰 완료] → 입력 초기화 → `/logs`에서 해당 기록 [복사] → clipboard "HH:mm 순찰 → 완료 (메모, 23번 졸아서 깨움)"`
@@ -600,17 +615,21 @@ Phase 0 (완료)
     - 오류(충돌): 탭 B에서 입력·저장 후 탭 A에서 완료 → 충돌 안내, 기록 미생성
     - 엣지: 입력 직후(디바운스 1초 이내) 완료 → 마지막 입력까지 기록에 포함
     - 엣지: 완료 버튼 연타 → 처리 중 비활성으로 요청 1개
-  - 테스트 결과: (미수행)
+    - 오류(응답 유실): 완료 응답을 라우트 가로채기로 유실 → '다시 시도' 표시·입력 잠금, 가로채기 해제 후 같은 요청 ID로 재시도 → `duplicate`/`ok` 처리, 기록 1건
+    - 오류(저장 거절): 저장 RPC를 403으로 가로채 `error` 상태로 만든 뒤 [순찰 완료] → 안내 토스트, 완료 미진행
+    - 정상: 완료 성공 후 `localStorage`의 `draft:{user_id}` 키 삭제
+  - 구현 메모(2026-10-20): `lib/patrol-form-reducer.ts`에 `completeRetry`와 `COMPLETE_REJECTED`를 추가했다. 응답 유실(`PatrolDraftNetworkError`)이면 `COMPLETE_FAILED`로 재시도 대기에 들어가 입력·`SAVE_START`·서버 초안 교체를 막고, `COMPLETE_OK`·`COMPLETE_CONFLICT`·`COMPLETE_REJECTED`에서 해제한다. `handleComplete`는 `completingRef` 동기 가드 뒤 `inflightSaveRef` 대기와 `dirty`·`offline`·`error` flush 루프를 거치고, 저장이 끝나지 않으면 사유별 토스트(`offline`·`error`·`dirty`/`saving`)를 띄운 채 완료하지 않는다(`conflict`는 이미 떠 있는 다이얼로그로 대신한다). 재시도는 같은 요청 ID·같은 `revision`을 쓰고 서버 거절은 요청 ID를 버린다. `patrol-action-bar.tsx`는 `retrying`일 때 '다시 시도'를 표시하고 폼 상단에 `role="status"` 안내 한 줄을 둔다. 훅 반환값은 `{state, dispatch, handleComplete, flushing}`이다.
+  - 테스트 결과(2026-10-20): `npm run check` 통과. DB는 Supabase MCP의 롤백되는 `DO` 블록에서 qa-manager로 `complete_patrol`을 호출해, 같은 요청 ID 2회째가 `duplicate`(같은 `log_id`·`revision` 17)이고 기록 1건·초안 `revision` 16→17로 1회만 증가하며, 어긋난 `expected_revision`은 `conflict`로 기록이 생기지 않음을 확인했다(롤백 후 기록 0건). 화면은 Playwright MCP + 개발 서버, `qa-manager`로 수행했다. 결과: ① 졸음 23 + 메모 완료 시 입력 초기화, `/logs` [복사]가 "16:51 순찰 → 완료 ([QA021] 메모, 23번 졸아서 깨움)"과 일치 ② `/logs`에 기록 1건, `business_date`가 `private.business_date_of()` 값(2026-10-20)과 일치 ③ 빈 초안 완료 시 빈 내용 기록 1건 생성(`complete_patrol` 요청 1회, `/logs` 복사 문구는 미확인) ④ 라우트 가로채기로 같은 요청을 2회 보내 `ok`/`duplicate`, 같은 `log_id`, 기록 1건 ⑤ 탭 B 저장 후 탭 A에서 완료하면 "다른 기기에서 수정됨" 다이얼로그가 뜨고 기록 미생성(flush 단계 `conflict`라 별도 토스트 없음) ⑥ 입력 직후 즉시 완료해도 마지막 입력 포함 ⑦ 같은 틱 5회 클릭에 `complete_patrol` 요청 1개 ⑧ 응답을 `abort`로 유실시키면 '다시 시도'·안내 문구·토스트가 뜨고 좌석·메모 입력이 거부됨, 가로채기 해제 후 재시도는 같은 요청 ID로 1회 전송되어 "순찰 완료 기록됨"·기록 1건 ⑨ 저장 RPC를 403으로 가로챈 "저장 실패 (기기에 임시 저장)" 상태에서 [순찰 완료] 시 "저장에 실패해 완료하지 못했습니다" 토스트, `complete_patrol` 요청 없음, 기록 미생성 ⑩ 완료 후 `localStorage`의 `draft:` 키 없음 ⑪ 콘솔 에러는 직접 만든 응답 유실·403뿐이고 hydration 경고 없음(개발 모드 `cache-bypass-in-dev` 안내 1건만 있음). 테스트 데이터(`[QA021]` 기록 5건, 초안 메모)는 삭제·원복했고 `qa-manager`의 `auth.users.encrypted_password`는 임시 값으로 바꿨다가 원래 해시로 복원했다(임시 비밀번호는 문서에 기록하지 않음). 미확인: 실기기·태블릿 뷰포트, 실제 오프라인 전환 상태의 [순찰 완료](`offline` flush는 코드 경로만 확인), 375px 모바일에서 '다시 시도' 안내 줄의 가시성(저장 상태 줄과 같은 상단 위치라 스크롤 시 가려질 수 있음, 하단 바 표시 검토 후보).
 
-- **Task 022: 퀵 태그 관리 기능 구현**
+- **Task 022: 퀵 태그 관리 기능 구현** ✅
   - 관련 기능: F11, F03
   - 설명: 관리자 전용 Server Action과 `swap_quick_tag_order` RPC로 태그를 운영한다.
   - 관련 파일: `app/protected/admin/tags/page.tsx`, `app/protected/admin/tags/actions.ts`(신규), `app/protected/admin/tags/_components/*`, `lib/queries/quick-tags.ts`
   - 구현 사항:
-    - [ ] 페이지: Task 016의 `requireAdmin()` 호출 뒤 전체 태그(숨김 포함) `sort_order` 순 조회(Task 020에서 연결한 조회 사용)
-    - [ ] Action 5종(`createTag`, `updateTagLabel`, `toggleTagActive`, `deleteTag`, `swapTagOrder`) 모두 `requireAdmin()` 호출, `normalizeTagLabel` 적용, 새 태그 `sort_order = max + 1`
-    - [ ] DB 오류 매핑: unique 위반(23505) → "이미 있는 문구입니다", check 위반 → "개행 없이 입력해 주세요"
-    - [ ] 변경 후 태그 목록 갱신, 순찰 기록 페이지는 다음 진입/새로고침 시 반영
+    - ✅ 페이지: Task 016의 `requireAdmin()` 호출 뒤 전체 태그(숨김 포함) `sort_order` 순 조회(Task 020에서 연결한 조회 사용)
+    - ✅ Action 5종(`createTag`, `updateTagLabel`, `toggleTagActive`, `deleteTag`, `swapTagOrder`) 모두 `requireAdmin()` 호출, `normalizeTagLabel` 적용, 새 태그 `sort_order = max + 1`
+    - ✅ DB 오류 매핑: unique 위반(23505) → "이미 있는 문구입니다", check 위반 → "개행 없이 입력해 주세요"
+    - ✅ 변경 후 태그 목록 갱신, 순찰 기록 페이지는 다음 진입/새로고침 시 반영
   - 완료 기준: 관리자만 조작 가능하고 변경이 순찰 기록 화면의 버튼에 반영된다. 과거 기록 메모는 변하지 않는다.
   - 테스트 체크리스트:
     - 정상: `(qa-admin) 태그 추가 → /protected/patrol 새로고침 → 버튼 표시`
@@ -620,25 +639,26 @@ Phase 0 (완료)
     - 오류: `(qa-pending) 직접 접근 → 승인 대기 안내` / `(비로그인) → 로그인 페이지`
     - 오류: 중복 문구(`"화장실 정리 "`, 대소문자만 다른 영문) 추가 → 중복 안내
     - 엣지: 태그 삭제 후 `/logs`의 과거 기록 메모 그대로
-  - 테스트 결과: (미수행)
+  - 구현 메모(2026-10-20): `app/protected/admin/tags/actions.ts`에 Server Action 5종을 추가했다. 모두 첫 줄에서 `requireAdmin()`을 `try/catch` 밖에서 호출하고(`redirect`가 던지는 예외를 삼키지 않기 위해), 입력은 타입 가드와 `validateTagLabel`(정규화·검증)을 거친다. `createTag`는 `sort_order` 최댓값 + 1로 추가하고, 수정·숨김·삭제는 `.select('id')`로 받아 0행이면 "권한이 없거나 삭제된 태그입니다"로 처리한다. `toggleTagActive`는 뒤집지 않고 목표값을 설정해 중복 요청에도 결과가 같다. `swapTagOrder`는 `swap_quick_tag_order` RPC(한 트랜잭션, 관리자 검사는 RPC 본문)를 호출한다. 오류는 `mapTagError`로 23505 "이미 있는 문구입니다", 23514 "개행 없이 입력해 주세요", 42501 "관리자 권한이 필요합니다", P0002 "태그를 찾을 수 없습니다", 그 외 "저장하지 못했습니다. 잠시 후 다시 시도해 주세요"로 바꾸고, 성공하면 `refresh()`를 호출한다. UI는 `TagList`의 `useState` 복제본과 낙관 갱신을 제거하고 `initialTags`(서버 진실)를 `sortTags`로 정렬해 표시하며, `useTransition`으로 처리 중 버튼·스위치를 비활성화해 연타를 막고 성공/실패를 토스트로 알린다. 입력 초기화·수정 모드 종료는 결과가 ok일 때만 한다. `lib/quick-tag-list.ts`는 `sortTags`, `hasDuplicateLabel`만 남겼다(클라이언트 사전 중복 검사는 즉시 피드백용이고 최종 판정은 DB).
+  - 테스트 결과(2026-10-20): `npm run check` 통과. DB는 Supabase MCP의 롤백되는 `DO` 블록(`RAISE EXCEPTION`으로 결과를 꺼내 트랜잭션 전체를 롤백)에서 `qa-manager`·`qa-pending`·`anon`으로 시도했다. `quick_tags` insert는 모두 `42501`, update·toggle·delete는 manager·pending이 0행이고 anon이 `42501`, `swap_quick_tag_order`는 manager·pending이 "관리자 권한이 필요합니다"(`42501`)이고 anon이 `permission denied`로 거부됐다. 제약은 끝 공백 중복과 대소문자만 다른 중복이 `23505`, 개행이 `23514`였다(롤백 후 변경 없음). `get_advisors`(security)는 `swap_quick_tag_order`가 `complete_patrol`·`save_patrol_draft`와 같은 "authenticated 실행 가능 SECURITY DEFINER" 경고(의도된 패턴, 함수 본문에서 역할 검사)로 추가됐고 나머지는 기존 `auth_leaked_password_protection`뿐이다. 화면은 Playwright MCP + 개발 서버로 수행했다. 결과: ① `qa-admin`이 `[QA022]` 태그를 추가하면 `sort_order` 6으로 저장되고 `/protected/patrol`에 버튼이 표시됨 ② 숨김 전환 시 순찰 화면에서 사라지고 관리 화면에는 `opacity-60`과 '숨김' 배지로 표시됨 ③ 문구 수정이 DB에 반영됨 ④ [아래로]로 두 태그의 `sort_order`(6↔7)가 맞바뀜 ⑤ `'화장실 정리 '`와 `[QA022] abc`/`ABC`는 "이미 있는 문구입니다"로 거부되고 입력값이 유지됨 ⑥ 삭제는 확인 다이얼로그("과거 기록의 메모에는 영향이 없습니다")를 거쳐 실행되고, 삭제 후 검증용 기록의 메모가 DB와 `/logs`에서 그대로임 ⑦ `qa-manager`가 `/protected/admin/tags`에 접근하면 `/logs?notice=admin-required`와 "관리자 권한이 필요합니다"가 표시됨 ⑧ `qa-pending`은 "관리자 승인이 완료되지 않아 작성할 수 없습니다" 안내, 비로그인은 `/auth/login?next=%2Fprotected%2Fadmin%2Ftags`로 이동 ⑨ 375px 뷰포트에서 가로 넘침 없음 ⑩ 콘솔 에러·경고와 hydration 경고 없음. 테스트 데이터(`[QA022]` 태그 2건, `patrol_logs` 검증 기록 1건)는 삭제했고 `quick_tags`는 초기 5종(순서 1~5, 모두 활성)임을 확인했다. `qa-admin`·`qa-manager`·`qa-pending`의 `auth.users.encrypted_password`는 임시 값으로 바꿨다가 원래 해시로 복원했다(임시 비밀번호는 문서에 기록하지 않음). 미확인: 실기기·태블릿(Task 024), 개행의 화면 입력(입력란이 개행을 막아 서버 `validateTagLabel`과 DB 제약으로 대체 확인), `qa-manager2` 계정, 태그 변경 시 이미 열려 있던 다른 탭의 순찰 화면에 반영되는 시점(이 화면은 새로고침 후 반영만 확인). 알려진 한계: 관리자 둘이 동시에 태그를 추가하면 `sort_order`가 겹칠 수 있다(`createTag`가 최댓값 조회 후 insert하고 유일 제약이 없어 저장은 막히지 않으며 표시 순서만 모호해짐, 위/아래 이동으로 정리 가능). 관찰 사항(Task 022 범위 밖): 로그인 직후 클라이언트 전환으로 `/logs?notice=pending`에 오면 안내 배너가 2개 뜬다(직접 이동하면 1개).
 
-- **Task 023: 핵심 기능 통합 테스트**
+- **Task 023: 핵심 기능 통합 테스트** ✅
   - 관련 기능: F01~F11
   - 설명: Playwright MCP로 역할별 전체 사용자 여정을 확인하고, 실패 항목은 해당 Task로 되돌린다.
   - 관련 파일: (코드 변경 없음, 결과는 이 문서의 테스트 결과 줄에 기록)
   - 구현 사항:
-    - [ ] 비로그인 여정: `/logs` 열람 → 복사 → [순찰 기록 작성] → 로그인 안내 → 로그인 → `/protected/patrol` 복귀
-    - [ ] pending 여정: 승인 대기 배너, 작성 버튼 메시지, `/protected/patrol`·`/protected/admin/tags` 직접 접근 시 `/logs`로 돌아오며 안내
-    - [ ] manager 여정: 입력 → 자동 저장 → 다른 탭 이어쓰기 → 완료 → 다음 순찰 입력 → `/logs`에서 복사·본인 기록 수정·자리비움 이동 → 로그아웃 후 `draft:` 백업 없음
-    - [ ] admin 여정: 태그 추가/숨김/순서 변경 → 순찰 화면 반영 → 타인 기록 수정·삭제
-    - [ ] 강등 시나리오: manager를 대시보드에서 pending으로 변경 → 작성·수정 차단, 과거 기록 작성자 이름 유지
-    - [ ] 보안 재확인: anon 키로 REST에서 `profiles` 조회, `patrol_logs` insert, RPC 호출이 모두 거부됨(curl)
+    - ✅ 비로그인 여정: `/logs` 열람 → 복사 → [순찰 기록 작성] → 로그인 안내 → 로그인 → `/protected/patrol` 복귀
+    - ✅ pending 여정: 승인 대기 배너, 작성 버튼 메시지, `/protected/patrol`·`/protected/admin/tags` 직접 접근 시 `/logs`로 돌아오며 안내
+    - ✅ manager 여정: 입력 → 자동 저장 → 다른 탭 이어쓰기 → 완료 → 다음 순찰 입력 → `/logs`에서 복사·본인 기록 수정·자리비움 이동 → 로그아웃 후 `draft:` 백업 없음
+    - ✅ admin 여정: 태그 추가/숨김/순서 변경 → 순찰 화면 반영 → 타인 기록 수정·삭제
+    - ✅ 강등 시나리오: manager를 대시보드에서 pending으로 변경 → 작성·수정 차단, 과거 기록 작성자 이름 유지
+    - ✅ 보안 재확인: anon 키로 REST에서 `profiles` 조회, `patrol_logs` insert, RPC 호출이 모두 거부됨(curl)
   - 완료 기준: 위 여정이 모두 통과하고 콘솔 에러가 없다. `npm run build` 통과.
   - 테스트 체크리스트:
     - 정상: 역할별 여정 4종 각각 `browser_navigate/click/type → 기대 화면` 스냅샷 기록
     - 오류: 권한 우회 시도(직접 URL, 직접 RPC/REST 호출) 전부 거부
     - 엣지: 영업일 경계 데이터(03:59/04:00 완료로 조정한 기록)가 올바른 날짜에 표시
-  - 테스트 결과: (미수행)
+  - 테스트 결과(2026-10-20): 코드 변경 없이 Playwright MCP + 개발 서버, Supabase MCP, curl로 수행했다. `npm run check`와 `npm run build`는 시작 전과 종료 후 모두 통과했고 `get_advisors`(security)는 Task 022와 같다(의도된 `SECURITY DEFINER` 3건 + 기존 `auth_leaked_password_protection`, 새 경고 없음). 결과: ① 비로그인 `/logs` 열람, [새 순찰 일지 작성]이 `/auth/login?next=%2Fprotected%2Fpatrol`과 "로그인이 필요합니다" 토스트로 이동, 로그인 후 `/protected/patrol` 복귀, `/protected/admin/tags` 직접 접근도 `next`가 유지되고 비로그인 `/logs`의 복사 버튼은 동작하며 수정·삭제 버튼은 없음 ② `qa-pending`은 로그인하면 `next=/protected/admin/tags`여도 `/logs?notice=pending`으로 가고, "관리자 승인이 완료되지 않아 작성할 수 없습니다" 안내가 표시되며, 작성 버튼을 눌러도 `/logs`에 머물고, 두 보호 경로 직접 접근은 모두 `/logs?notice=pending`으로 돌아오며, 헤더에 `퀵 태그 관리` 없음 ③ `qa-manager`가 입력하면 DB 초안이 즉시 갱신(revision 25→26), 두 번째 탭에 그대로 복원되고 거기서 이어쓰기(27), 오래된 탭에서 입력하면 "충돌" 표시와 [서버 내용]으로 복원되며 DB는 변경되지 않음, 완료 시 `patrol_logs` 생성과 초안 초기화, 다음 순찰도 정상, `/logs` 복사 문구는 개행·탭 없는 한 줄(퀵 태그 줄바꿈은 `, `로 연결, 좌석 번호는 PRD대로 미포함), 본인 기록 수정과 자리비움→카페존 이동이 DB에 반영 ④ `qa-manager2`는 화면에서 타인 기록의 수정·삭제 버튼이 없고 롤백되는 `DO` 블록에서 타인 기록 update/delete가 0행, 직접 insert가 `42501` ⑤ 로그아웃은 `localStorage`의 `draft:` 키를 모두 지우고 다른 키는 유지(키를 심은 경우와 강등 중 실제로 생긴 백업 두 경우 모두 확인) ⑥ `qa-admin`이 `[QA023]` 태그 2개를 추가(`sort_order` 6, 7)하고 위로 이동, 숨김하면 순찰 화면에 숨기지 않은 태그만 순서대로 표시되며, 타인 기록 수정(작성자 유지)과 확인 다이얼로그를 거친 삭제가 성공 ⑦ 순찰 화면을 연 채 `qa-manager`를 SQL로 pending 강등하면 `save_patrol_draft`가 403이 되어 "저장 실패 (기기에 임시 저장)"와 `draft:` 백업이 남고, [순찰 완료]는 flush 재시도 3회 403 후 진행되지 않으며(`patrol_logs` 건수 유지), `/logs`의 본인 기록은 수정·삭제 버튼이 사라지지만 작성자 이름은 유지, DB에서는 update/delete 0행과 `save_patrol_draft`·`complete_patrol` `42501`(롤백 `DO` 블록), 원복 후 역할 4개 확인 ⑧ anon(publishable 키) curl: `profiles`·`patrol_drafts` 조회, `patrol_logs`·`patrol_drafts` insert, `patrol_logs` update·delete, RPC `save_patrol_draft`·`complete_patrol`·`swap_quick_tag_order`가 모두 401(`42501`), `patrol_logs`·`staff_names`(pending 제외)·`quick_tags`(활성만, 숨긴 태그 미노출) 조회는 PRD대로 200 ⑨ `private.business_date_of()`가 03:59:59는 전날, 04:00:00은 당일로 계산하고, 기록의 `patrolled_at`·`business_date`를 03:59/04:00 KST로 조정하면 `/logs?date=`에서 각각 전날·당일에만 `03:59`·`04:00`으로 표시되며, 잘못된 `?date=2026-13-45`는 리디렉션 없이 현재 영업일 ⑩ 콘솔 에러·경고와 hydration 경고는 없고, 에러는 강등 시나리오의 의도된 `save_patrol_draft` 403(브라우저의 실패 요청 로그)뿐. 테스트 데이터(`[QA023]` 태그 2건, 기록 1건)는 삭제했고 기록 0건, `quick_tags` 초기 5종(순서 1~5, 모두 활성), QA 4계정의 역할과 `auth.users.encrypted_password` 원본 해시 복원을 대조로 확인했다(임시 비밀번호는 문서에 기록하지 않음). `qa-manager`의 빈 초안은 내용은 같고 revision만 25→31로 올라 있다. 미확인: 실기기·태블릿(Task 024), 오프라인 시 `draft:` 백업의 복원과 강등 계정으로 재로그인했을 때의 복원 동작, `patrol_logs.client_request_id`가 anon에게 공개 컬럼인 것이 PRD 의도인지, 개행 입력의 화면 경로. 관찰 사항(Task 023 범위 밖, 수정하지 않음): `/logs?notice=pending`의 안내가 로그인 직후뿐 아니라 직접 이동에서도 2개 표시된다(Task 022 기록의 "직접 이동은 1개"와 다르며 이동 중 페이지 로드가 두 번 기록됨, 원인 미확인). 실패 항목 없음(환원한 Task 없음).
 
 ### Phase 6: 실기기 검증, 최적화, 배포
 

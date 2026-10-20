@@ -70,7 +70,7 @@ Next.js 16 App Router + Supabase Auth(`@supabase/ssr`) 스타터 기반 프로�
   - 모든 Task의 완료 조건: `npm run check` 통과, 관련 화면의 Playwright MCP 시나리오 통과, 콘솔 에러·hydration 경고 없음.
   - 테스트 러너가 없으므로 순수 함수는 커밋하지 않는 임시 스크립트(Node 24 `node check.ts`), DB는 Supabase MCP `execute_sql`(트랜잭션 안에서 `set local role` / `request.jwt.claims`로 사용자 흉내 후 `rollback`)과 `get_advisors`, 화면은 Playwright MCP로 검증한다.
   - QA 계정: `qa-admin`, `qa-manager`, `qa-manager2`, `qa-pending`(Task 015에서 준비), 비로그인.
-  - 컴포넌트 배치: shadcn은 `components/ui/`(추가는 `npx shadcn@latest add <name>`만 사용), 여러 페이지 공용은 `components/<domain>/`, 한 페이지 전용은 라우트의 `_components/`. import는 `components/ui` ← `components/<domain>` ← `app/` 단방향이다. Phase 3의 더미 데이터(`lib/dummy/*`)는 Phase 5(Task 018·020)에서 삭제한다.
+  - 컴포넌트 배치: shadcn은 `components/ui/`(추가는 `npx shadcn@latest add <name>`만 사용), 여러 페이지 공용은 `components/<domain>/`, 한 페이지 전용은 라우트의 `_components/`. import는 `components/ui` ← `components/<domain>` ← `app/` 단방향이다.
 - `docs/guides/` — 프로젝트 구조, 컴포넌트 패턴, 스타일링, Next.js 16, react-hook-form 가이드. 해당 영역 작업 전에 먼저 읽는다.
 - `.claude/agents/`(code-reviewer, ui-markup-specialist, development-planner, prd-* 등)와 `.claude/skills/`(git-branch, git-commit, git-pr, supabase)에 프로젝트 전용 에이전트·스킬이 있다. 커밋/PR은 한국어 컨벤셔널 형식(`타입: 제목`)이며, 기본 브랜치는 `main`, 작업 브랜치는 `develop`이다.
 - `.mcp.json`에 context7, playwright, sequential-thinking, shrimp-task-manager, supabase MCP 서버가 설정되어 있다.

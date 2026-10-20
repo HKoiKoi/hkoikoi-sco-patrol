@@ -93,5 +93,19 @@ npm run check        # typecheck + lint + format:check
 - **역할 지정**: 신규 가입자는 모두 `pending`입니다. Supabase 대시보드 Table Editor에서 `profiles.role`을 `manager` 또는 `admin`으로 바꿉니다. 첫 관리자도 같은 방식으로 직접 지정합니다. `role`은 앱에서 변경할 수 없습니다.
 - **강등**: 사용자를 삭제하지 말고 `pending`으로 강등합니다. 이후 작성·수정·삭제가 막히고 과거 기록의 작성자 이름은 유지됩니다.
 - **인증 설정(수동)**: 이메일 확인 메일 템플릿 링크를 `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/logs`로 바꾸고, Site URL과 Redirect URLs(`/auth/callback`, `/auth/confirm`, 로컬·HTTPS 터널·운영 도메인), Google OAuth 승인된 리디렉션 URI를 등록합니다.
-- **`pg_cron`**: 방치 초안 정리 스케줄을 위해 확장이 활성화되어 있어야 합니다. 실행 이력은 `cron.job_run_details`에서 확인합니다.
+- **첫 관리자 지정 절차**: 가입(또는 대시보드 Authentication → Users → Add user, Auto Confirm User 체크)으로 계정을 만든 뒤, Table Editor에서 `profiles.role`을 `admin`으로 바꿉니다. 이후 관리자와 매니저 승격도 같은 방식입니다.
+- **`pg_cron`**: 방치 초안 정리 스케줄을 위해 확장이 활성화되어 있어야 합니다. 스케줄 `reset-stale-patrol-drafts`는 30분마다 `private.reset_stale_drafts()`를 실행합니다. 확인 쿼리:
+  - 등록 확인: `select jobname, schedule, command, active from cron.job;`
+  - 실행 이력: `select status, return_message, start_time from cron.job_run_details order by start_time desc limit 10;`
+- **QA 계정**: 개발·검증용이며 Gmail `+` 별칭을 씁니다. 비밀번호는 문서에 적지 않고 비밀번호 관리자에 보관합니다.
+
+  | 계정          | 이메일                               | 역할      |
+  | ------------- | ------------------------------------ | --------- |
+  | `qa-admin`    | `koikoilove99+qa-admin@gmail.com`    | `admin`   |
+  | `qa-manager`  | `koikoilove99+qa-manager@gmail.com`  | `manager` |
+  | `qa-manager2` | `koikoilove99+qa-manager2@gmail.com` | `manager` |
+  | `qa-pending`  | `koikoilove99+qa-pending@gmail.com`  | `pending` |
+
+  운영 배포 전에 QA 계정을 삭제하거나 `pending`으로 강등합니다.
+
 - 실기기 확인 결과와 운영 절차는 ROADMAP Task 015, 024, 026 진행에 맞춰 이 절에 보강합니다.

@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
+import { getSafeNextPath } from "@/lib/auth/safe-next";
 import { Button } from "@/components/ui/button";
 import { GoogleLoginButton } from "@/components/google-login-button";
 import { InAppBrowserNotice } from "@/components/in-app-browser-notice";
@@ -24,8 +25,9 @@ import { useState } from "react";
 
 export function LoginForm({
   className,
+  next = "/logs",
   ...props
-}: React.ComponentPropsWithoutRef<"div">) {
+}: React.ComponentPropsWithoutRef<"div"> & { next?: string }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -44,8 +46,9 @@ export function LoginForm({
         password,
       });
       if (error) throw error;
-      // Update this route to redirect to an authenticated route. The user already has an active session.
-      router.push("/protected");
+      // 클라이언트에서도 한 번 더 검증해 사이트 내부 경로로만 복귀한다
+      router.push(getSafeNextPath(next));
+      router.refresh();
     } catch (error: unknown) {
       setError(getAuthErrorMessage(error));
     } finally {
@@ -117,7 +120,7 @@ export function LoginForm({
           </div>
           <div className="flex flex-col gap-3">
             <InAppBrowserNotice />
-            <GoogleLoginButton label="Google로 계속하기" />
+            <GoogleLoginButton label="Google로 계속하기" next={next} />
           </div>
         </CardContent>
       </Card>
