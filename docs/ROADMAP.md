@@ -626,10 +626,10 @@ Phase 0 (완료)
   - 설명: 관리자 전용 Server Action과 `swap_quick_tag_order` RPC로 태그를 운영한다.
   - 관련 파일: `app/protected/admin/tags/page.tsx`, `app/protected/admin/tags/actions.ts`(신규), `app/protected/admin/tags/_components/*`, `lib/queries/quick-tags.ts`
   - 구현 사항:
-    - [ ] 페이지: Task 016의 `requireAdmin()` 호출 뒤 전체 태그(숨김 포함) `sort_order` 순 조회(Task 020에서 연결한 조회 사용)
-    - [ ] Action 5종(`createTag`, `updateTagLabel`, `toggleTagActive`, `deleteTag`, `swapTagOrder`) 모두 `requireAdmin()` 호출, `normalizeTagLabel` 적용, 새 태그 `sort_order = max + 1`
-    - [ ] DB 오류 매핑: unique 위반(23505) → "이미 있는 문구입니다", check 위반 → "개행 없이 입력해 주세요"
-    - [ ] 변경 후 태그 목록 갱신, 순찰 기록 페이지는 다음 진입/새로고침 시 반영
+    - ✅ 페이지: Task 016의 `requireAdmin()` 호출 뒤 전체 태그(숨김 포함) `sort_order` 순 조회(Task 020에서 연결한 조회 사용)
+    - ✅ Action 5종(`createTag`, `updateTagLabel`, `toggleTagActive`, `deleteTag`, `swapTagOrder`) 모두 `requireAdmin()` 호출, `normalizeTagLabel` 적용, 새 태그 `sort_order = max + 1`
+    - ✅ DB 오류 매핑: unique 위반(23505) → "이미 있는 문구입니다", check 위반 → "개행 없이 입력해 주세요"
+    - ✅ 변경 후 태그 목록 갱신, 순찰 기록 페이지는 다음 진입/새로고침 시 반영
   - 완료 기준: 관리자만 조작 가능하고 변경이 순찰 기록 화면의 버튼에 반영된다. 과거 기록 메모는 변하지 않는다.
   - 테스트 체크리스트:
     - 정상: `(qa-admin) 태그 추가 → /protected/patrol 새로고침 → 버튼 표시`
@@ -639,7 +639,8 @@ Phase 0 (완료)
     - 오류: `(qa-pending) 직접 접근 → 승인 대기 안내` / `(비로그인) → 로그인 페이지`
     - 오류: 중복 문구(`"화장실 정리 "`, 대소문자만 다른 영문) 추가 → 중복 안내
     - 엣지: 태그 삭제 후 `/logs`의 과거 기록 메모 그대로
-  - 테스트 결과: (미수행)
+  - 구현 메모(2026-10-20): `app/protected/admin/tags/actions.ts`에 Server Action 5종을 추가했다. 모두 첫 줄에서 `requireAdmin()`을 `try/catch` 밖에서 호출하고(`redirect`가 던지는 예외를 삼키지 않기 위해), 입력은 타입 가드와 `validateTagLabel`(정규화·검증)을 거친다. `createTag`는 `sort_order` 최댓값 + 1로 추가하고, 수정·숨김·삭제는 `.select('id')`로 받아 0행이면 "권한이 없거나 삭제된 태그입니다"로 처리한다. `toggleTagActive`는 뒤집지 않고 목표값을 설정해 중복 요청에도 결과가 같다. `swapTagOrder`는 `swap_quick_tag_order` RPC(한 트랜잭션, 관리자 검사는 RPC 본문)를 호출한다. 오류는 `mapTagError`로 23505 "이미 있는 문구입니다", 23514 "개행 없이 입력해 주세요", 42501 "관리자 권한이 필요합니다", P0002 "태그를 찾을 수 없습니다", 그 외 "저장하지 못했습니다. 잠시 후 다시 시도해 주세요"로 바꾸고, 성공하면 `refresh()`를 호출한다. UI는 `TagList`의 `useState` 복제본과 낙관 갱신을 제거하고 `initialTags`(서버 진실)를 `sortTags`로 정렬해 표시하며, `useTransition`으로 처리 중 버튼·스위치를 비활성화해 연타를 막고 성공/실패를 토스트로 알린다. 입력 초기화·수정 모드 종료는 결과가 ok일 때만 한다. `lib/quick-tag-list.ts`는 `sortTags`, `hasDuplicateLabel`만 남겼다(클라이언트 사전 중복 검사는 즉시 피드백용이고 최종 판정은 DB).
+  - 테스트 결과(2026-10-20): `npm run check` 통과. DB는 Supabase MCP의 롤백되는 `DO` 블록(`RAISE EXCEPTION`으로 결과를 꺼내 트랜잭션 전체를 롤백)에서 `qa-manager`·`qa-pending`·`anon`으로 시도했다. `quick_tags` insert는 모두 `42501`, update·toggle·delete는 manager·pending이 0행이고 anon이 `42501`, `swap_quick_tag_order`는 manager·pending이 "관리자 권한이 필요합니다"(`42501`)이고 anon이 `permission denied`로 거부됐다. 제약은 끝 공백 중복과 대소문자만 다른 중복이 `23505`, 개행이 `23514`였다(롤백 후 변경 없음). `get_advisors`(security)는 `swap_quick_tag_order`가 `complete_patrol`·`save_patrol_draft`와 같은 "authenticated 실행 가능 SECURITY DEFINER" 경고(의도된 패턴, 함수 본문에서 역할 검사)로 추가됐고 나머지는 기존 `auth_leaked_password_protection`뿐이다. 화면은 Playwright MCP + 개발 서버로 수행했다. 결과: ① `qa-admin`이 `[QA022]` 태그를 추가하면 `sort_order` 6으로 저장되고 `/protected/patrol`에 버튼이 표시됨 ② 숨김 전환 시 순찰 화면에서 사라지고 관리 화면에는 `opacity-60`과 '숨김' 배지로 표시됨 ③ 문구 수정이 DB에 반영됨 ④ [아래로]로 두 태그의 `sort_order`(6↔7)가 맞바뀜 ⑤ `'화장실 정리 '`와 `[QA022] abc`/`ABC`는 "이미 있는 문구입니다"로 거부되고 입력값이 유지됨 ⑥ 삭제는 확인 다이얼로그("과거 기록의 메모에는 영향이 없습니다")를 거쳐 실행되고, 삭제 후 검증용 기록의 메모가 DB와 `/logs`에서 그대로임 ⑦ `qa-manager`가 `/protected/admin/tags`에 접근하면 `/logs?notice=admin-required`와 "관리자 권한이 필요합니다"가 표시됨 ⑧ `qa-pending`은 "관리자 승인이 완료되지 않아 작성할 수 없습니다" 안내, 비로그인은 `/auth/login?next=%2Fprotected%2Fadmin%2Ftags`로 이동 ⑨ 375px 뷰포트에서 가로 넘침 없음 ⑩ 콘솔 에러·경고와 hydration 경고 없음. 테스트 데이터(`[QA022]` 태그 2건, `patrol_logs` 검증 기록 1건)는 삭제했고 `quick_tags`는 초기 5종(순서 1~5, 모두 활성)임을 확인했다. `qa-admin`·`qa-manager`·`qa-pending`의 `auth.users.encrypted_password`는 임시 값으로 바꿨다가 원래 해시로 복원했다(임시 비밀번호는 문서에 기록하지 않음). 미확인: 실기기·태블릿(Task 024), 개행의 화면 입력(입력란이 개행을 막아 서버 `validateTagLabel`과 DB 제약으로 대체 확인), `qa-manager2` 계정, 태그 변경 시 이미 열려 있던 다른 탭의 순찰 화면에 반영되는 시점(이 화면은 새로고침 후 반영만 확인). 알려진 한계: 관리자 둘이 동시에 태그를 추가하면 `sort_order`가 겹칠 수 있다(`createTag`가 최댓값 조회 후 insert하고 유일 제약이 없어 저장은 막히지 않으며 표시 순서만 모호해짐, 위/아래 이동으로 정리 가능). 관찰 사항(Task 022 범위 밖): 로그인 직후 클라이언트 전환으로 `/logs?notice=pending`에 오면 안내 배너가 2개 뜬다(직접 이동하면 1개).
 
 - **Task 023: 핵심 기능 통합 테스트**
   - 관련 기능: F01~F11
