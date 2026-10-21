@@ -162,19 +162,23 @@ export function usePatrolDraft({
     return request;
   }, [adapter, dispatch, userId]);
 
-  // 진입 시 로컬 백업이 서버 초안 이후에 만든 입력이면 복원한다(복원 후 디바운스 저장이 재전송).
+  // 진입 시 로컬 백업이 서버 초안과 다르면 복원한다(복원 후 디바운스 저장이 재전송).
+  // 서버가 백업보다 앞서 있으면(다른 기기 저장·완료, 방치 초안 정리) 백업의 revision을 base로 복원해,
+  // 다음 저장이 충돌 규칙을 타게 한다(빈 서버 초안은 자동 재저장, 아니면 선택 다이얼로그).
+  // 이때 백업이 비어 있으면 잃을 입력이 없으므로 지운다.
   useEffect(() => {
     const backup = readDraftBackup(userId);
     if (!backup) return;
+    const serverAhead = backup.revision < initialDraft.revision;
     if (
-      backup.revision >= initialDraft.revision &&
-      !isSameContent(backup.payload, initialDraft.content)
+      !isSameContent(backup.payload, initialDraft.content) &&
+      !(serverAhead && isEmptyContent(backup.payload))
     ) {
       needsBackupRef.current = true;
       dispatch({
         type: "RESTORE_BACKUP",
         content: backup.payload,
-        revision: initialDraft.revision,
+        revision: serverAhead ? backup.revision : initialDraft.revision,
       });
     } else {
       clearDraftBackup(userId);
