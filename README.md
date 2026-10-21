@@ -26,7 +26,7 @@ SCO 관리형 독서실의 30분 간격 순찰 업무를 스마트폰/태블릿�
 
 ## 개발 진행
 
-[`docs/ROADMAP.md`](docs/ROADMAP.md)가 Phase 0~6, Task 000~026 단위로 진행 현황을 관리합니다.
+[`docs/ROADMAP.md`](docs/ROADMAP.md)가 Phase 0~6, Task 000~027 단위로 진행 현황을 관리합니다.
 
 | Phase | 내용                                                                 |
 | ----- | -------------------------------------------------------------------- |
@@ -70,7 +70,7 @@ SCO 관리형 독서실의 30분 간격 순찰 업무를 스마트폰/태블릿�
 
    [localhost:3000](http://localhost:3000/)에서 확인합니다.
 
-> 복사 기능은 HTTPS(보안 컨텍스트)에서만 동작합니다. 실기기 테스트 시 `http://192.168.x.x` 접속에서는 복사가 막히므로 배포된 HTTPS 주소(`https://sco.hkoikoi.dev`)에서 확인하세요. 터널을 쓰려면 `next.config.ts`의 `allowedDevOrigins`에 터널 호스트가 필요합니다(`*.trycloudflare.com`, `*.ngrok-free.app` 등록됨).
+> 복사 기능은 HTTPS(보안 컨텍스트)에서만 동작합니다. 실기기 테스트 시 `http://192.168.x.x` 접속에서는 복사가 막히므로 배포된 HTTPS 주소에서 확인하세요(도메인 전환 전에는 임시 주소 `https://hkoikoi-sco-patrol.vercel.app`). 터널을 쓰려면 `next.config.ts`의 `allowedDevOrigins`에 터널 호스트가 필요합니다(`*.trycloudflare.com`, `*.ngrok-free.app` 등록됨).
 
 ## 명령어
 
@@ -117,4 +117,9 @@ npm run check        # typecheck + lint + format:check
 
   개발 DB와 운영 DB는 같은 Supabase 프로젝트입니다. 운영 스모크 테스트(Task 026-C)에서 `qa-manager`를 쓴 뒤, 026-D에서 QA 계정 4개와 테스트 순찰 기록을 모두 삭제합니다. 실사용 계정(첫 관리자 `koikoilove99@gmail.com`)은 유지합니다.
 
-- 실기기 확인 결과와 운영 절차는 ROADMAP Task 015, 024, 026 진행에 맞춰 이 절에 보강합니다.
+- **실기기 확인 메모**(Task 024, 2026-10-21): Galaxy Z Fold8(Android 17, Chrome 155), iPad Air 11(iPadOS 27.0.1, Safari), MacBook Air(Chrome 156)에서 확인했다.
+  - 복사: Android 13 이상은 앱이 클립보드에 쓰면 시스템이 하단에 "복사했어요" 토스트를 띄워 앱 토스트(하단)와 겹친다. 앱에서 끌 수 없으므로 앱 토스트 위치를 바꾸는 쪽으로 Task 027에서 다룬다.
+  - 카카오톡 인앱 브라우저: 안내 문구가 노출되고 Google 로그인이 동작했다. 인앱으로 열려면 카카오톡 "나와의 채팅"에 주소를 보내 링크를 누른다.
+  - iPad에 외장 키보드를 붙이면 화면 키보드가 올라오지 않아 키보드 가림 점검이 안 된다. 점검할 때는 키보드를 떼거나 화면 키보드로 전환한다.
+  - 알려진 문제: 모바일·태블릿에서 가상 키보드가 하단 [순찰 완료] 바를 가린다(Task 027에서 수정). iPhone 크기 화면은 기기가 없어 확인하지 못했다.
+  - 도메인: `sco.hkoikoi.dev`를 기존 앱이 사용 중이라 임시 주소에서 검증했다. 전환 절차는 Task 026을 따른다.

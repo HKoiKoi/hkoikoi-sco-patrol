@@ -664,24 +664,25 @@ Phase 0 (완료)
 
 ### Phase 6: 실기기 검증, 최적화, 배포
 
-- **Task 024: 실기기 및 운영 환경 검증**
+- **Task 024: 실기기 및 운영 환경 검증** ✅
   - 관련 기능: F01, F06, F07
   - 설명: PRD "구현 전 확인 항목" 중 실기기·외부 설정이 필요한 항목을 확인하고 결과를 기록한다. 로컬 터널 도구를 설치하지 않고 **Task 026의 배포(배포 준비·호스팅·인증 설정)를 마친 HTTPS 주소**에서 확인한다.
   - 선행 조건: Task 025 완료 → Task 026의 배포 준비·호스팅·인증 설정(운영 주소에서 로그인 가능) 완료. 실기기 조작은 사용자가 직접 하고 Claude는 체크리스트·결과 기록 양식 제공과 결과 반영을 맡는다.
   - 관련 파일: `README.md`(운영 메모), Supabase 대시보드 설정
   - 구현 사항:
-    - [ ] 배포된 HTTPS 주소(`https://sco.hkoikoi.dev`)로 접속(`http://192.168.x.x`는 클립보드가 막힘). 터널을 쓰지 않으므로 `allowedDevOrigins`와 터널용 Redirect URLs는 필요 없다
-    - [ ] iOS Safari, Android Chrome에서 [복사] 즉시 복사 및 실패 시 선택 입력란 대체 동작 확인, 구글 시트 붙여넣기 시 한 셀에 한 줄로 들어가는지 확인
-    - [ ] 카카오톡 인앱 브라우저: Google 로그인 차단 시 안내 노출, 이메일 확인 링크 동작 확인
+    - ✅ 배포된 HTTPS 주소로 접속(2026-10-21): `sco.hkoikoi.dev`는 기존 앱이 사용 중이라 임시 주소 `https://hkoikoi-sco-patrol.vercel.app`(Vercel Production, 소스 `chore/verification-deploy`)에서 확인했다. 터널을 쓰지 않으므로 `allowedDevOrigins`와 터널용 Redirect URLs는 필요 없다. 도메인 전환은 Task 026
+    - ✅ [복사]·구글 시트(2026-10-21): Android Chrome과 iPad Safari에서 [복사] 즉시 복사 통과(나와의 채팅에 붙여넣기), 구글 시트(MacBook 데스크톱) 한 셀에 한 줄 통과. iPhone이 없어 iPhone 크기 화면은 미확인. 실기기에서는 클립보드가 성공해 선택 입력란 대체 다이얼로그는 발동하지 않았다(Task 018의 Playwright reject 확인만 있음)
+    - ✅ 카카오톡 인앱 브라우저(2026-10-21, 폴드 편 상태): 인앱 안내 노출과 Google 로그인 통과. 이메일 확인 링크는 Site URL 전환 전이라 Task 026에서 재확인하고, 접은 상태의 인앱 동작은 미확인
     - ✅ Google 가입자의 `full_name` 수신 재확인(2026-10-20): `auth.users`의 Google 가입자 1명 모두 `raw_user_meta_data.full_name`이 있고 비어 있지 않음. 이메일 가입 계정 5개는 가입 폼 밖에서 만든 QA·초기 계정이라 `full_name`이 없는 것이 정상
     - ✅ `pg_cron` 실제 실행 이력(`cron.job_run_details`) 확인(2026-10-20): 작업 `reset-stale-patrol-drafts`(`*/30 * * * *`)가 활성이고 2026-10-15 16:00부터 2026-10-20 17:30(KST)까지 244회 실행에 실패 0건
-    - [ ] 태블릿 가로/세로, 입력란·버튼 터치 타깃 48px, 하단 액션바가 가상 키보드에 가려지지 않는지 확인
+    - ✅ 태블릿 가로/세로(2026-10-21): iPad Air 11과 폴드 편 상태에서 좌석 4종이 2x2로 표시된다(768px 이상 2x2, PRD와 일치), 입력란·버튼 터치 타깃 48px과 오탭 없음, 폰(폴드 접은 상태) 입력 → 태블릿(iPad) 이어쓰기 → 완료 통과
+    - ⚠️ 하단 액션바가 가상 키보드에 가려지지 않는지: **실패**(폴드 Chrome, iPad Safari 모두 [순찰 완료] 바가 가려짐) → Task 027에서 수정하고 재확인
   - 완료 기준: 모든 확인 항목의 결과(기기/OS/브라우저 버전 포함)가 기록되고 실패 항목은 수정 Task로 등록된다.
   - 테스트 체크리스트:
     - 정상: iOS Safari [복사] → 시트 붙여넣기 → 한 줄
     - 오류: 클립보드 권한 거부 환경 → 선택 입력란 표시
     - 엣지: 폰에서 입력 → 태블릿에서 이어쓰기 → 완료
-  - 테스트 결과: (일부 수행) DB 확인 2건(`full_name`, `pg_cron`)만 2026-10-20에 완료했다. 실기기 항목은 배포 후 수행한다(미수행).
+  - 테스트 결과(2026-10-21): DB 확인 2건(`full_name`, `pg_cron`)은 2026-10-20에 완료했다. 실기기는 MacBook Air 13(macOS 27.0.1, Chrome 156.0.8078.48), Galaxy Z Fold8(Android 17, One UI 9.0, Chrome 155.0.8059.84, 접은·편 상태, 카카오톡 인앱), iPad Air 11 M4(iPadOS 27.0.1, Safari)로 9개 항목을 수행해 8개 통과, **1개 실패(가상 키보드가 [순찰 완료] 바를 가림)**. 비로그인 화면 사전 측정(Playwright 375px·768px): 가로 스크롤과 콘솔 경고·에러 없음, 헤더 링크·테마 버튼(32~36px)과 로그인 폼 입력란·버튼(36px)은 48px 미만이나 PRD의 48px은 순찰 기록 화면 기준이고 실기기에서 로그인 폼이 불편하지 않았다. 실기기에서 새로 나온 의견 2건(토스트가 기기 자체의 "복사했어요" 토스트와 겹쳐 작게 보임, 순찰 완료 후 `/logs`로 이동 요청)과 실패 1건을 Task 027로 등록했다. 미확인: iPhone 크기 화면, 접은 상태의 카카오톡 인앱, 카카오톡 앱 버전, 이메일 확인 링크(Task 026). 기기 식별 정보는 모델·OS·브라우저 버전까지만 기록했다.
 
 - **Task 025: 품질·성능·보안 점검** ✅
   - 관련 기능: 전체
@@ -720,6 +721,23 @@ Phase 0 (완료)
     - 정상: `browser_navigate → 운영 URL/logs → 200, 기록 표시`
     - 정상: 운영에서 Google 로그인 → `/logs` 복귀
     - 오류: 운영에서 비로그인 `/protected/patrol` → 로그인 페이지
+  - 테스트 결과: (미수행)
+  - 진행 순서 변경(2026-10-21): `sco.hkoikoi.dev`를 기존 앱이 쓰고 있어 **임시 주소**(`https://hkoikoi-sco-patrol.vercel.app`, Production Branch를 `chore/verification-deploy`로 임시 변경)에서 실기기 검증(Task 024)과 스모크 테스트를 먼저 하고, **마지막에 도메인 전환**(Production Branch를 `main`으로 복귀, `sco.hkoikoi.dev` 연결, Site URL 변경, 이메일 확인 링크 재확인)을 한다. 임시 주소에는 Supabase Redirect URLs에 `https://hkoikoi-sco-patrol.vercel.app/**`만 추가했고 Site URL은 바꾸지 않았다. Task 027의 수정은 도메인 전환 전에 끝낸다. 아래 구현 사항의 `sco.hkoikoi.dev` 표기는 전환 시점 기준이다.
+
+- **Task 027: 실기기 검증 후속 수정**
+  - 관련 기능: F05, F07
+  - 설명: Task 024 실기기 검증에서 나온 실패 1건과 사용성 의견·요구 변경 2건을 수정한다. 도메인 전환(Task 026 마지막 단계) 전에 끝내고, 키보드 가림은 같은 기기(Galaxy Z Fold8 Chrome, iPad Safari)에서 재확인한다.
+  - 선행 조건: Task 024 완료. PRD와 ROADMAP은 서로 맞춰 유지한다(요구 변경은 구현과 함께 PRD도 갱신).
+  - 관련 파일: `app/layout.tsx`(`viewport`, `Toaster`), `app/protected/patrol/_components/patrol-action-bar.tsx`, 순찰 폼 완료 처리 코드, `docs/PRD.md`(F05, 순찰 기록 페이지의 "다음 이동", 사용자 여정)
+  - 구현 사항:
+    - [ ] 가상 키보드가 하단 [순찰 완료] 바를 가리는 문제(Fold8 Chrome 155, iPad Safari 27.0.1에서 재현). 원인 후보: `viewport`에 `interactiveWidget`이 없고 액션바가 `fixed bottom-0`이라 키보드가 위에 겹친다. 후보 해결: `interactiveWidget: "resizes-content"`(Chrome), iOS 계열은 이 옵션을 지원하지 않으므로 `visualViewport` 기반 보정. 입력란과 [순찰 완료]가 키보드 위에서 모두 보여야 한다
+    - [ ] 토스트 위치: 현재 `Toaster`가 `bottom-center`(offset 96)라 Android의 자체 "복사했어요" 토스트와 겹치고 작게 보인다는 의견. 상단 이동을 검토하고 순찰 화면에서 헤더·하단 바와 겹치지 않는지 확인한다
+    - [ ] 순찰 완료 후 `/logs`로 이동(사용자 결정, 2026-10-21; 기존 PRD는 같은 페이지에서 초기화하고 바로 다음 순찰 입력). 완료 RPC 응답(`ok`·`duplicate`)을 받은 뒤 이동하고, 대기 중인 저장이 끝난 뒤 완료하며, 이동 후에도 초안 초기화와 `draft:` 백업 정리가 유지돼야 한다. `conflict`·실패 응답은 이동하지 않고 기존 안내를 유지한다. PRD의 F05·순찰 기록 페이지 "다음 이동"·사용자 여정 문구를 함께 수정한다
+  - 완료 기준: 실기기에서 키보드가 [순찰 완료] 바를 가리지 않고, 토스트가 기기 토스트와 겹치지 않으며, 순찰 완료 후 `/logs`에서 방금 기록을 볼 수 있다. `npm run check`·`npm run build` 통과.
+  - 테스트 체크리스트:
+    - 정상: 순찰 입력 → [순찰 완료] → `/logs` 이동, 방금 기록이 목록에 표시
+    - 오류: 완료 응답이 `conflict`이거나 네트워크 실패면 이동하지 않고 안내 표시
+    - 엣지: 같은 요청 ID 재전송(`duplicate`)에도 1건만 기록되고 `/logs`로 이동, 키보드를 올린 채 완료 버튼 탭
   - 테스트 결과: (미수행)
 
 ## 주요 설계 결정
