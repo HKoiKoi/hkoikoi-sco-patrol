@@ -676,7 +676,7 @@ Phase 0 (완료)
     - ✅ Google 가입자의 `full_name` 수신 재확인(2026-10-20): `auth.users`의 Google 가입자 1명 모두 `raw_user_meta_data.full_name`이 있고 비어 있지 않음. 이메일 가입 계정 5개는 가입 폼 밖에서 만든 QA·초기 계정이라 `full_name`이 없는 것이 정상
     - ✅ `pg_cron` 실제 실행 이력(`cron.job_run_details`) 확인(2026-10-20): 작업 `reset-stale-patrol-drafts`(`*/30 * * * *`)가 활성이고 2026-10-15 16:00부터 2026-10-20 17:30(KST)까지 244회 실행에 실패 0건
     - ✅ 태블릿 가로/세로(2026-10-21): iPad Air 11과 폴드 편 상태에서 좌석 4종이 2x2로 표시된다(768px 이상 2x2, PRD와 일치), 입력란·버튼 터치 타깃 48px과 오탭 없음, 폰(폴드 접은 상태) 입력 → 태블릿(iPad) 이어쓰기 → 완료 통과
-    - ⚠️ 하단 액션바가 가상 키보드에 가려지지 않는지: **실패**(폴드 Chrome, iPad Safari 모두 [순찰 완료] 바가 가려짐) → Task 027에서 수정하고 재확인
+    - ✅ 하단 액션바가 가상 키보드에 가려지지 않는지: 최초 검증은 **실패**(폴드 Chrome, iPad Safari 모두 [순찰 완료] 바가 가려짐)였고 Task 027에서 수정한 뒤 같은 기기에서 재확인해 통과(2026-10-21)
   - 완료 기준: 모든 확인 항목의 결과(기기/OS/브라우저 버전 포함)가 기록되고 실패 항목은 수정 Task로 등록된다.
   - 테스트 체크리스트:
     - 정상: iOS Safari [복사] → 시트 붙여넣기 → 한 줄
@@ -724,21 +724,22 @@ Phase 0 (완료)
   - 테스트 결과: (미수행)
   - 진행 순서 변경(2026-10-21): `sco.hkoikoi.dev`를 기존 앱이 쓰고 있어 **임시 주소**(`https://hkoikoi-sco-patrol.vercel.app`, Production Branch를 `chore/verification-deploy`로 임시 변경)에서 실기기 검증(Task 024)과 스모크 테스트를 먼저 하고, **마지막에 도메인 전환**(Production Branch를 `main`으로 복귀, `sco.hkoikoi.dev` 연결, Site URL 변경, 이메일 확인 링크 재확인)을 한다. 임시 주소에는 Supabase Redirect URLs에 `https://hkoikoi-sco-patrol.vercel.app/**`만 추가했고 Site URL은 바꾸지 않았다. Task 027의 수정은 도메인 전환 전에 끝낸다. 아래 구현 사항의 `sco.hkoikoi.dev` 표기는 전환 시점 기준이다.
 
-- **Task 027: 실기기 검증 후속 수정**
+- **Task 027: 실기기 검증 후속 수정** ✅
   - 관련 기능: F05, F07
   - 설명: Task 024 실기기 검증에서 나온 실패 1건과 사용성 의견·요구 변경 2건을 수정한다. 도메인 전환(Task 026 마지막 단계) 전에 끝내고, 키보드 가림은 같은 기기(Galaxy Z Fold8 Chrome, iPad Safari)에서 재확인한다.
   - 선행 조건: Task 024 완료. PRD와 ROADMAP은 서로 맞춰 유지한다(요구 변경은 구현과 함께 PRD도 갱신).
   - 관련 파일: `app/layout.tsx`(`viewport`, `Toaster`), `app/protected/patrol/_components/patrol-action-bar.tsx`, 순찰 폼 완료 처리 코드, `docs/PRD.md`(F05, 순찰 기록 페이지의 "다음 이동", 사용자 여정)
   - 구현 사항:
-    - [ ] 가상 키보드가 하단 [순찰 완료] 바를 가리는 문제(Fold8 Chrome 155, iPad Safari 27.0.1에서 재현). 원인 후보: `viewport`에 `interactiveWidget`이 없고 액션바가 `fixed bottom-0`이라 키보드가 위에 겹친다. 후보 해결: `interactiveWidget: "resizes-content"`(Chrome), iOS 계열은 이 옵션을 지원하지 않으므로 `visualViewport` 기반 보정. 입력란과 [순찰 완료]가 키보드 위에서 모두 보여야 한다
-    - [ ] 토스트 위치: 현재 `Toaster`가 `bottom-center`(offset 96)라 Android의 자체 "복사했어요" 토스트와 겹치고 작게 보인다는 의견. 상단 이동을 검토하고 순찰 화면에서 헤더·하단 바와 겹치지 않는지 확인한다
-    - [ ] 순찰 완료 후 `/logs`로 이동(사용자 결정, 2026-10-21; 기존 PRD는 같은 페이지에서 초기화하고 바로 다음 순찰 입력). 완료 RPC 응답(`ok`·`duplicate`)을 받은 뒤 이동하고, 대기 중인 저장이 끝난 뒤 완료하며, 이동 후에도 초안 초기화와 `draft:` 백업 정리가 유지돼야 한다. `conflict`·실패 응답은 이동하지 않고 기존 안내를 유지한다. PRD의 F05·순찰 기록 페이지 "다음 이동"·사용자 여정 문구를 함께 수정한다
+    - ✅ 가상 키보드가 하단 [순찰 완료] 바를 가리는 문제(2026-10-21, Fold8 Chrome 155·iPad Safari 27.0.1에서 재현). 원인: 키보드가 올라오면 레이아웃 뷰포트는 그대로이고 시각 뷰포트만 줄어 `fixed bottom-0` 액션바가 키보드 뒤로 숨는다. 수정: `hooks/use-keyboard-inset.ts`가 `visualViewport`로 키보드가 가린 높이(`window.innerHeight - height - offsetTop`, 핀치 확대 중에는 0)를 `--keyboard-inset`에 담고, `patrol-action-bar.tsx`가 `bottom-[var(--keyboard-inset,0px)]`로 키보드 위에 붙는다. `globals.css`에 `scroll-padding-bottom: 7rem`을 두어 포커스된 입력란이 바에 가리지 않게 했다. `interactiveWidget: "resizes-content"`는 iOS Safari가 지원하지 않아 쓰지 않았다(`visualViewport` 보정이 Android Chrome·iOS 양쪽에서 같은 코드로 동작)
+    - ✅ 토스트 위치·모양(2026-10-21): `Toaster`를 `top-center`, offset `{ top: 68 }`(sticky 헤더 57px 아래)로 옮겨 Android 자체 "복사했어요" 토스트와 겹치지 않게 했다. 처음 `offset={68}`로 넣었더니 좌우에도 적용돼 모바일에서 폭이 328px에서 224px로 줄어 객체 형식으로 고쳤다(375px 폭 328px, 820px 폭 356px, y=68 확인). 추가 요청으로 박스와 색을 입혔다: `components/ui/sonner.tsx`가 oklch 토큰을 `hsl(var(--popover))`로 감싸 색이 무효가 되어 배경이 비어 보이던 것을 `var(--popover)`로 고치고 `richColors`로 성공(primary 청록)·오류(destructive)·안내(secondary) 색과 `shadow-lg`를 적용했다. 라이트·다크의 성공·안내 토스트는 Playwright로 확인했고, 오류 토스트는 일으킬 방법이 없어 화면으로 확인하지 못했다
+    - ✅ 순찰 완료 후 `/logs`로 이동(2026-10-21): `use-patrol-draft.ts`에 `onCompleted` 콜백을 추가해 완료가 `ok`·`duplicate`로 확정되고 입력을 초기화한 직후에만 호출하고(`conflict`·실패 분기에서는 호출하지 않음), `patrol-form.tsx`가 `router.push("/logs")`로 연결했다. PRD의 사용자 여정·F05·순찰 기록 페이지 "다음 이동"도 함께 고쳤다. (사용자 결정; 기존 PRD는 같은 페이지에서 초기화하고 바로 다음 순찰 입력.) 완료 RPC 응답(`ok`·`duplicate`)을 받은 뒤 이동하고, 대기 중인 저장이 끝난 뒤 완료하며, 이동 후에도 초안 초기화와 `draft:` 백업 정리가 유지돼야 한다. `conflict`·실패 응답은 이동하지 않고 기존 안내를 유지한다. PRD의 F05·순찰 기록 페이지 "다음 이동"·사용자 여정 문구를 함께 수정한다
+    - ✅ 아이패드 날짜 입력란이 [다음 영업일] 버튼과 겹치는 문제(2026-10-21, 사용자 보고): 스크린샷 수치 기준으로 입력란이 허용 폭 477px보다 약 27px 넓었고, 이는 좌우 패딩 24px + 테두리 2px과 거의 같아 iOS Safari의 네이티브 날짜 입력란이 `border-box`를 무시하는 것으로 보고 `date-picker-input.tsx`에 `appearance-none max-w-full`을 적용했다. Playwright WebKit 18.2(데스크톱)에서는 수정 전에도 겹치지 않아 재현하지 못했고, 실기기(iPad Safari)에서 확인했다
   - 완료 기준: 실기기에서 키보드가 [순찰 완료] 바를 가리지 않고, 토스트가 기기 토스트와 겹치지 않으며, 순찰 완료 후 `/logs`에서 방금 기록을 볼 수 있다. `npm run check`·`npm run build` 통과.
   - 테스트 체크리스트:
     - 정상: 순찰 입력 → [순찰 완료] → `/logs` 이동, 방금 기록이 목록에 표시
     - 오류: 완료 응답이 `conflict`이거나 네트워크 실패면 이동하지 않고 안내 표시
     - 엣지: 같은 요청 ID 재전송(`duplicate`)에도 1건만 기록되고 `/logs`로 이동, 키보드를 올린 채 완료 버튼 탭
-  - 테스트 결과: (미수행)
+  - 테스트 결과(2026-10-21): `npm run check`·`npm run build` 통과. 임시 주소(`chore/verification-deploy` 푸시로 자동 배포)에서 사용자가 실기기로 확인해 **요청한 항목이 모두 통과**했다: ① Galaxy Z Fold8 Chrome과 iPad Safari에서 키보드를 올려도 [순찰 완료] 바가 키보드 위에 보이고 내리면 원위치 ② [순찰 완료] 후 `/logs` 이동과 방금 기록 표시, 뒤로 가기 시 빈 입력란 ③ 토스트가 헤더 아래에 박스·색을 갖고 표시 ④ iPad `/logs` 날짜 입력란이 [다음 영업일] 버튼과 겹치지 않고 날짜 선택기가 열려 이동. Playwright(프로덕션 빌드, 375px·820px): 복사 토스트 위치·폭·헤더와의 간격·라이트/다크 색 확인. 미확인: 순찰 완료 후 이동을 Playwright로 확인하지 못했다(QA 계정 비밀번호가 없어 로그인 불가). `conflict`·네트워크 실패에서 이동하지 않는 분기와 `duplicate` 이동은 실행해 보지 않고 코드(`onCompleted` 호출 위치)로만 확인했다. 오류 토스트의 실제 모습, iPhone 크기 화면도 미확인.
 
 ## 주요 설계 결정
 
