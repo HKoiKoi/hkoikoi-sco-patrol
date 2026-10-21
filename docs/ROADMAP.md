@@ -721,7 +721,7 @@ Phase 0 (완료)
     - 정상: `browser_navigate → 운영 URL/logs → 200, 기록 표시`
     - 정상: 운영에서 Google 로그인 → `/logs` 복귀
     - 오류: 운영에서 비로그인 `/protected/patrol` → 로그인 페이지
-  - 테스트 결과: (미수행)
+  - 테스트 결과(2026-10-21, 026-A~D 진행 중간 기록, ✅는 026-E 이후): 026-A 로컬 마이그레이션 15개와 원격 15건이 일치하고 퀵 태그 5종이 활성이다. 026-B 임시 주소로 배포하고 환경 변수와 인증 설정을 마쳤다. 026-C 임시 주소에서 `/logs` 200(콘솔 경고·에러 없음), 비로그인 `/protected/patrol`의 `/auth/login?next=` 이동, 이메일 로그인 → 순찰 완료 → `/logs` 이동 → 복사(`17:01 순찰 → 완료 ([SMOKE026] …)`)를 통과했고 Google 로그인 후 `/logs` 복귀는 사용자가 확인했다(이메일 확인 링크는 026-E). 026-D 사용자 승인에 따라 순찰 기록 7건·초안 2건·QA 계정 4개(`staff_names` 행 포함)를 한 트랜잭션으로 삭제했고, 남은 계정은 첫 관리자 1개(admin)와 실사용 pending 1개, `quick_tags` 5건은 유지했다. 남은 일: 026-E 도메인 전환과 전환 후 검증.
   - 진행 순서 변경(2026-10-21): `sco.hkoikoi.dev`를 기존 앱이 쓰고 있어 **임시 주소**(`https://hkoikoi-sco-patrol.vercel.app`, Production Branch를 `chore/verification-deploy`로 임시 변경)에서 실기기 검증(Task 024)과 스모크 테스트를 먼저 하고, **마지막에 도메인 전환**(Production Branch를 `main`으로 복귀, `sco.hkoikoi.dev` 연결, Site URL 변경, 이메일 확인 링크 재확인)을 한다. 임시 주소에는 Supabase Redirect URLs에 `https://hkoikoi-sco-patrol.vercel.app/**`만 추가했고 Site URL은 바꾸지 않았다. Task 027의 수정은 도메인 전환 전에 끝낸다. 아래 구현 사항의 `sco.hkoikoi.dev` 표기는 전환 시점 기준이다.
 
 - **Task 027: 실기기 검증 후속 수정** ✅
