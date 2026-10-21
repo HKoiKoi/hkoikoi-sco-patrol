@@ -98,7 +98,8 @@ function SeatSection({
           placeholder="번호"
           aria-label={`${label} 번호 입력`}
           aria-describedby={messageId}
-          className="min-h-12 min-w-0 flex-1 bg-background text-lg font-semibold tabular-nums"
+          // Input 기본값의 md:text-base가 text-lg를 덮어 태블릿에서 16px로 줄어들기 때문에 md에서도 text-lg를 지정한다
+          className="min-h-12 min-w-0 flex-1 bg-background text-lg font-semibold tabular-nums md:text-lg"
         />
         <Button
           type="submit"

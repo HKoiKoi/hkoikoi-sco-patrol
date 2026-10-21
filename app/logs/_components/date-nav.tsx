@@ -52,7 +52,7 @@ export function DateNav({ date, currentDate, viewer }: DateNavProps) {
           aria-hidden="true"
         />
         <div className="min-w-0 flex-1">
-          <DatePickerInput date={date} />
+          <DatePickerInput date={date} max={maxDate} />
           <time dateTime={date} className="sr-only">
             {formatBusinessDateLabel(date)}
           </time>
