@@ -2,9 +2,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { Suspense } from "react";
 
-import { AuthButton } from "@/components/auth-button";
+import { AuthButton } from "@/components/auth/auth-button";
 import { NavMenu } from "@/components/layout/nav-menu";
-import { ThemeSwitcher } from "@/components/theme-switcher";
+import { ThemeSwitcher } from "@/components/layout/theme-switcher";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Viewer } from "@/lib/types/auth";
 

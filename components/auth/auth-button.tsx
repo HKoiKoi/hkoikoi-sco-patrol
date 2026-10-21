@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { LogoutButton } from "@/components/logout-button";
+import { LogoutButton } from "@/components/auth/logout-button";
 import { Button } from "@/components/ui/button";
 import type { Viewer } from "@/lib/types/auth";
 

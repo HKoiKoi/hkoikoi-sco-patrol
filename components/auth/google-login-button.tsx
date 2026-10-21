@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import {
   AuthErrorMessage,
   getAuthErrorMessage,
-} from "@/components/auth-error-message";
+} from "@/components/auth/auth-error-message";
 import { useState } from "react";
 
 export function GoogleLoginButton({
