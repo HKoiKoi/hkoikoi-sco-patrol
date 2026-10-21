@@ -129,7 +129,7 @@ export function SignUpForm({
                   id="email"
                   type="email"
                   autoComplete="email"
-                  placeholder="m@example.com"
+                  placeholder="name@example.com"
                   value={email}
                   aria-invalid={emailError ? true : undefined}
                   aria-describedby={emailError ? "email-error" : undefined}
