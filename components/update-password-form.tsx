@@ -64,6 +64,7 @@ export function UpdatePasswordForm({
                   id="password"
                   type="password"
                   placeholder="새 비밀번호"
+                  autoComplete="new-password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
