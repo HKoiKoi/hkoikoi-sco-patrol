@@ -78,6 +78,8 @@ interface UsePatrolDraftOptions {
 interface UsePatrolDraftResult {
   state: PatrolFormState;
   dispatch: Dispatch<PatrolFormAction>;
+  /** 충돌 다이얼로그의 선택을 반영한다. "server"를 고르면 버린 로컬 입력의 백업도 지운다. */
+  resolveConflict: (choice: "local" | "server") => void;
   /** 저장 flush 후 순찰을 완료한다. */
   handleComplete: () => Promise<void>;
   /** 클릭 직후 COMPLETE_START 전까지(저장 flush 중) true */
@@ -110,6 +112,19 @@ export function usePatrolDraft({
     stateRef.current = patrolFormReducer(stateRef.current, action);
     rawDispatch(action);
   }, []);
+
+  const resolveConflict = useCallback(
+    (choice: "local" | "server") => {
+      dispatch({ type: "RESOLVE_CONFLICT", choice });
+      // 서버 내용을 고르면 버린 입력의 백업이 남아, 다음 진입에서 복원되어 같은 충돌이 되살아난다.
+      // 내 내용을 고르면 다시 저장이 성공할 때 기존 경로가 백업을 지운다.
+      if (choice === "server") {
+        needsBackupRef.current = false;
+        clearDraftBackup(userId);
+      }
+    },
+    [dispatch, userId],
+  );
 
   const save = useCallback((): Promise<void> => {
     // 저장 중 들어온 입력은 상태만 dirty로 두고, 요청이 끝나면 최신 내용 하나로 다시 저장된다.
@@ -340,5 +355,5 @@ export function usePatrolDraft({
     }
   }
 
-  return { state, dispatch, handleComplete, flushing };
+  return { state, dispatch, resolveConflict, handleComplete, flushing };
 }

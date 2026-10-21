@@ -34,13 +34,14 @@ export function PatrolForm({
   initialDraft,
 }: PatrolFormProps) {
   const router = useRouter();
-  const { state, dispatch, handleComplete, flushing } = usePatrolDraft({
-    userId: viewer.userId,
-    adapter,
-    initialDraft,
-    // 순찰 완료 후 방금 기록을 일지 목록에서 확인할 수 있게 이동한다
-    onCompleted: () => router.push("/logs"),
-  });
+  const { state, dispatch, resolveConflict, handleComplete, flushing } =
+    usePatrolDraft({
+      userId: viewer.userId,
+      adapter,
+      initialDraft,
+      // 순찰 완료 후 방금 기록을 일지 목록에서 확인할 수 있게 이동한다
+      onCompleted: () => router.push("/logs"),
+    });
 
   return (
     <div className="space-y-4">
@@ -95,12 +96,8 @@ export function PatrolForm({
       />
       <ConflictDialog
         open={state.status === "conflict"}
-        onChooseLocal={() =>
-          dispatch({ type: "RESOLVE_CONFLICT", choice: "local" })
-        }
-        onChooseServer={() =>
-          dispatch({ type: "RESOLVE_CONFLICT", choice: "server" })
-        }
+        onChooseLocal={() => resolveConflict("local")}
+        onChooseServer={() => resolveConflict("server")}
       />
     </div>
   );
