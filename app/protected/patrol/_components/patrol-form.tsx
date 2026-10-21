@@ -12,7 +12,7 @@ import type {
 
 import { ConflictDialog } from "./conflict-dialog";
 import { MemoInput } from "./memo-input";
-import { ACTION_BAR_SPACER_CLASS, PatrolActionBar } from "./patrol-action-bar";
+import { PatrolActionBar } from "./patrol-action-bar";
 import { QuickTagBar } from "./quick-tag-bar";
 import { SaveStatus } from "./save-status";
 import { SeatCategoryInput } from "./seat-category-input";
@@ -43,7 +43,7 @@ export function PatrolForm({
   });
 
   return (
-    <div className={`space-y-4 ${ACTION_BAR_SPACER_CLASS}`}>
+    <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
         {state.completeRetry && (
           <p
