@@ -90,6 +90,15 @@ npm run check        # typecheck + lint + format:check
 
 ## 운영 메모
 
+- **운영 환경 변수**: 호스팅(예: Vercel)에는 아래 두 값만 입력합니다. 둘 다 `NEXT_PUBLIC_` 접두사라 브라우저에 노출되는 공개 값이며 RLS·RPC가 권한을 지키므로 service role 키는 쓰지 않습니다. `DATA_DIR`, `TEMPLATES_USE`, `ENABLE_GUI`는 shrimp-task-manager MCP용이라 운영에는 넣지 않습니다.
+
+  | 변수                                   | 값                                 |
+  | -------------------------------------- | ---------------------------------- |
+  | `NEXT_PUBLIC_SUPABASE_URL`             | Supabase 프로젝트 URL              |
+  | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase publishable(또는 anon) 키 |
+
+- **마이그레이션 대조**: `supabase/migrations/` 15개 파일이 원격 `list_migrations` 15건과 버전·이름까지 일치합니다(2026-10-21 기준). 새 마이그레이션을 추가하면 배포 전에 같은 방식으로 다시 대조합니다.
+- **퀵 태그 시드**: 5종(퇴실자 탭 디스플레이 종료, 화장실 정리, 제빙기 물 보충, 정수기 및 커피머신 청소, 전 열람실 에어컨 종료)이 `sort_order` 1~5로 활성 상태입니다.
 - **역할 지정**: 신규 가입자는 모두 `pending`입니다. Supabase 대시보드 Table Editor에서 `profiles.role`을 `manager` 또는 `admin`으로 바꿉니다. 첫 관리자도 같은 방식으로 직접 지정합니다. `role`은 앱에서 변경할 수 없습니다.
 - **강등**: 사용자를 삭제하지 말고 `pending`으로 강등합니다. 이후 작성·수정·삭제가 막히고 과거 기록의 작성자 이름은 유지됩니다.
 - **인증 설정(수동)**: 이메일 확인 메일 템플릿 링크를 `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/logs`로 바꾸고, Site URL과 Redirect URLs(`/auth/callback`, `/auth/confirm`, 로컬·HTTPS 터널·운영 도메인), Google OAuth 승인된 리디렉션 URI를 등록합니다.
@@ -106,6 +115,6 @@ npm run check        # typecheck + lint + format:check
   | `qa-manager2` | `koikoilove99+qa-manager2@gmail.com` | `manager` |
   | `qa-pending`  | `koikoilove99+qa-pending@gmail.com`  | `pending` |
 
-  운영 배포 전에 QA 계정을 삭제하거나 `pending`으로 강등합니다.
+  개발 DB와 운영 DB는 같은 Supabase 프로젝트입니다. 운영 스모크 테스트(Task 026-C)에서 `qa-manager`를 쓴 뒤, 026-D에서 QA 계정 4개와 테스트 순찰 기록을 모두 삭제합니다. 실사용 계정(첫 관리자 `koikoilove99@gmail.com`)은 유지합니다.
 
 - 실기기 확인 결과와 운영 절차는 ROADMAP Task 015, 024, 026 진행에 맞춰 이 절에 보강합니다.
