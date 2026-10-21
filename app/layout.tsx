@@ -71,7 +71,11 @@ export default function RootLayout({
           <div className="flex-1">{children}</div>
           <AppFooter />
           {/* 상단에 둔다: 하단은 고정 액션바와 Android 자체 "복사했어요" 토스트와 겹친다. 68px은 sticky 헤더(57px) 아래 */}
-          <Toaster position="top-center" offset={68} mobileOffset={68} />
+          <Toaster
+            position="top-center"
+            offset={{ top: 68 }}
+            mobileOffset={{ top: 68 }}
+          />
         </ThemeProvider>
       </body>
     </html>
