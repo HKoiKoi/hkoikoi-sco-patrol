@@ -35,10 +35,11 @@ export function PatrolActionBar({
       <div className="mx-auto flex w-full max-w-5xl items-center p-3 sm:p-4">
         <Button
           type="button"
-          className="min-h-12 flex-1 text-lg"
-          disabled={completing}
+          className="min-h-12 flex-1 text-lg aria-disabled:pointer-events-none aria-disabled:opacity-50"
+          // disabled를 쓰면 포커스를 가진 버튼이 비활성화되며 포커스가 body로 떨어진다
+          aria-disabled={completing}
           aria-busy={completing}
-          onClick={onComplete}
+          onClick={completing ? undefined : onComplete}
         >
           {completing && (
             <Loader2 className="animate-spin" aria-hidden="true" />

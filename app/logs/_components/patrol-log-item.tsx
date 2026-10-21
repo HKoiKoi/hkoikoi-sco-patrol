@@ -57,10 +57,10 @@ export function PatrolLogItem({ log, viewer, serial }: PatrolLogItemProps) {
         {hasMemo && (
           // 메모 섹션: 좌석 섹션과 같은 라벨 + 박스 본문 (비어 있으면 숨김)
           <section className="min-w-0 space-y-1.5" aria-label="메모">
-            <h3 className="inline-flex items-center gap-1.5 text-base font-semibold text-muted-foreground">
+            <h2 className="inline-flex items-center gap-1.5 text-base font-semibold text-muted-foreground">
               <StickyNote className="size-5 shrink-0" aria-hidden="true" />
               메모
-            </h3>
+            </h2>
             <p className="min-w-0 rounded-md border bg-muted/50 px-3 py-2.5 text-base break-words whitespace-pre-wrap text-foreground">
               {log.memo}
             </p>
