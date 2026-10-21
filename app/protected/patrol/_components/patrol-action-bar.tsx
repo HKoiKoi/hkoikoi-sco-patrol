@@ -1,6 +1,7 @@
 import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { useKeyboardInset } from "@/hooks/use-keyboard-inset";
 import { cn } from "@/lib/utils";
 
 /**
@@ -25,10 +26,13 @@ export function PatrolActionBar({
   onComplete,
   className,
 }: PatrolActionBarProps) {
+  // 가상 키보드가 올라오면 바를 키보드 위로 올린다(--keyboard-inset)
+  useKeyboardInset();
+
   return (
     <div
       className={cn(
-        "fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur",
+        "fixed inset-x-0 bottom-[var(--keyboard-inset,0px)] z-40 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur",
         className,
       )}
     >

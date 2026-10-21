@@ -128,6 +128,10 @@
   body {
     @apply bg-background text-foreground;
   }
+  /* 포커스된 입력란이 하단 고정 액션바(약 7rem)에 가리지 않게 스크롤 여유를 둔다 */
+  html {
+    scroll-padding-bottom: 7rem;
+  }
 }
 /*
   ---break---

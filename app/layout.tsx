@@ -70,7 +70,8 @@ export default function RootLayout({
           {/* 페이지가 자체 main을 가지므로 div로 감싸 푸터를 하단에 고정 */}
           <div className="flex-1">{children}</div>
           <AppFooter />
-          <Toaster position="bottom-center" offset={96} mobileOffset={96} />
+          {/* 상단에 둔다: 하단은 고정 액션바와 Android 자체 "복사했어요" 토스트와 겹친다. 68px은 sticky 헤더(57px) 아래 */}
+          <Toaster position="top-center" offset={68} mobileOffset={68} />
         </ThemeProvider>
       </body>
     </html>
