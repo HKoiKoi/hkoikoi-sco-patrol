@@ -6,9 +6,9 @@ import { Button } from "@/components/ui/button";
 import {
   AuthErrorMessage,
   getAuthErrorMessage,
-} from "@/components/auth-error-message";
-import { GoogleLoginButton } from "@/components/google-login-button";
-import { InAppBrowserNotice } from "@/components/in-app-browser-notice";
+} from "@/components/auth/auth-error-message";
+import { GoogleLoginButton } from "@/components/auth/google-login-button";
+import { InAppBrowserNotice } from "@/components/auth/in-app-browser-notice";
 import {
   Card,
   CardContent,

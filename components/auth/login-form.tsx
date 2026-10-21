@@ -4,12 +4,12 @@ import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { getSafeNextPath } from "@/lib/auth/safe-next";
 import { Button } from "@/components/ui/button";
-import { GoogleLoginButton } from "@/components/google-login-button";
-import { InAppBrowserNotice } from "@/components/in-app-browser-notice";
+import { GoogleLoginButton } from "@/components/auth/google-login-button";
+import { InAppBrowserNotice } from "@/components/auth/in-app-browser-notice";
 import {
   AuthErrorMessage,
   getAuthErrorMessage,
-} from "@/components/auth-error-message";
+} from "@/components/auth/auth-error-message";
 import {
   Card,
   CardContent,
@@ -72,6 +72,7 @@ export function LoginForm({
                   id="email"
                   type="email"
                   placeholder="name@example.com"
+                  autoComplete="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -90,6 +91,7 @@ export function LoginForm({
                 <Input
                   id="password"
                   type="password"
+                  autoComplete="current-password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}

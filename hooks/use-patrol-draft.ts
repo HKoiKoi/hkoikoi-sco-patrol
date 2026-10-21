@@ -24,7 +24,6 @@ import {
   type PatrolFormAction,
   type PatrolFormState,
 } from "@/lib/patrol-form-reducer";
-import { createClient } from "@/lib/supabase/client";
 import type {
   PatrolContent,
   PatrolDraft,
@@ -60,24 +59,6 @@ function isEmptyContent(content: PatrolContent): boolean {
   );
 }
 
-/**
- * 저장 직후 본인 초안의 서버 updated_at을 조회한다(클라이언트 시계 미사용).
- * 조회 실패·행 없음은 null이며, 호출부는 저장 성공으로 처리하고 기존 저장 시각을 유지한다.
- */
-async function fetchServerUpdatedAt(userId: string): Promise<string | null> {
-  try {
-    const { data, error } = await createClient()
-      .from("patrol_drafts")
-      .select("updated_at")
-      .eq("user_id", userId)
-      .maybeSingle();
-    if (error || !data) return null;
-    return data.updated_at;
-  } catch {
-    return null;
-  }
-}
-
 /** 서버 초안으로 초기 상태를 만든다. 내용이 있으면 이미 저장된 상태("저장됨 HH:mm")로 시작한다. */
 function createInitialState(draft: PatrolDraft): PatrolFormState {
   const base = createInitialPatrolFormState(draft);
@@ -97,6 +78,8 @@ interface UsePatrolDraftOptions {
 interface UsePatrolDraftResult {
   state: PatrolFormState;
   dispatch: Dispatch<PatrolFormAction>;
+  /** 충돌 다이얼로그의 선택을 반영한다. "server"를 고르면 버린 로컬 입력의 백업도 지운다. */
+  resolveConflict: (choice: "local" | "server") => void;
   /** 저장 flush 후 순찰을 완료한다. */
   handleComplete: () => Promise<void>;
   /** 클릭 직후 COMPLETE_START 전까지(저장 flush 중) true */
@@ -130,6 +113,19 @@ export function usePatrolDraft({
     rawDispatch(action);
   }, []);
 
+  const resolveConflict = useCallback(
+    (choice: "local" | "server") => {
+      dispatch({ type: "RESOLVE_CONFLICT", choice });
+      // 서버 내용을 고르면 버린 입력의 백업이 남아, 다음 진입에서 복원되어 같은 충돌이 되살아난다.
+      // 내 내용을 고르면 다시 저장이 성공할 때 기존 경로가 백업을 지운다.
+      if (choice === "server") {
+        needsBackupRef.current = false;
+        clearDraftBackup(userId);
+      }
+    },
+    [dispatch, userId],
+  );
+
   const save = useCallback((): Promise<void> => {
     // 저장 중 들어온 입력은 상태만 dirty로 두고, 요청이 끝나면 최신 내용 하나로 다시 저장된다.
     if (inflightSaveRef.current) return inflightSaveRef.current;
@@ -142,9 +138,12 @@ export function usePatrolDraft({
       try {
         const result = await adapter.saveDraft(revision, content);
         if (result.status === "ok") {
-          // 저장 시각은 서버 updated_at을 다시 읽어 쓴다. 조회 실패 시 저장은 성공으로 두고 시각만 유지한다.
-          const savedAt = await fetchServerUpdatedAt(userId);
-          dispatch({ type: "SAVE_OK", revision: result.revision, savedAt });
+          // 저장 시각은 RPC 응답에 실린 서버 updated_at을 쓴다(별도 재조회 없음).
+          dispatch({
+            type: "SAVE_OK",
+            revision: result.revision,
+            savedAt: result.updatedAt,
+          });
           needsBackupRef.current = false;
           // 입력이 더 들어와 dirty로 남았다면 그 내용은 아직 서버에 없으므로 백업을 유지한다.
           if (stateRef.current.status === "saved") clearDraftBackup(userId);
@@ -178,19 +177,23 @@ export function usePatrolDraft({
     return request;
   }, [adapter, dispatch, userId]);
 
-  // 진입 시 로컬 백업이 서버 초안 이후에 만든 입력이면 복원한다(복원 후 디바운스 저장이 재전송).
+  // 진입 시 로컬 백업이 서버 초안과 다르면 복원한다(복원 후 디바운스 저장이 재전송).
+  // 서버가 백업보다 앞서 있으면(다른 기기 저장·완료, 방치 초안 정리) 백업의 revision을 base로 복원해,
+  // 다음 저장이 충돌 규칙을 타게 한다(빈 서버 초안은 자동 재저장, 아니면 선택 다이얼로그).
+  // 이때 백업이 비어 있으면 잃을 입력이 없으므로 지운다.
   useEffect(() => {
     const backup = readDraftBackup(userId);
     if (!backup) return;
+    const serverAhead = backup.revision < initialDraft.revision;
     if (
-      backup.revision >= initialDraft.revision &&
-      !isSameContent(backup.payload, initialDraft.content)
+      !isSameContent(backup.payload, initialDraft.content) &&
+      !(serverAhead && isEmptyContent(backup.payload))
     ) {
       needsBackupRef.current = true;
       dispatch({
         type: "RESTORE_BACKUP",
         content: backup.payload,
-        revision: initialDraft.revision,
+        revision: serverAhead ? backup.revision : initialDraft.revision,
       });
     } else {
       clearDraftBackup(userId);
@@ -352,5 +355,5 @@ export function usePatrolDraft({
     }
   }
 
-  return { state, dispatch, handleComplete, flushing };
+  return { state, dispatch, resolveConflict, handleComplete, flushing };
 }

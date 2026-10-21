@@ -13,7 +13,7 @@ import {
 import {
   AuthErrorMessage,
   getAuthErrorMessage,
-} from "@/components/auth-error-message";
+} from "@/components/auth/auth-error-message";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useRouter } from "next/navigation";
@@ -64,6 +64,7 @@ export function UpdatePasswordForm({
                   id="password"
                   type="password"
                   placeholder="새 비밀번호"
+                  autoComplete="new-password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
