@@ -24,7 +24,6 @@ import {
   type PatrolFormAction,
   type PatrolFormState,
 } from "@/lib/patrol-form-reducer";
-import { createClient } from "@/lib/supabase/client";
 import type {
   PatrolContent,
   PatrolDraft,
@@ -58,24 +57,6 @@ function isEmptyContent(content: PatrolContent): boolean {
   return (
     content.memo === "" && SEAT_CATEGORIES.every((c) => !content[c].length)
   );
-}
-
-/**
- * 저장 직후 본인 초안의 서버 updated_at을 조회한다(클라이언트 시계 미사용).
- * 조회 실패·행 없음은 null이며, 호출부는 저장 성공으로 처리하고 기존 저장 시각을 유지한다.
- */
-async function fetchServerUpdatedAt(userId: string): Promise<string | null> {
-  try {
-    const { data, error } = await createClient()
-      .from("patrol_drafts")
-      .select("updated_at")
-      .eq("user_id", userId)
-      .maybeSingle();
-    if (error || !data) return null;
-    return data.updated_at;
-  } catch {
-    return null;
-  }
 }
 
 /** 서버 초안으로 초기 상태를 만든다. 내용이 있으면 이미 저장된 상태("저장됨 HH:mm")로 시작한다. */
@@ -142,9 +123,12 @@ export function usePatrolDraft({
       try {
         const result = await adapter.saveDraft(revision, content);
         if (result.status === "ok") {
-          // 저장 시각은 서버 updated_at을 다시 읽어 쓴다. 조회 실패 시 저장은 성공으로 두고 시각만 유지한다.
-          const savedAt = await fetchServerUpdatedAt(userId);
-          dispatch({ type: "SAVE_OK", revision: result.revision, savedAt });
+          // 저장 시각은 RPC 응답에 실린 서버 updated_at을 쓴다(별도 재조회 없음).
+          dispatch({
+            type: "SAVE_OK",
+            revision: result.revision,
+            savedAt: result.updatedAt,
+          });
           needsBackupRef.current = false;
           // 입력이 더 들어와 dirty로 남았다면 그 내용은 아직 서버에 없으므로 백업을 유지한다.
           if (stateRef.current.status === "saved") clearDraftBackup(userId);

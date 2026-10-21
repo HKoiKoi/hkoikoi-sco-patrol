@@ -13,7 +13,7 @@ import {
 import {
   AuthErrorMessage,
   getAuthErrorMessage,
-} from "@/components/auth-error-message";
+} from "@/components/auth/auth-error-message";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";

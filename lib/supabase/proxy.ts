@@ -1,6 +1,11 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+/** 세그먼트 단위 일치: base 자체이거나 base 하위 경로("/logsfoo", "/authfoo"는 제외) */
+function isPathUnder(pathname: string, base: string): boolean {
+  return pathname === base || pathname.startsWith(`${base}/`);
+}
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
@@ -41,16 +46,14 @@ export async function updateSession(request: NextRequest) {
   const user = data?.claims;
 
   const { pathname, search } = request.nextUrl;
-  // 일지 조회 공개 경로: "/logs" 또는 "/logs/..." ("/logsfoo"는 제외)
-  const isLogsPath = pathname === "/logs" || pathname.startsWith("/logs/");
+  // 비로그인 공개 경로: 홈, 일지 조회, 인증 화면(세그먼트 단위 일치)
+  const isPublicPath =
+    pathname === "/" ||
+    isPathUnder(pathname, "/logs") ||
+    isPathUnder(pathname, "/login") ||
+    isPathUnder(pathname, "/auth");
 
-  if (
-    pathname !== "/" &&
-    !user &&
-    !isLogsPath &&
-    !pathname.startsWith("/login") &&
-    !pathname.startsWith("/auth")
-  ) {
+  if (!user && !isPublicPath) {
     // no user, potentially respond by redirecting the user to the login page
     const url = request.nextUrl.clone();
     url.pathname = "/auth/login";

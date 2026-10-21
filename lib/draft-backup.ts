@@ -84,3 +84,17 @@ export function clearDraftBackup(userId: string): void {
     // 무시
   }
 }
+
+/** 모든 사용자의 초안 백업을 지운다(로그아웃용). 접근 불가는 조용히 무시한다. */
+export function clearAllDraftBackups(): void {
+  try {
+    const keys: string[] = [];
+    for (let i = 0; i < window.localStorage.length; i += 1) {
+      const key = window.localStorage.key(i);
+      if (key?.startsWith(DRAFT_BACKUP_KEY_PREFIX)) keys.push(key);
+    }
+    keys.forEach((key) => window.localStorage.removeItem(key));
+  } catch {
+    // 무시
+  }
+}
