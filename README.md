@@ -70,7 +70,7 @@ SCO 관리형 독서실의 30분 간격 순찰 업무를 스마트폰/태블릿�
 
    [localhost:3000](http://localhost:3000/)에서 확인합니다.
 
-> 복사 기능은 HTTPS(보안 컨텍스트)에서만 동작합니다. 실기기 테스트 시 `http://192.168.x.x` 접속에서는 복사가 막히므로 배포된 HTTPS 주소에서 확인하세요(도메인 전환 전에는 임시 주소 `https://hkoikoi-sco-patrol.vercel.app`). 터널을 쓰려면 `next.config.ts`의 `allowedDevOrigins`에 터널 호스트가 필요합니다(`*.trycloudflare.com`, `*.ngrok-free.app` 등록됨).
+> 복사 기능은 HTTPS(보안 컨텍스트)에서만 동작합니다. 실기기 테스트 시 `http://192.168.x.x` 접속에서는 복사가 막히므로 배포된 HTTPS 주소에서 확인하세요(운영 주소는 `https://sco.hkoikoi.dev`). 터널을 쓰려면 `next.config.ts`의 `allowedDevOrigins`에 터널 호스트가 필요합니다(`*.trycloudflare.com`, `*.ngrok-free.app` 등록됨).
 
 ## 명령어
 
@@ -122,4 +122,4 @@ npm run check        # typecheck + lint + format:check
   - 카카오톡 인앱 브라우저: 안내 문구가 노출되고 Google 로그인이 동작했다. 인앱으로 열려면 카카오톡 "나와의 채팅"에 주소를 보내 링크를 누른다.
   - iPad에 외장 키보드를 붙이면 화면 키보드가 올라오지 않아 키보드 가림 점검이 안 된다. 점검할 때는 키보드를 떼거나 화면 키보드로 전환한다.
   - 가상 키보드: `visualViewport`로 키보드가 가린 높이를 계산해 하단 [순찰 완료] 바를 키보드 위에 붙인다(Task 027). 폴드 Chrome과 iPad Safari에서 확인했고 iPhone 크기 화면은 기기가 없어 확인하지 못했다.
-  - 도메인: `sco.hkoikoi.dev`를 기존 앱이 사용 중이라 임시 주소에서 검증했다. 전환 절차는 Task 026을 따른다.
+  - 도메인: 임시 주소(`hkoikoi-sco-patrol.vercel.app`)에서 검증한 뒤 2026-10-21에 `sco.hkoikoi.dev`로 전환했다. 이메일 확인 링크는 Supabase Site URL을 따라가므로 운영 도메인으로 도착한다.

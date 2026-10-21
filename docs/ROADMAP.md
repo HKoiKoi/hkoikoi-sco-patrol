@@ -704,24 +704,25 @@ Phase 0 (완료)
     - 2026-10-21 추가 수행: 프로덕션 빌드에서 qa-manager로 키보드 전용 시나리오(`Tab`으로 스탠딩 입력 → `Enter` 추가 → 퀵 태그 `Space` → `순찰 완료` `Enter` → `/logs` 복사 `Enter`)를 통과했고(복사 문구 `15:09 순찰 → 완료 (퇴실자 탭 디스플레이 종료)`, 스탠딩은 설계상 제외), 수정 후 `npm run check`·`npm run build` 통과, 콘솔 에러·hydration 경고 없음. QA 점검용으로 순찰 기록 2건을 만들었다(Task 026-D에서 정리). 점검에 쓴 qa-manager 임시 비밀번호는 원래 해시로 복원했다.
     - ✅ 로그인 후 미이동 수정(2026-10-21): 프로덕션 빌드에서 로그인에 성공해도 `/auth/login?next=...`에 머물던 문제. 로그아웃 상태에서 프리페치한 보호 경로의 로그인 리디렉션(`307`)이 클라이언트 라우터 캐시에 남아 `router.push(next)`가 로그인 화면으로 되돌아가던 것이 원인으로 추정되며, `login-form.tsx`가 `window.location.assign(getSafeNextPath(next))`로 전체 이동하도록 바꿨다. 같은 `push`+`refresh` 패턴이 로그아웃 후 `/auth/login?next=...` RSC 요청 404 콘솔 에러를 만들어 `logout-button.tsx`도 `window.location.assign("/logs")`로 바꿨다. 검증: 보호 경로 `next` 복귀·`next=//evil.com`의 `/logs` 대체·틀린 비밀번호 오류 표시와 버튼 복구·로그아웃 후 콘솔 에러 0건. qa-manager 임시 비밀번호는 다시 원래 해시로 복원했다.
 
-- **Task 026: 운영 배포 및 출시 준비**
+- **Task 026: 운영 배포 및 출시 준비** ✅
   - 관련 기능: 전체
   - 설명: 운영 환경(예: Vercel)에 배포하고 Supabase 인증 설정과 초기 운영 데이터를 맞춘다.
   - 실행 순서(2026-10-20 결정): 이 Task는 **두 번에 나눠 진행**한다. ① 배포 준비·호스팅·인증 설정(Task 025 직후, Task 024 이전) → Task 024 실기기 검증(배포된 HTTPS 주소) → ② 운영 스모크 테스트·QA 정리(Task 024 이후). 운영 도메인은 `https://sco.hkoikoi.dev`이고 Redirect URLs(`https://sco.hkoikoi.dev/**`)는 Task 017에서 이미 등록했다. Site URL은 아직 `http://localhost:3000`일 수 있어 배포 시 운영 도메인으로 바꾼다.
   - 유의: Supabase 프로젝트가 개발·운영 공용이면 실기기 검증 중 만든 QA 계정·테스트 기록이 운영 DB에 생기므로, 테스트 기록 메모에 식별 접두사(예: `[SMOKE026]`)를 붙이고 정리는 마지막 단계에서 대상 확인과 사용자 승인 뒤에 한다.
   - 관련 파일: `.env.example`, `README.md`
   - 구현 사항:
-    - [ ] 운영 환경 변수(`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`) 설정, HTTPS 도메인 확인
-    - [ ] Supabase Site URL을 운영 도메인으로 변경하고 Redirect URLs(`/auth/callback`, `/auth/confirm`, 등록 완료 여부 재확인), Google OAuth 승인된 리디렉션 URI를 운영 도메인으로 갱신
-    - [ ] 마이그레이션 원격 적용 상태(`list_migrations`)와 로컬 파일 일치 확인(2026-10-20 기준 원격 15개, 로컬 15개 일치), 퀵 태그 seed 확인
-    - [ ] 첫 관리자 지정(대시보드에서 `profiles.role = 'admin'`) 및 매니저 승격 절차를 README에 정리, QA 계정 정리
-    - [ ] 운영 도메인에서 Task 023 핵심 여정 스모크 테스트
+    - [x] 운영 환경 변수(`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`) 설정, HTTPS 도메인 확인
+    - [x] Supabase Site URL을 운영 도메인으로 변경하고 Redirect URLs(`/auth/callback`, `/auth/confirm`, 등록 완료 여부 재확인), Google OAuth 승인된 리디렉션 URI를 운영 도메인으로 갱신
+    - [x] 마이그레이션 원격 적용 상태(`list_migrations`)와 로컬 파일 일치 확인(2026-10-20 기준 원격 15개, 로컬 15개 일치), 퀵 태그 seed 확인
+    - [x] 첫 관리자 지정(대시보드에서 `profiles.role = 'admin'`) 및 매니저 승격 절차를 README에 정리, QA 계정 정리
+    - [x] 운영 도메인에서 Task 023 핵심 여정 스모크 테스트
   - 완료 기준: 운영 URL에서 로그인 → 순찰 완료 → 일지 조회 → 복사가 동작한다.
   - 테스트 체크리스트:
     - 정상: `browser_navigate → 운영 URL/logs → 200, 기록 표시`
     - 정상: 운영에서 Google 로그인 → `/logs` 복귀
     - 오류: 운영에서 비로그인 `/protected/patrol` → 로그인 페이지
   - 테스트 결과(2026-10-21, 026-A~D 진행 중간 기록, ✅는 026-E 이후): 026-A 로컬 마이그레이션 15개와 원격 15건이 일치하고 퀵 태그 5종이 활성이다. 026-B 임시 주소로 배포하고 환경 변수와 인증 설정을 마쳤다. 026-C 임시 주소에서 `/logs` 200(콘솔 경고·에러 없음), 비로그인 `/protected/patrol`의 `/auth/login?next=` 이동, 이메일 로그인 → 순찰 완료 → `/logs` 이동 → 복사(`17:01 순찰 → 완료 ([SMOKE026] …)`)를 통과했고 Google 로그인 후 `/logs` 복귀는 사용자가 확인했다(이메일 확인 링크는 026-E). 026-D 사용자 승인에 따라 순찰 기록 7건·초안 2건·QA 계정 4개(`staff_names` 행 포함)를 한 트랜잭션으로 삭제했고, 남은 계정은 첫 관리자 1개(admin)와 실사용 pending 1개, `quick_tags` 5건은 유지했다. 남은 일: 026-E 도메인 전환과 전환 후 검증.
+  - 026-E 도메인 전환 결과(2026-10-21): PR #18(`chore/verification-deploy` → `develop`)과 #19(`develop` → `main`)를 병합하고 Vercel Production Branch를 `main`으로 복귀시킨 뒤 `sco.hkoikoi.dev`를 연결했다(Cloudflare DNS는 Vercel 안내값, 인증서 발급 완료). 사용자가 Supabase Site URL을 `https://sco.hkoikoi.dev`로 바꿨다. Claude 검증: `curl`로 `/logs` 200(인증서 유효, `server: Vercel`), `/` → `/logs` 307, 비로그인 `/protected/patrol` → `/auth/login?next=%2Fprotected%2Fpatrol` 307, Playwright로 `/logs` 콘솔 경고·에러 0건(로그인 화면의 `autocomplete` 권장 메시지 1건은 VERBOSE 수준). 이메일 가입·확인 링크·로그인 후 `/logs` 복귀는 사용자가 직접 수행해 통과했다고 알려 왔고, DB에서 두 계정(이메일 확인 완료, 로그인 이력, 첫 관리자 `admin`·실사용 계정 `manager`)이 새로 생긴 것을 확인했다. 확인 링크 호스트의 화면 캡처 등 세부 증빙은 남기지 않았다. 사용자 요청으로 026-D에서 남긴 기존 계정 2개를 삭제하고 새 도메인에서 다시 가입했다(순찰 기록·초안은 0건, 삭제 시 `staff_names`를 먼저 지워야 한다). 미해결: 로그인 폼 비밀번호 입력란의 `autocomplete` 속성 권장(경고 아님).
   - 진행 순서 변경(2026-10-21): `sco.hkoikoi.dev`를 기존 앱이 쓰고 있어 **임시 주소**(`https://hkoikoi-sco-patrol.vercel.app`, Production Branch를 `chore/verification-deploy`로 임시 변경)에서 실기기 검증(Task 024)과 스모크 테스트를 먼저 하고, **마지막에 도메인 전환**(Production Branch를 `main`으로 복귀, `sco.hkoikoi.dev` 연결, Site URL 변경, 이메일 확인 링크 재확인)을 한다. 임시 주소에는 Supabase Redirect URLs에 `https://hkoikoi-sco-patrol.vercel.app/**`만 추가했고 Site URL은 바꾸지 않았다. Task 027의 수정은 도메인 전환 전에 끝낸다. 아래 구현 사항의 `sco.hkoikoi.dev` 표기는 전환 시점 기준이다.
 
 - **Task 027: 실기기 검증 후속 수정** ✅

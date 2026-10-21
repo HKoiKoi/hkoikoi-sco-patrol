@@ -1,14 +1,9 @@
 import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { useActionBarHeight } from "@/hooks/use-action-bar-height";
 import { useKeyboardInset } from "@/hooks/use-keyboard-inset";
 import { cn } from "@/lib/utils";
-
-/**
- * 액션바가 차지하는 높이 (버튼 48px + 상하 패딩 + 안전 영역 여유).
- * 사용처는 본문 하단에 이 클래스를 적용해 내용이 가려지지 않게 한다.
- */
-export const ACTION_BAR_SPACER_CLASS = "pb-28";
 
 interface PatrolActionBarProps {
   /** 순찰 완료 요청 처리 중 여부 */
@@ -28,9 +23,12 @@ export function PatrolActionBar({
 }: PatrolActionBarProps) {
   // 가상 키보드가 올라오면 바를 키보드 위로 올린다(--keyboard-inset)
   useKeyboardInset();
+  // 바 높이를 --action-bar-height에 담아 공통 푸터가 바 뒤로 가려지지 않게 한다
+  const barRef = useActionBarHeight<HTMLDivElement>();
 
   return (
     <div
+      ref={barRef}
       className={cn(
         "fixed inset-x-0 bottom-[var(--keyboard-inset,0px)] z-40 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur",
         className,

@@ -9,9 +9,10 @@ async function CurrentYear() {
 }
 
 // 앱 공통 하단 푸터: 앱 이름, 짧은 설명, 저작권 표기
+// 하단 고정 액션바가 있는 페이지는 바 높이(--action-bar-height)만큼 여백을 둬 푸터가 바 뒤로 가려지지 않게 한다
 export function AppFooter() {
   return (
-    <footer className="border-t bg-background">
+    <footer className="border-t bg-background pb-[var(--action-bar-height,0px)]">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-3 px-4 py-6 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-2">
           <Image
