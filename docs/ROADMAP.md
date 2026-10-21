@@ -495,7 +495,7 @@ Phase 0 (완료)
     - 엣지: `browser_console_messages → 에러·hydration 경고 없음`
   - 테스트 결과(2026-10-15): Playwright MCP + Supabase MCP로 개발 서버(`npm run dev`)에서 수행. QA 계정 비밀번호를 알 수 없어 `execute_sql`로 4개 계정(`koikoilove99+qa-*`)의 `auth.users.encrypted_password`만 임시 값으로 재설정한 뒤 로그인했다(임시 비밀번호는 문서에 기록하지 않음, 비밀번호 관리자에 새로 보관 필요). 결과: ① `qa-manager` → `/protected/patrol` 200, URL 유지, 순찰 기록 폼(좌석 4종·퀵 태그·메모·[순찰 완료]) 표시. ② `qa-admin` → `/protected/admin/tags` URL 유지. ③ `qa-pending` → `/protected/patrol` → `/logs?notice=pending`, 배너 "관리자 승인이 완료되지 않아 작성할 수 없습니다. 승인 후 이용해 주세요." ④ `qa-manager` → `/protected/admin/tags` → `/logs?notice=admin-required`, 배너 "관리자 권한이 필요합니다." ⑤ 비로그인 → `/protected/admin/tags` → `/auth/login?next=%2Fprotected%2Fadmin%2Ftags`. ⑥ `qa-manager`로 로그인한 채 `profiles.role`을 `pending`으로 강등(`update ... returning`으로 확인) → `/protected/patrol` 새로고침 → `/logs?notice=pending`, 즉시 `manager`로 원복하고 4개 계정 역할(`admin`/`manager`/`manager`/`pending`)을 조회로 확인(강등 중 세션 재로그인 없이 바로 반영되어 `getViewer()`가 요청마다 DB에서 역할을 읽음을 확인). ⑦ `browser_console_messages`(전체 세션, warning 이상): 에러 0·경고 0(hydration 경고 없음). 관찰 사항: 헤더 `AppHeader`·`PendingBanner`는 아직 `ACTIVE_DUMMY_VIEWER`(admin) 기준이라 어느 계정으로 로그인해도 "관리자"로 표시되며 실제 역할과 다르다(`app/layout.tsx`, `app/logs/page.tsx`, `lib/dummy/viewers.ts`, Task 018 범위이므로 이번에 수정하지 않음). 로그인 폼은 `?next=/protected/patrol`이 있어도 `/logs`로 이동했다(로그인 후 이동·`next` 연결은 Phase 5 인증 흐름에서 확인 필요). 추가 확인(2026-10-15): `qa-manager2`·`qa-admin`의 임시 비밀번호를 재설정해 로그인한 뒤 각각 `/protected/patrol`에 접근했고, 둘 다 URL이 유지되며 순찰 기록 폼(좌석 입력·태그와 메모·[순찰 완료])이 표시됐다. 이때 콘솔 에러는 개발 서버 HMR WebSocket 연결 거부 12건뿐이며 hydration 경고는 없었다. 미확인: `qa-admin`·`qa-pending`의 나머지 경로 조합, 로그아웃 시 `draft:` 백업 키 삭제, 모바일 뷰포트 화면. `npm run check`: `typecheck`·`lint` 통과, `format:check`는 저장소 밖 로컬 파일 `.claude/settings.local.json`(전역 gitignore 대상)의 Prettier 경고 1건만 남았으며 이번 변경과 무관(Task 015 기록과 동일)
 
-### Phase 5: 핵심 기능 구현
+### Phase 5: 핵심 기능 구현 ✅
 
 - **Task 017: 인증 흐름 완성 (리디렉션·원래 화면 복귀·이메일 확인·로그아웃)** ✅
   - 관련 기능: F01
@@ -683,7 +683,7 @@ Phase 0 (완료)
     - 엣지: 폰에서 입력 → 태블릿에서 이어쓰기 → 완료
   - 테스트 결과: (일부 수행) DB 확인 2건(`full_name`, `pg_cron`)만 2026-10-20에 완료했다. 실기기 항목은 배포 후 수행한다(미수행).
 
-- **Task 025: 품질·성능·보안 점검**
+- **Task 025: 품질·성능·보안 점검** ✅
   - 관련 기능: 전체
   - 설명: 출시 전 접근성, 성능, 보안 권고를 점검하고 스타터 잔재를 마지막으로 정리한다.
   - 관련 파일: 전반, `app/not-found.tsx`, `app/error.tsx`, `supabase/migrations/*`
@@ -691,15 +691,17 @@ Phase 0 (완료)
     - ✅ Supabase `get_advisors`(security, performance) 경고 해소(2026-10-20): performance 경고 0건. security는 의도된 `SECURITY DEFINER` 3건(`complete_patrol`·`save_patrol_draft`·`swap_quick_tag_order`, 본문에서 `is_staff`/`is_admin` 재검사)을 수용하고, `auth_leaked_password_protection`은 Supabase 대시보드(Authentication) 설정이라 **사용자가 직접 켠다**(요금제 제약 여부 확인 필요, 켜지 못하면 수용 사유 기록)
     - ✅ 보안 보완 마이그레이션 2건 적용(2026-10-20, 원격 버전과 로컬 파일명 일치): `20261020180016_hide_patrol_logs_client_request_id`(`patrol_logs`의 테이블 단위 SELECT를 컬럼 단위 SELECT로 바꿔 DB 전용 멱등 키 `client_request_id`를 anon·authenticated 조회에서 제외, Task 023의 미확인 사항 해소. 이후 컬럼을 추가하면 화면이 읽어야 할 때만 GRANT 목록에 명시) · `20261020180232_reject_null_revision_in_patrol_rpcs`(`save_patrol_draft`·`complete_patrol`의 `revision` 비교를 `<>`에서 `is distinct from`으로 바꿔 `NULL`이 충돌 검사를 통과하던 문제 차단)
     - ✅ 전역 `error.tsx`/`global-error.tsx`/`not-found.tsx` 한국어 화면(2026-10-20, Next 16.4 문서의 `retry` 사용)
-    - [ ] 로딩 스켈레톤 점검
-    - [ ] 접근성: 버튼 `aria-label`, 저장 상태 `aria-live`, 포커스 이동(다이얼로그), 색 대비(다크 모드 포함)
-    - [ ] Lighthouse(모바일) 성능·접근성 점수 확인, 불필요한 클라이언트 번들(lucide 개별 import 등) 점검
+    - ✅ 로딩 스켈레톤 점검(2026-10-21): 헤더·`/logs`·순찰·태그 관리·로그인에 `<Suspense fallback>` 스켈레톤이 있음을 코드로 확인(화면에서 시각 확인은 하지 않음)
+    - ✅ 접근성(2026-10-21): 버튼·입력 `aria-label`, 저장 상태 `role="status"`(polite), 삭제 `alertdialog`(제목·설명 연결, 포커스가 `취소`로 이동, `Escape` 후 열었던 버튼으로 복귀), 다크 모드 색 대비(Lighthouse 접근성 100) 확인. 수정 3건: 순찰 좌석 구역 제목과 `/logs` 메모 제목을 `h3` → `h2`(제목 순서 `heading-order` 해소), 순찰 완료 버튼을 `disabled` → `aria-disabled`(완료 중 포커스가 `body`로 떨어지던 문제)
+    - ✅ Lighthouse(모바일, 프로덕션 빌드 `next start`)(2026-10-21): 성능·접근성 — `/logs` 94·100, `/auth/login` 96·100, `/protected/patrol`(qa-manager) 94·100(수정 전 순찰 화면은 93·98). 다크 모드도 세 화면 접근성 100. 번들 조치는 점수가 충분해 하지 않음(lucide는 이미 개별 import)
     - ✅ `hasEnvVars` 튜토리얼 분기와 `env-var-warning` 제거(2026-10-20), `CLAUDE.md`·`docs/guides/project-structure.md`를 실제 구조로 갱신. 결정: 환경 변수가 없으면 `proxy.ts`의 `createServerClient`가 바로 실패하도록 둔다(운영에서는 두 값이 필수이므로 조용히 우회하는 것보다 빨리 실패하는 쪽이 안전)
   - 완료 기준: advisors 경고 0(또는 수용 사유 기록), Lighthouse 모바일 접근성 90 이상, `npm run check`와 `npm run build` 통과.
   - 테스트 체크리스트:
     - 정상: `browser_navigate → /logs/없는경로 → 한국어 404`(비로그인의 공개 경로 밖 알 수 없는 경로는 `proxy.ts`가 먼저 `/auth/login?next=`로 보내므로 404가 아니라 로그인 화면이 정상이다)
     - 엣지: 키보드만으로 순찰 입력 → 완료, `/logs`에서 복사 가능
-  - 테스트 결과: (일부 수행) 2026-10-20 `npm run check`·`npm run build` 통과. Playwright MCP + 개발 서버로 `/logs/없는경로`가 상태 404와 한국어 404 화면(헤더·푸터 유지)을 보이고, 임시 오류 라우트에서 한국어 오류 화면과 [다시 시도](재렌더링 재시도)가 동작하며 hydration 경고 0건(임시 라우트는 삭제). DB는 롤백되는 `DO` 블록으로 anon의 `client_request_id` 조회 `42501`, anon·pending의 RPC `42501`, `NULL` revision `conflict`, 정상 `ok`/`duplicate`, 본인 기록 수정 1행·타인 수정/삭제 0행을 확인했고 `get_advisors`는 새 경고 없음. 미확인: `global-error.tsx` 화면(루트 레이아웃 오류가 필요해 빌드·타입 검사만 통과), 접근성·Lighthouse·키보드 전용 시나리오·로딩 스켈레톤(남은 항목은 미수행).
+  - 테스트 결과: (일부 수행) 2026-10-20 `npm run check`·`npm run build` 통과. Playwright MCP + 개발 서버로 `/logs/없는경로`가 상태 404와 한국어 404 화면(헤더·푸터 유지)을 보이고, 임시 오류 라우트에서 한국어 오류 화면과 [다시 시도](재렌더링 재시도)가 동작하며 hydration 경고 0건(임시 라우트는 삭제). DB는 롤백되는 `DO` 블록으로 anon의 `client_request_id` 조회 `42501`, anon·pending의 RPC `42501`, `NULL` revision `conflict`, 정상 `ok`/`duplicate`, 본인 기록 수정 1행·타인 수정/삭제 0행을 확인했고 `get_advisors`는 새 경고 없음. 미확인: `global-error.tsx` 화면(루트 레이아웃 오류가 필요해 빌드·타입 검사만 통과).
+    - 2026-10-21 추가 수행: 프로덕션 빌드에서 qa-manager로 키보드 전용 시나리오(`Tab`으로 스탠딩 입력 → `Enter` 추가 → 퀵 태그 `Space` → `순찰 완료` `Enter` → `/logs` 복사 `Enter`)를 통과했고(복사 문구 `15:09 순찰 → 완료 (퇴실자 탭 디스플레이 종료)`, 스탠딩은 설계상 제외), 수정 후 `npm run check`·`npm run build` 통과, 콘솔 에러·hydration 경고 없음. QA 점검용으로 순찰 기록 2건을 만들었다(Task 026-D에서 정리). 점검에 쓴 qa-manager 임시 비밀번호는 원래 해시로 복원했다.
+    - **미해결(별도 수정 필요)**: 프로덕션 빌드에서 이메일 로그인에 성공(토큰 200, 헤더에 사용자 표시)해도 `router.push(next)`가 이동하지 않고 `/auth/login?next=...`에 머문다(2회 재현, 직접 이동하면 정상). `login-form.tsx`가 `push` 직후 `router.refresh()`를 호출하는 것이 의심되나 원인은 확정하지 않았다. 실기기 검증(Task 024)과 운영 스모크(Task 026-C) 전에 고쳐야 한다. 또 로그아웃 직후 `/auth/login?next=...` RSC 프리페치 1건이 404로 찍힌 적이 있으나 재현되지 않았다.
 
 - **Task 026: 운영 배포 및 출시 준비**
   - 관련 기능: 전체
