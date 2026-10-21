@@ -19,7 +19,8 @@ export function DatePickerInput({ date }: DatePickerInputProps) {
       name="date"
       value={date}
       aria-label="이동할 날짜"
-      className="h-12 w-full min-w-0"
+      // appearance-none: iOS Safari의 네이티브 날짜 입력란은 border-box를 무시하고 패딩·테두리를 폭에 더해 옆 버튼과 겹친다
+      className="h-12 w-full max-w-full min-w-0 appearance-none"
       onChange={(event) => {
         const value = event.target.value;
         if (!value) return;

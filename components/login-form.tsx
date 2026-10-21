@@ -20,7 +20,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 export function LoginForm({
@@ -32,7 +31,6 @@ export function LoginForm({
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const router = useRouter();
 
   const handleLogin = async (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -46,12 +44,12 @@ export function LoginForm({
         password,
       });
       if (error) throw error;
-      // 클라이언트에서도 한 번 더 검증해 사이트 내부 경로로만 복귀한다
-      router.push(getSafeNextPath(next));
-      router.refresh();
+      // 로그아웃 상태에서 프리페치한 보호 경로의 로그인 리디렉션이 클라이언트 라우터 캐시에
+      // 남아 있어 router.push는 로그인 화면으로 되돌아간다. 전체 이동으로 캐시를 버린다.
+      // 클라이언트에서도 한 번 더 검증해 사이트 내부 경로로만 복귀한다.
+      window.location.assign(getSafeNextPath(next));
     } catch (error: unknown) {
       setError(getAuthErrorMessage(error));
-    } finally {
       setIsLoading(false);
     }
   };

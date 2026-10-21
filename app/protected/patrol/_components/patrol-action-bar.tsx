@@ -1,6 +1,7 @@
 import { Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { useKeyboardInset } from "@/hooks/use-keyboard-inset";
 import { cn } from "@/lib/utils";
 
 /**
@@ -25,20 +26,24 @@ export function PatrolActionBar({
   onComplete,
   className,
 }: PatrolActionBarProps) {
+  // 가상 키보드가 올라오면 바를 키보드 위로 올린다(--keyboard-inset)
+  useKeyboardInset();
+
   return (
     <div
       className={cn(
-        "fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur",
+        "fixed inset-x-0 bottom-[var(--keyboard-inset,0px)] z-40 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur",
         className,
       )}
     >
       <div className="mx-auto flex w-full max-w-5xl items-center p-3 sm:p-4">
         <Button
           type="button"
-          className="min-h-12 flex-1 text-lg"
-          disabled={completing}
+          className="min-h-12 flex-1 text-lg aria-disabled:pointer-events-none aria-disabled:opacity-50"
+          // disabled를 쓰면 포커스를 가진 버튼이 비활성화되며 포커스가 body로 떨어진다
+          aria-disabled={completing}
           aria-busy={completing}
-          onClick={onComplete}
+          onClick={completing ? undefined : onComplete}
         >
           {completing && (
             <Loader2 className="animate-spin" aria-hidden="true" />

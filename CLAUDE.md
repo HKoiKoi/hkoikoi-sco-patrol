@@ -56,16 +56,16 @@ Next.js 16 App Router + Supabase Auth(`@supabase/ssr`) 스타터 기반 프로�
 - 로그인 후·로그아웃 후 이동 경로는 `/logs`다. 원래 화면으로 돌아가는 `next` 파라미터는 사이트 내부 경로만 허용하는 `getSafeNextPath()`(`lib/auth/safe-next.ts`)로 검증하고 로그인 폼, Google 버튼, `/auth/callback`, `/auth/confirm`이 모두 이 함수를 쓴다. 로그아웃 시 `localStorage`의 `draft:` 백업 키를 모두 지운다.
 - Cache Components 환경이므로 쿠키·DB를 읽는 컴포넌트는 `<Suspense>` 경계 안에 두고 로딩 표시를 제공한다. 현재 시각을 읽기 전에는 `await io()`를 호출한다(`node_modules/next/dist/docs` 참고).
 - Supabase 클라이언트는 `lib/supabase/client.ts`(브라우저)와 `lib/supabase/server.ts`(서버)로 나뉜다. 서버 클라이언트는 전역 변수에 보관하지 말고 요청마다 `await createClient()`로 만든다.
-- `lib/utils.ts`의 `hasEnvVars`는 env 미설정 시 proxy 검사와 일부 UI를 건너뛰는 튜토리얼용 플래그다.
+- 환경 변수(`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`)가 없으면 `proxy.ts`의 `createServerClient`가 바로 실패한다(`hasEnvVars` 우회 분기는 Task 025에서 제거). 로컬·운영 모두 두 값을 반드시 설정한다.
 - 이메일 확인은 `app/auth/confirm/route.ts`, 인증 화면은 `app/auth/*`, 로그인 후 영역은 `app/protected/*`다.
 
 ### 현재 상태
 
-`components/tutorial/*`, `hero`, `deploy-button` 등은 스타터 템플릿 잔재이며 점차 실제 기능으로 교체 예정이다(`.claude/agents/dev/starter-cleaner.md` 참고). 템플릿 코드를 기준 패턴으로 간주하지 말 것.
+스타터 템플릿 잔재(`components/tutorial/*`, `hero`, `deploy-button`, `env-var-warning`, `hasEnvVars`)는 정리를 마쳤다. 인증 폼 등 일부 스타터 유래 코드가 남아 있으므로 템플릿 코드를 기준 패턴으로 간주하지 말 것. 전역 `error.tsx` / `global-error.tsx` / `not-found.tsx`는 한국어 화면이며 `retry`(Next 16.3+ stable)를 쓴다.
 
 ## 참고 문서 / 도구
 
-- `docs/PRD.md`(요구사항·데이터 모델·RLS 규칙), `docs/ROADMAP.md`(Phase 0~6, Task 000~026 진행 현황) — 기능 구현 전에 해당 Task와 PRD 절을 먼저 읽는다. PRD와 ROADMAP은 서로 맞춰 유지하며, 한쪽을 바꾸면 다른 쪽도 갱신한다.
+- `docs/PRD.md`(요구사항·데이터 모델·RLS 규칙), `docs/ROADMAP.md`(Phase 0~6, Task 000~027 진행 현황) — 기능 구현 전에 해당 Task와 PRD 절을 먼저 읽는다. PRD와 ROADMAP은 서로 맞춰 유지하며, 한쪽을 바꾸면 다른 쪽도 갱신한다.
   - 별도 `tasks/` 파일은 만들지 않고 ROADMAP의 Task 항목에 직접 기록한다. 완료한 Task만 ✅ 표시와 테스트 결과를 반영하고, 한 Task를 마치면 멈추고 다음 지시를 기다린다.
   - 모든 Task의 완료 조건: `npm run check` 통과, 관련 화면의 Playwright MCP 시나리오 통과, 콘솔 에러·hydration 경고 없음.
   - 테스트 러너가 없으므로 순수 함수는 커밋하지 않는 임시 스크립트(Node 24 `node check.ts`), DB는 Supabase MCP `execute_sql`(트랜잭션 안에서 `set local role` / `request.jwt.claims`로 사용자 흉내 후 `rollback`)과 `get_advisors`, 화면은 Playwright MCP로 검증한다.

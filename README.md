@@ -26,7 +26,7 @@ SCO 관리형 독서실의 30분 간격 순찰 업무를 스마트폰/태블릿�
 
 ## 개발 진행
 
-[`docs/ROADMAP.md`](docs/ROADMAP.md)가 Phase 0~6, Task 000~026 단위로 진행 현황을 관리합니다.
+[`docs/ROADMAP.md`](docs/ROADMAP.md)가 Phase 0~6, Task 000~027 단위로 진행 현황을 관리합니다.
 
 | Phase | 내용                                                                 |
 | ----- | -------------------------------------------------------------------- |
@@ -70,7 +70,7 @@ SCO 관리형 독서실의 30분 간격 순찰 업무를 스마트폰/태블릿�
 
    [localhost:3000](http://localhost:3000/)에서 확인합니다.
 
-> 복사 기능은 HTTPS에서만 동작합니다. 실기기 테스트 시 `http://192.168.x.x` 접속에서는 복사가 막히므로 HTTPS 터널을 사용하세요.
+> 복사 기능은 HTTPS(보안 컨텍스트)에서만 동작합니다. 실기기 테스트 시 `http://192.168.x.x` 접속에서는 복사가 막히므로 배포된 HTTPS 주소에서 확인하세요(도메인 전환 전에는 임시 주소 `https://hkoikoi-sco-patrol.vercel.app`). 터널을 쓰려면 `next.config.ts`의 `allowedDevOrigins`에 터널 호스트가 필요합니다(`*.trycloudflare.com`, `*.ngrok-free.app` 등록됨).
 
 ## 명령어
 
@@ -90,6 +90,15 @@ npm run check        # typecheck + lint + format:check
 
 ## 운영 메모
 
+- **운영 환경 변수**: 호스팅(예: Vercel)에는 아래 두 값만 입력합니다. 둘 다 `NEXT_PUBLIC_` 접두사라 브라우저에 노출되는 공개 값이며 RLS·RPC가 권한을 지키므로 service role 키는 쓰지 않습니다. `DATA_DIR`, `TEMPLATES_USE`, `ENABLE_GUI`는 shrimp-task-manager MCP용이라 운영에는 넣지 않습니다.
+
+  | 변수                                   | 값                                 |
+  | -------------------------------------- | ---------------------------------- |
+  | `NEXT_PUBLIC_SUPABASE_URL`             | Supabase 프로젝트 URL              |
+  | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase publishable(또는 anon) 키 |
+
+- **마이그레이션 대조**: `supabase/migrations/` 15개 파일이 원격 `list_migrations` 15건과 버전·이름까지 일치합니다(2026-10-21 기준). 새 마이그레이션을 추가하면 배포 전에 같은 방식으로 다시 대조합니다.
+- **퀵 태그 시드**: 5종(퇴실자 탭 디스플레이 종료, 화장실 정리, 제빙기 물 보충, 정수기 및 커피머신 청소, 전 열람실 에어컨 종료)이 `sort_order` 1~5로 활성 상태입니다.
 - **역할 지정**: 신규 가입자는 모두 `pending`입니다. Supabase 대시보드 Table Editor에서 `profiles.role`을 `manager` 또는 `admin`으로 바꿉니다. 첫 관리자도 같은 방식으로 직접 지정합니다. `role`은 앱에서 변경할 수 없습니다.
 - **강등**: 사용자를 삭제하지 말고 `pending`으로 강등합니다. 이후 작성·수정·삭제가 막히고 과거 기록의 작성자 이름은 유지됩니다.
 - **인증 설정(수동)**: 이메일 확인 메일 템플릿 링크를 `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/logs`로 바꾸고, Site URL과 Redirect URLs(`/auth/callback`, `/auth/confirm`, 로컬·HTTPS 터널·운영 도메인), Google OAuth 승인된 리디렉션 URI를 등록합니다.
@@ -106,6 +115,11 @@ npm run check        # typecheck + lint + format:check
   | `qa-manager2` | `koikoilove99+qa-manager2@gmail.com` | `manager` |
   | `qa-pending`  | `koikoilove99+qa-pending@gmail.com`  | `pending` |
 
-  운영 배포 전에 QA 계정을 삭제하거나 `pending`으로 강등합니다.
+  개발 DB와 운영 DB는 같은 Supabase 프로젝트입니다. 운영 스모크 테스트(Task 026-C)에서 `qa-manager`를 쓴 뒤, 026-D에서 QA 계정 4개와 테스트 순찰 기록을 모두 삭제합니다. 실사용 계정(첫 관리자 `koikoilove99@gmail.com`)은 유지합니다.
 
-- 실기기 확인 결과와 운영 절차는 ROADMAP Task 015, 024, 026 진행에 맞춰 이 절에 보강합니다.
+- **실기기 확인 메모**(Task 024, 2026-10-21): Galaxy Z Fold8(Android 17, Chrome 155), iPad Air 11(iPadOS 27.0.1, Safari), MacBook Air(Chrome 156)에서 확인했다.
+  - 복사: Android 13 이상은 앱이 클립보드에 쓰면 시스템이 하단에 "복사했어요" 토스트를 띄워 앱 토스트(하단)와 겹친다. 앱에서 끌 수 없으므로 앱 토스트를 상단(헤더 아래)에 띄운다(Task 027).
+  - 카카오톡 인앱 브라우저: 안내 문구가 노출되고 Google 로그인이 동작했다. 인앱으로 열려면 카카오톡 "나와의 채팅"에 주소를 보내 링크를 누른다.
+  - iPad에 외장 키보드를 붙이면 화면 키보드가 올라오지 않아 키보드 가림 점검이 안 된다. 점검할 때는 키보드를 떼거나 화면 키보드로 전환한다.
+  - 가상 키보드: `visualViewport`로 키보드가 가린 높이를 계산해 하단 [순찰 완료] 바를 키보드 위에 붙인다(Task 027). 폴드 Chrome과 iPad Safari에서 확인했고 iPhone 크기 화면은 기기가 없어 확인하지 못했다.
+  - 도메인: `sco.hkoikoi.dev`를 기존 앱이 사용 중이라 임시 주소에서 검증했다. 전환 절차는 Task 026을 따른다.

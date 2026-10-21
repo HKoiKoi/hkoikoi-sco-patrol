@@ -1,5 +1,7 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+
 import { usePatrolDraft } from "@/hooks/use-patrol-draft";
 import type { AuthenticatedViewer } from "@/lib/types/auth";
 import type {
@@ -31,10 +33,13 @@ export function PatrolForm({
   quickTags,
   initialDraft,
 }: PatrolFormProps) {
+  const router = useRouter();
   const { state, dispatch, handleComplete, flushing } = usePatrolDraft({
     userId: viewer.userId,
     adapter,
     initialDraft,
+    // 순찰 완료 후 방금 기록을 일지 목록에서 확인할 수 있게 이동한다
+    onCompleted: () => router.push("/logs"),
   });
 
   return (
