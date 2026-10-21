@@ -90,6 +90,8 @@ interface UsePatrolDraftOptions {
   adapter: PatrolDraftAdapter;
   /** 서버가 조회한 본인 초안 (행이 없으면 revision 0의 빈 초안) */
   initialDraft: PatrolDraft;
+  /** 완료 응답이 ok·duplicate로 확정되고 입력이 초기화된 직후 한 번 호출된다(conflict·실패에서는 호출하지 않는다). */
+  onCompleted?: () => void;
 }
 
 interface UsePatrolDraftResult {
@@ -105,6 +107,7 @@ export function usePatrolDraft({
   userId,
   adapter,
   initialDraft,
+  onCompleted,
 }: UsePatrolDraftOptions): UsePatrolDraftResult {
   const [state, rawDispatch] = useReducer(
     patrolFormReducer,
@@ -325,9 +328,10 @@ export function usePatrolDraft({
           });
           clearDraftBackup(userId);
           needsBackupRef.current = false;
-          // 복사·다음 순찰 버튼이 없으므로 완료 즉시 다음 순찰 입력 상태로 돌아간다.
+          // 입력은 바로 비워 두어, 일지 목록에서 뒤로 돌아와도 다음 순찰 입력 상태다.
           dispatch({ type: "NEXT_PATROL" });
           toast.success("순찰 완료 기록됨");
+          onCompleted?.();
         }
       } catch (error) {
         if (error instanceof PatrolDraftNetworkError) {

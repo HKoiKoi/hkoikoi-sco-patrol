@@ -76,7 +76,7 @@ function SeatSection({
         SEAT_CATEGORY_COLORS[category],
       )}
     >
-      <h3 className="flex items-center gap-1.5 text-xl font-semibold">
+      <h2 className="flex items-center gap-1.5 text-xl font-semibold">
         <Icon className="size-6 shrink-0" aria-hidden="true" />
         <span className="break-words">{label}</span>
         <span className="ml-auto text-base tabular-nums">
@@ -84,7 +84,7 @@ function SeatSection({
           {seats.length}
           <span className="sr-only">개</span>
         </span>
-      </h3>
+      </h2>
 
       <form onSubmit={handleSubmit} className="flex min-w-0 gap-2">
         <Input
