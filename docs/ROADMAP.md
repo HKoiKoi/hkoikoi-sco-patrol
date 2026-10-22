@@ -791,54 +791,57 @@ PRD "3. 운영 후 추가 기능"(F12~F14)과 "복사 문구 형식" 변경을 �
     - 엣지: 당일 일지 없음/두 배열 모두 비어 있음 → 채우지 않음, 초안에 메모만 있음 → 덮어쓰지 않음, 다른 매니저의 일지가 최신 → 그 값으로 채움, 영업일 경계(03:59/04:00) 전후, 완료 직후 재진입 시 같은 값이 다시 채워짐
   - 테스트 결과(2026-10-22): `npm run check` 통과. 순수 함수는 커밋하지 않는 임시 스크립트(스크래치 `check.ts`, `@/` 별칭 리졸버 훅 사용)로 확인했다: `getBusinessDate` 03:59 KST → 전일(10/21), 04:00 KST → 당일(10/22), 03:59:59.999 → 전일. `applyPrefill`은 빈 초안 → 병합(`applied: true`), 메모만·졸음만 있는 초안과 prefill `null` → 병합 안 함. QA 계정(`qa-*`)이 현재 DB에 없어 사용자 승인 아래 실제 `admin` 계정 `hhak3504@naver.com`(함상현)으로 Playwright MCP + 개발 서버에서 수행했다. ① 당일 일지 0건 → `/protected/patrol` 진입 시 스탠딩·카페존 0개, 채우지 않음. ② 스탠딩 3·카페존 7 입력 후 [순찰 완료] → `/logs` 이동, `patrol_logs`에 `standing [3]`·`cafe_zone [7]` 기록. ③ `/protected/patrol` 재진입 → 칩 3·7, "저장됨 12:12", `save_patrol_draft` 1회(개발 서버 StrictMode 포함, 200), DB 초안 `[3]`·`[7]`·`revision 13` 저장 확인(완료 직후 재진입 시 같은 값이 다시 채워짐). ④ `execute_sql`로 초안을 메모만("QA029 메모만")으로 만들고 재진입 → 메모 유지, 칩 0개, 저장 RPC 호출 없음(덮어쓰지 않음). ⑤ 초안을 비우고 다른 작성자(`koikoilove99@gmail.com`)의 더 최신 일지(스탠딩 5, 카페존 9)를 `execute_sql`로 넣고 재진입 → 칩 5·9로 채워지고 "저장됨", `save_patrol_draft` 1회. ⑥ 콘솔: warning 이상 에러 0·경고 0(hydration 경고 없음). 테스트로 만든 일지 2건(`id` 지정 삭제)을 지우고 `patrol_drafts`를 빈 값으로 되돌렸다. PRD F12와 구현이 일치함을 확인했다(빈 초안일 때만 병합, 작성자 무관 최신 일지, 졸음/딴짓·자리비움·메모는 채우지 않음, 채움 직후 자동 저장, `revision` 유지). 미확인: 조회 실패 경로(`getLatestStandingCafeZone`이 `error` 또는 행 없음에서 `null`을 돌려주는 코드와 `null` prefill에서 `applyPrefill`이 병합하지 않는 것만 확인, 실제 DB 오류는 재현하지 않음), 두 배열이 모두 빈 일지의 실제 조회(코드 `length === 0` 분기만 확인), 03:59/04:00 전후의 실제 화면 채움(`getBusinessDate`와 DB 영업일 함수 기준으로만 확인), 모바일 뷰포트·다크 모드, 실기기·태블릿, QA 계정(`qa-manager`·`qa-manager2`) 로그인 시나리오(계정 부재로 실제 admin 계정 2개로 대체).
 
-- **Task 030: 좌석 통계 DB 함수**
+- **Task 030: 좌석 통계 DB 함수** ✅
   - 관련 기능: F13, F14
   - 설명: 좌석 번호별 기록 횟수와 요주의 좌석을 DB에서 집계하는 함수 2종을 추가한다.
   - 선행 조건: 없음
   - 관련 파일: `supabase/migrations/<타임스탬프>_create_seat_stats_functions.sql`, `lib/supabase/database.types.ts`(재생성), `lib/stats.ts`(상수 `WATCH_WINDOW_DAYS`, `WATCH_THRESHOLD`, 순수 함수)
   - 구현 사항:
-    - [ ] `get_seat_stats(from_date, to_date)`: `unnest`로 펼쳐 좌석별 스탠딩·카페존·졸음/딴짓 횟수 반환(`security invoker`, `business_date` 범위로 기존 인덱스 사용)
-    - [ ] `get_watchlist_seats(as_of date)`: 최근 30영업일 `drowsy` 5회 이상인 좌석 `int[]` 반환
-    - [ ] 실행 권한은 anon·authenticated만, 기본 PUBLIC 권한 회수. `client_request_id` 등 비공개 컬럼은 읽지 않음. 기준값(30, 5)은 DB 함수 인자로 받아 `lib/stats.ts` 상수 한 곳에서 전달
-    - [ ] `get_advisors`(security, performance) 새 경고 없음
+    - ✅ `get_seat_stats(from_date, to_date)`: `unnest`로 펼쳐 좌석별 스탠딩·카페존·졸음/딴짓 횟수 반환(`security invoker`, `business_date` 범위로 기존 인덱스 사용)
+    - ✅ `get_watchlist_seats(as_of, window_days, threshold)`: `as_of` 포함 최근 `window_days`영업일 `drowsy` `threshold`회 이상인 좌석 `int[]` 반환(실제 시그니처는 계획의 `(as_of date)`에서 기준값을 인자로 받도록 변경)
+    - ✅ 실행 권한은 anon·authenticated만, 기본 PUBLIC 권한 회수. `client_request_id` 등 비공개 컬럼은 읽지 않음. 기준값(30, 5)은 DB 함수 인자로 받아 `lib/stats.ts` 상수 한 곳에서 전달
+    - ✅ `get_advisors`(security, performance) 새 경고 없음
+    - ✅ `lib/supabase/database.types.ts`에 두 함수 타입 병합, `lib/stats.ts`에 `WATCH_WINDOW_DAYS`·`WATCH_THRESHOLD`·`SeatStatRow`·`topSeats` 추가(Task 031용)
   - 완료 기준: 결과가 수동 집계와 일치하고 권한이 PRD와 같다. `npm run check` 통과.
   - 테스트 체크리스트:
     - 정상: 롤백되는 트랜잭션에서 기록 몇 건을 만들어 `get_seat_stats`, `get_watchlist_seats` 결과 대조(`execute_sql`)
     - 오류: 역전된 기간(`from > to`)은 빈 결과, `null` 인자 처리
     - 엣지: 기록이 없을 때 빈 결과, 경계일(윈도우 첫날/마지막 날) 포함 여부, 한 기록 안에서 한 좌석은 1회로 계산, 4번 임계값 정확히 5회/4회, anon·authenticated 모두 호출 가능하고 쓰기 불가
-  - 테스트 결과: (미수행)
+  - 테스트 결과(2026-10-22): `npm run check` 통과. 마이그레이션 `20261022122528_create_seat_stats_functions`를 적용했고 두 함수 모두 `security invoker`, `stable`, `search_path` 고정이며 PUBLIC 실행 권한이 없고 anon·authenticated만 실행 가능함을 `pg_proc`·`has_function_privilege`로 확인했다. `private.is_valid_seats` 본문으로 카테고리 내 중복 불허를 확인했다. 검증은 2099년 날짜의 테스트 행을 `DO` 블록에서 넣고 마지막 예외로 롤백해 수행했다(`patrol_logs` 257행 그대로): 수동 집계와 일치, 역전된 기간·null 인자·기록 없는 기간은 빈 결과/빈 배열, 윈도우 첫날(`as_of-29`)과 마지막 날(`as_of`) 포함, `as_of-30` 제외, `drowsy` 정확히 5회 좌석 포함·4회 제외, 자리비움만 든 좌석은 통계에 없음. 한 기록 안의 좌석 중복은 CHECK 제약으로 애초에 거부된다. anon·authenticated 호출 결과는 소유자와 같았고, 두 역할의 `insert`와 anon의 `update`·`delete`는 42501, authenticated의 `update`·`delete`는 0행, `client_request_id` 읽기는 두 역할 모두 42501이었다. `(business_date, patrolled_at)` 인덱스 스캔을 확인했고 `get_advisors`(security, performance)에 새 경고는 없었다. `lib/stats.ts`는 임시 스크립트(스크래치 `check.ts`, 커밋 안 함)로 상수 30·5, `topSeats`의 정렬·동률(좌석 번호 오름차순)·`limit`·빈 입력·0회 제외·입력 불변을 확인했다. 미확인: 함수 자체의 `explain`(인덱스 스캔은 같은 조건의 쿼리로 확인), 실데이터에서의 집계 결과, QA 계정 로그인 상태의 실제 호출(role 흉내로만 확인).
 
-- **Task 031: 좌석 통계 화면**
+- **Task 031: 좌석 통계 화면** ✅
   - 관련 기능: F13, F14
   - 설명: `/logs/stats`에 스탠딩·카페존·졸음/딴짓 TOP 10과 요주의 좌석 목록을 보여 주고 내비게이션에 "통계"를 추가한다.
   - 선행 조건: Task 030
   - 관련 파일: `app/logs/stats/page.tsx`, `app/logs/stats/_components/*`, `components/layout/nav-menu.tsx`(`items` 추가, `/logs` 활성 판정 분리), `components/patrol/seat-chips.tsx`(카테고리 상수 재사용)
   - 구현 사항:
-    - [ ] `app/logs/page.tsx`와 같은 `<Suspense>` + 스켈레톤 구조, 현재 영업일 계산 전 `await io()`
-    - [ ] 빈 상태 안내, 모바일 375px 가로 넘침 없음, 라이트/다크 대비
-    - [ ] 내비게이션에서 `/logs/stats`일 때 "일지 조회"가 같이 활성화되지 않도록 정확 일치 처리
+    - ✅ `app/logs/page.tsx`와 같은 `<Suspense>` + 스켈레톤 구조, 현재 영업일 계산 전 `await io()`(조회는 `lib/queries/seat-stats.ts`의 `getSeatStats`, 요주의 횟수는 `lib/stats.ts`의 `watchlistRows`로 `get_seat_stats` 행과 조인)
+    - ✅ 빈 상태 안내, 모바일 375px 가로 넘침 없음, 라이트/다크 대비(통계 전용 `app/logs/stats/error.tsx` 추가)
+    - ✅ 내비게이션에서 `/logs/stats`일 때 "일지 조회"가 같이 활성화되지 않도록 정확 일치 처리(`/logs` 항목만 `exact`)
   - 완료 기준: 비로그인으로 열람되고 숫자가 Task 030 결과와 일치한다. 콘솔 에러·hydration 경고 없음. `npm run check` 통과.
   - 테스트 체크리스트:
     - 정상: `browser_navigate → /logs/stats (비로그인) → TOP 10 3종과 요주의 목록 표시`
     - 오류: 통계 함수 오류 시 한국어 오류 화면(`error.tsx`)이 나오고 다른 화면은 영향 없음
     - 엣지: 데이터 없음 → 빈 상태, 요주의 없음 → 안내 문구, 375px/820px 뷰포트, 내비 활성 표시
-  - 테스트 결과: (미수행)
+  - 테스트 결과(2026-10-22): `npm run check` 통과. `watchlistRows`는 임시 스크립트(커밋 안 함)로 정렬·동률(좌석 번호 오름차순)·빈 입력·입력 불변을 확인했다. 화면 숫자(스탠딩·카페존·졸음/딴짓 TOP 10 각 10행, 요주의 41·53·35)가 `execute_sql`로 같은 기간(2026-09-23~2026-10-22) `get_seat_stats`·`get_watchlist_seats`를 조회한 결과와 일치했다. 비로그인 요청(`curl`, 쿠키 없음)은 200이고 리디렉션 없이 요주의 섹션이 렌더되며 "퀵 태그 관리"는 노출되지 않았다. Playwright(관리자 세션이 남은 브라우저)에서 375px·820px 가로 넘침 없음(`scrollWidth == clientWidth`), 라이트/다크 대비 양호, 콘솔 에러·경고 0건, `/logs`에서는 "일지 조회"만 `/logs/stats`에서는 "통계"만 `aria-current="page"`임을 확인했다. 오류 경로는 RPC 이름을 임시로 틀리게 바꿔 한국어 오류 화면("통계를 불러오지 못했습니다")과 정상 헤더·내비가 유지됨을 확인한 뒤 원복했다(이때 콘솔에 의도한 `console.error` 3건). 미확인: 비로그인 상태의 Playwright 화면 확인(요청·HTML만 확인), 데이터 없음·요주의 없음 빈 상태의 실제 렌더(현재 실데이터에는 둘 다 해당 없음), 모바일 햄버거 드롭다운의 "통계" 항목 표시, 날짜 경계(04:00 직전·직후) 시점의 기간.
+  - 추가 변경(2026-10-22): 요주의 목록을 5회 이상 중 많은 순 상위 10좌석으로 제한했다(`lib/stats.ts`의 `WATCH_LIST_LIMIT`, `watchlistRows`의 `limit` 인자). 판정(DB)은 전체 좌석에 그대로 적용되어 Task 032의 카드 강조에는 영향이 없다. 임시 스크립트(커밋 안 함)로 15좌석 입력 시 10좌석만 반환, 횟수 내림차순·동률 시 좌석 번호 오름차순, 10좌석 미만·빈 입력, `limit` 인자, 입력 불변을 확인했고 `npm run check`를 통과했다. 미확인: 실데이터에 요주의가 11좌석 이상일 때의 화면(현재 3좌석).
 
-- **Task 032: 요주의 카드 구분 표기**
+- **Task 032: 요주의 카드 구분 표기** ✅
   - 관련 기능: F14
   - 설명: 일지 조회에서 요주의 좌석이 졸음/딴짓에 든 기록 카드를 다른 스타일로 표시한다.
   - 선행 조건: Task 030
   - 관련 파일: `app/logs/page.tsx`(요주의 좌석 병렬 조회), `app/logs/_components/patrol-log-list.tsx`, `app/logs/_components/patrol-log-item.tsx`, `components/patrol/seat-chips.tsx`(강조 prop), 공용 카드 variant(`cva`)
   - 구현 사항:
-    - [ ] 요주의 좌석 목록을 `Promise.all`에 추가해 `PatrolLogItem`에 `watchSeats`로 전달
-    - [ ] 해당 기록 카드에 강조 테두리·배경·"요주의" 배지, 해당 좌석 칩 강조(색에만 의존하지 않음)
-    - [ ] 복사 문구와 수정·삭제 동작은 변경 없음
+    - ✅ 요주의 좌석 목록을 `Promise.all`에 추가해 `PatrolLogItem`에 `watchSeats`로 전달(`getWatchSeats(currentDate)`, 보는 날짜가 아니라 현재 영업일 기준)
+    - ✅ 해당 기록 카드에 강조 테두리·배경·"요주의" 배지, 해당 좌석 칩 강조(색에만 의존하지 않음)
+    - ✅ 복사 문구와 수정·삭제 동작은 변경 없음
   - 완료 기준: 요주의 좌석이 든 기록만 다른 카드로 보이고 나머지 카드는 그대로다. `npm run check` 통과.
   - 테스트 체크리스트:
     - 정상: `browser_navigate → /logs → 요주의 좌석이 든 카드에 "요주의" 배지, 다른 카드는 일반 스타일`
     - 오류: 요주의 조회 실패 시 모든 카드가 일반 스타일로 표시되고 목록은 정상
     - 엣지: 한 기록에 요주의 좌석이 여러 개, 졸음/딴짓이 아닌 카테고리에만 있는 좌석은 강조 없음, 과거 날짜 조회에도 같은 판정, 라이트/다크, 수정·복사 동작 유지
-  - 테스트 결과: (미수행)
+  - 테스트 결과(2026-10-22): `npm run check` 통과. `execute_sql`로 현재 영업일(2026-10-22)의 `get_watchlist_seats(…, 30, 5)` = 35·41·53을 얻고 해당 좌석이 `drowsy`에 든 기록과 화면을 대조했다. `/logs?date=2026-10-21`(과거 날짜, 현재 영업일 기준 판정) 6건은 모두 "요주의" 배지·2px 테두리가 있고, 링은 요주의 좌석 칩에만 붙었다(#1은 `drowsy` 25·35·86 중 35만, #4는 35·41, #2는 35·53). `/logs?date=2026-09-30`은 41이 카페존에만 든 기록 5건을 포함한 7건 전부 강조 없이 일반 카드로 보였다. 375px·820px 가로 넘침 없음, 라이트/다크 모두 배지·테두리·링이 구분되고 대비 양호(스크린샷 확인), 콘솔 에러·경고 0건이다. 복사 버튼은 `navigator.clipboard.writeText` 인자를 가로채 기존 문구(`00:21 순찰 → 완료 (… 5-041 졸아서 깨움)`)가 그대로임을, 수정 버튼은 "순찰 기록 수정" 다이얼로그가 열림을 확인했다. 오류 경로는 RPC 이름을 임시로 틀리게 바꿔 목록 6건이 정상이고 배지·링·강조 테두리가 0건임을 확인한 뒤 원복했다(`git diff`에 `lib/queries/seat-stats.ts` 변경 없음). 미확인: 비로그인 상태의 Playwright 화면(브라우저에 로그인 세션이 남아 있어 수정·삭제 버튼 노출 상태로만 확인), 일반 카드(요주의 좌석 없음)가 섞인 날의 한 화면 비교(날짜별로 전부 강조/전부 일반만 확인), 통계 화면의 칩 표시 불변(코드상 `highlightSeats` 기본값 `[]`로 영향 없음), QA 계정별 화면, 04:00 경계 시점의 현재 영업일 판정.
+  - Task 033 측정 시 `/logs`에 `get_watchlist_seats` 조회 1건이 추가되어(기존 `getPatrolLogsByDate`·`getViewer`와 `Promise.all`로 병렬) 요청 수·소요 시간이 늘어난 상태에서 개선 전을 측정한다.
 
 - **Task 033: 응답 속도 측정·개선**
   - 관련 기능: 전체

@@ -5,6 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getBusinessDate, parseBusinessDateParam } from "@/lib/business-date";
 import { getViewer } from "@/lib/auth/dal";
 import { getPatrolLogsByDate } from "@/lib/queries/patrol-logs";
+import { getWatchSeats } from "@/lib/queries/seat-stats";
 
 import { DateNav } from "./_components/date-nav";
 import { PatrolLogList } from "./_components/patrol-log-list";
@@ -31,15 +32,17 @@ async function LogsContent({ searchParams }: LogsPageProps) {
   const currentDate = getBusinessDate(new Date());
   // 잘못된 date는 리디렉션 없이 현재 영업일로 대체한다.
   const businessDate = parseBusinessDateParam(date) ?? currentDate;
-  const [viewer, logs] = await Promise.all([
+  // 요주의 판정은 보는 날짜와 무관하게 현재 영업일 기준이다.
+  const [viewer, logs, watchSeats] = await Promise.all([
     getViewer(),
     getPatrolLogsByDate(businessDate),
+    getWatchSeats(currentDate),
   ]);
 
   return (
     <div className="space-y-4">
       <DateNav date={businessDate} currentDate={currentDate} viewer={viewer} />
-      <PatrolLogList logs={logs} viewer={viewer} />
+      <PatrolLogList logs={logs} viewer={viewer} watchSeats={watchSeats} />
     </div>
   );
 }

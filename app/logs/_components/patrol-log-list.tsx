@@ -6,10 +6,16 @@ import { PatrolLogItem } from "./patrol-log-item";
 interface PatrolLogListProps {
   logs: PatrolLog[];
   viewer: Viewer;
+  /** 현재 요주의 좌석 번호 (조회 실패 시 빈 배열) */
+  watchSeats?: readonly number[];
 }
 
 // 순찰 기록 카드 목록. 기록이 없으면 빈 상태 문구를 보여 준다.
-export function PatrolLogList({ logs, viewer }: PatrolLogListProps) {
+export function PatrolLogList({
+  logs,
+  viewer,
+  watchSeats = [],
+}: PatrolLogListProps) {
   if (logs.length === 0) {
     return (
       <p className="rounded-lg border border-dashed px-4 py-10 text-center text-sm text-muted-foreground">
@@ -33,6 +39,7 @@ export function PatrolLogList({ logs, viewer }: PatrolLogListProps) {
             log={log}
             viewer={viewer}
             serial={serialById.get(log.id) ?? 0}
+            watchSeats={watchSeats}
           />
         </li>
       ))}
