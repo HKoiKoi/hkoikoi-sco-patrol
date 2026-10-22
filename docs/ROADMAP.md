@@ -12,6 +12,7 @@ SCO 순찰 일지는 SCO 관리형 독서실에서 순찰하는 매니저와 이
 - **일지 조회와 사후 정정 (F08, F09, F10)**: 로그인 없이 영업일별 전체 타임라인을 열람하고, 권한자는 기록 수정/삭제와 자리비움 번호 이동/삭제
 - **인증과 역할 (F01)**: Google/이메일 로그인, `pending` → `manager`/`admin` 승인 기반 운영
 - **퀵 태그 관리 (F11)**: 관리자가 태그 추가/수정/순서 변경/노출 전환/삭제
+- **운영 후 개선 (F12~F14, Phase 7)**: 복사 문구 열람실-좌석 코드(`3-023`) 표기, 순찰 시작 시 직전 스탠딩·카페존 자동 채움, 좌석 통계 화면, 요주의 좌석 카드 구분, 응답 속도 개선
 
 ### 기술 스택 요약
 
@@ -84,6 +85,8 @@ SCO 순찰 일지는 SCO 관리형 독서실에서 순찰하는 매니저와 이
 | F10     | 자리비움 사후 처리  | 004, 007, 011, 013, 019, 023                               |
 | F11     | 퀵 태그 관리        | 004, 009, 011, 013, 014, 022, 023                          |
 
+운영 후 추가(Phase 7): F06(복사 문구 변경) → 028, F12 → 029, F13 → 030·031, F14 → 030·032, 응답 속도 → 033
+
 ## Task 의존성 요약
 
 ```
@@ -103,6 +106,10 @@ Phase 0 (완료)
                         │
   Phase 6 (실행 순서): 025 품질/성능/보안 → 026 배포(배포 준비·호스팅·인증 설정)
                         → 024 실기기·환경 검증(배포된 HTTPS 주소) → 026 운영 스모크·QA 정리
+                        │
+  Phase 7 (운영 후 개선): 028 복사 표기 · 029 자동 채움 · 030 통계 DB 함수  (서로 병렬)
+                        → 031 통계 화면 · 032 요주의 카드  (030 이후)
+                        → 033 성능 측정·개선  (028~032 이후, 새 조회가 늘린 비용까지 측정)
 ```
 
 - Phase 2·3은 DB 없이 Task 002의 타입 계약만으로 진행한다. Phase 2의 세 Task는 서로 병렬로 진행할 수 있고, Phase 3의 Task 007~010은 Task 006 이후 병렬로 진행할 수 있다.
@@ -662,7 +669,7 @@ Phase 0 (완료)
     - 엣지: 영업일 경계 데이터(03:59/04:00 완료로 조정한 기록)가 올바른 날짜에 표시
   - 테스트 결과(2026-10-20): 코드 변경 없이 Playwright MCP + 개발 서버, Supabase MCP, curl로 수행했다. `npm run check`와 `npm run build`는 시작 전과 종료 후 모두 통과했고 `get_advisors`(security)는 Task 022와 같다(의도된 `SECURITY DEFINER` 3건 + 기존 `auth_leaked_password_protection`, 새 경고 없음). 결과: ① 비로그인 `/logs` 열람, [새 순찰 일지 작성]이 `/auth/login?next=%2Fprotected%2Fpatrol`과 "로그인이 필요합니다" 토스트로 이동, 로그인 후 `/protected/patrol` 복귀, `/protected/admin/tags` 직접 접근도 `next`가 유지되고 비로그인 `/logs`의 복사 버튼은 동작하며 수정·삭제 버튼은 없음 ② `qa-pending`은 로그인하면 `next=/protected/admin/tags`여도 `/logs?notice=pending`으로 가고, "관리자 승인이 완료되지 않아 작성할 수 없습니다" 안내가 표시되며, 작성 버튼을 눌러도 `/logs`에 머물고, 두 보호 경로 직접 접근은 모두 `/logs?notice=pending`으로 돌아오며, 헤더에 `퀵 태그 관리` 없음 ③ `qa-manager`가 입력하면 DB 초안이 즉시 갱신(revision 25→26), 두 번째 탭에 그대로 복원되고 거기서 이어쓰기(27), 오래된 탭에서 입력하면 "충돌" 표시와 [서버 내용]으로 복원되며 DB는 변경되지 않음, 완료 시 `patrol_logs` 생성과 초안 초기화, 다음 순찰도 정상, `/logs` 복사 문구는 개행·탭 없는 한 줄(퀵 태그 줄바꿈은 `, `로 연결, 좌석 번호는 PRD대로 미포함), 본인 기록 수정과 자리비움→카페존 이동이 DB에 반영 ④ `qa-manager2`는 화면에서 타인 기록의 수정·삭제 버튼이 없고 롤백되는 `DO` 블록에서 타인 기록 update/delete가 0행, 직접 insert가 `42501` ⑤ 로그아웃은 `localStorage`의 `draft:` 키를 모두 지우고 다른 키는 유지(키를 심은 경우와 강등 중 실제로 생긴 백업 두 경우 모두 확인) ⑥ `qa-admin`이 `[QA023]` 태그 2개를 추가(`sort_order` 6, 7)하고 위로 이동, 숨김하면 순찰 화면에 숨기지 않은 태그만 순서대로 표시되며, 타인 기록 수정(작성자 유지)과 확인 다이얼로그를 거친 삭제가 성공 ⑦ 순찰 화면을 연 채 `qa-manager`를 SQL로 pending 강등하면 `save_patrol_draft`가 403이 되어 "저장 실패 (기기에 임시 저장)"와 `draft:` 백업이 남고, [순찰 완료]는 flush 재시도 3회 403 후 진행되지 않으며(`patrol_logs` 건수 유지), `/logs`의 본인 기록은 수정·삭제 버튼이 사라지지만 작성자 이름은 유지, DB에서는 update/delete 0행과 `save_patrol_draft`·`complete_patrol` `42501`(롤백 `DO` 블록), 원복 후 역할 4개 확인 ⑧ anon(publishable 키) curl: `profiles`·`patrol_drafts` 조회, `patrol_logs`·`patrol_drafts` insert, `patrol_logs` update·delete, RPC `save_patrol_draft`·`complete_patrol`·`swap_quick_tag_order`가 모두 401(`42501`), `patrol_logs`·`staff_names`(pending 제외)·`quick_tags`(활성만, 숨긴 태그 미노출) 조회는 PRD대로 200 ⑨ `private.business_date_of()`가 03:59:59는 전날, 04:00:00은 당일로 계산하고, 기록의 `patrolled_at`·`business_date`를 03:59/04:00 KST로 조정하면 `/logs?date=`에서 각각 전날·당일에만 `03:59`·`04:00`으로 표시되며, 잘못된 `?date=2026-13-45`는 리디렉션 없이 현재 영업일 ⑩ 콘솔 에러·경고와 hydration 경고는 없고, 에러는 강등 시나리오의 의도된 `save_patrol_draft` 403(브라우저의 실패 요청 로그)뿐. 테스트 데이터(`[QA023]` 태그 2건, 기록 1건)는 삭제했고 기록 0건, `quick_tags` 초기 5종(순서 1~5, 모두 활성), QA 4계정의 역할과 `auth.users.encrypted_password` 원본 해시 복원을 대조로 확인했다(임시 비밀번호는 문서에 기록하지 않음). `qa-manager`의 빈 초안은 내용은 같고 revision만 25→31로 올라 있다. 미확인: 실기기·태블릿(Task 024), 오프라인 시 `draft:` 백업의 복원과 강등 계정으로 재로그인했을 때의 복원 동작, `patrol_logs.client_request_id`가 anon에게 공개 컬럼인 것이 PRD 의도인지, 개행 입력의 화면 경로. 관찰 사항(Task 023 범위 밖, 수정하지 않음): `/logs?notice=pending`의 안내가 로그인 직후뿐 아니라 직접 이동에서도 2개 표시된다(Task 022 기록의 "직접 이동은 1개"와 다르며 이동 중 페이지 로드가 두 번 기록됨, 원인 미확인). 실패 항목 없음(환원한 Task 없음).
 
-### Phase 6: 실기기 검증, 최적화, 배포
+### Phase 6: 실기기 검증, 최적화, 배포 ✅
 
 - **Task 024: 실기기 및 운영 환경 검증** ✅
   - 관련 기능: F01, F06, F07
@@ -711,11 +718,11 @@ Phase 0 (완료)
   - 유의: Supabase 프로젝트가 개발·운영 공용이면 실기기 검증 중 만든 QA 계정·테스트 기록이 운영 DB에 생기므로, 테스트 기록 메모에 식별 접두사(예: `[SMOKE026]`)를 붙이고 정리는 마지막 단계에서 대상 확인과 사용자 승인 뒤에 한다.
   - 관련 파일: `.env.example`, `README.md`
   - 구현 사항:
-    - [x] 운영 환경 변수(`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`) 설정, HTTPS 도메인 확인
-    - [x] Supabase Site URL을 운영 도메인으로 변경하고 Redirect URLs(`/auth/callback`, `/auth/confirm`, 등록 완료 여부 재확인), Google OAuth 승인된 리디렉션 URI를 운영 도메인으로 갱신
-    - [x] 마이그레이션 원격 적용 상태(`list_migrations`)와 로컬 파일 일치 확인(2026-10-20 기준 원격 15개, 로컬 15개 일치), 퀵 태그 seed 확인
-    - [x] 첫 관리자 지정(대시보드에서 `profiles.role = 'admin'`) 및 매니저 승격 절차를 README에 정리, QA 계정 정리
-    - [x] 운영 도메인에서 Task 023 핵심 여정 스모크 테스트
+    - ✅ 운영 환경 변수(`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`) 설정, HTTPS 도메인 확인
+    - ✅ Supabase Site URL을 운영 도메인으로 변경하고 Redirect URLs(`/auth/callback`, `/auth/confirm`, 등록 완료 여부 재확인), Google OAuth 승인된 리디렉션 URI를 운영 도메인으로 갱신
+    - ✅ 마이그레이션 원격 적용 상태(`list_migrations`)와 로컬 파일 일치 확인(2026-10-20 기준 원격 15개, 로컬 15개 일치), 퀵 태그 seed 확인
+    - ✅ 첫 관리자 지정(대시보드에서 `profiles.role = 'admin'`) 및 매니저 승격 절차를 README에 정리, QA 계정 정리
+    - ✅ 운영 도메인에서 Task 023 핵심 여정 스모크 테스트
   - 완료 기준: 운영 URL에서 로그인 → 순찰 완료 → 일지 조회 → 복사가 동작한다.
   - 테스트 체크리스트:
     - 정상: `browser_navigate → 운영 URL/logs → 200, 기록 표시`
@@ -742,6 +749,113 @@ Phase 0 (완료)
     - 엣지: 같은 요청 ID 재전송(`duplicate`)에도 1건만 기록되고 `/logs`로 이동, 키보드를 올린 채 완료 버튼 탭
   - 테스트 결과(2026-10-21): `npm run check`·`npm run build` 통과. 임시 주소(`chore/verification-deploy` 푸시로 자동 배포)에서 사용자가 실기기로 확인해 **요청한 항목이 모두 통과**했다: ① Galaxy Z Fold8 Chrome과 iPad Safari에서 키보드를 올려도 [순찰 완료] 바가 키보드 위에 보이고 내리면 원위치 ② [순찰 완료] 후 `/logs` 이동과 방금 기록 표시, 뒤로 가기 시 빈 입력란 ③ 토스트가 헤더 아래에 박스·색을 갖고 표시 ④ iPad `/logs` 날짜 입력란이 [다음 영업일] 버튼과 겹치지 않고 날짜 선택기가 열려 이동. Playwright(프로덕션 빌드, 375px·820px): 복사 토스트 위치·폭·헤더와의 간격·라이트/다크 색 확인. 미확인: 순찰 완료 후 이동을 Playwright로 확인하지 못했다(QA 계정 비밀번호가 없어 로그인 불가). `conflict`·네트워크 실패에서 이동하지 않는 분기와 `duplicate` 이동은 실행해 보지 않고 코드(`onCompleted` 호출 위치)로만 확인했다. 오류 토스트의 실제 모습, iPhone 크기 화면도 미확인.
 
+### Phase 7: 운영 후 개선 (2026-10-22 요구 변경)
+
+PRD "3. 운영 후 추가 기능"(F12~F14)과 "복사 문구 형식" 변경을 구현한다. 확정된 결정:
+
+- 복사 문구에서만 졸음/딴짓 번호를 좌석 코드로 바꾼다. DB·화면 좌석 값은 숫자(`int[]`) 그대로다.
+- 통계의 학생 번호는 **좌석 번호 기준**이다(학생 테이블 없음). 요주의는 최근 30영업일 졸음/딴짓 5회 이상이며 상수 한 곳에서 조정한다.
+- 스탠딩·카페존 불러오기는 서버 초안이 완전히 비어 있을 때만 자동 채움이다.
+- 통계 화면은 `/logs/stats`(공개 경로 `/logs/*`에 속해 `proxy.ts` 수정 불필요)다.
+- 좌석 코드는 `열람실-전역 좌석 번호 3자리`(`23`→`3-023`)이고 접미 `번`은 쓰지 않는다. 열람실 구간은 `SEAT_ROOM_RANGES` 상수 한 곳이며 구간 밖 번호는 숫자만 표기한다.
+
+- **Task 028: 복사 문구 좌석 코드 표기** ✅
+  - 관련 기능: F06
+  - 설명: 복사 문구의 졸음/딴짓 번호를 `N번` 대신 `3-023` 형식(열람실-좌석 번호)으로 바꾼다.
+  - 선행 조건: 없음(좌석 코드 형식은 확정)
+  - 관련 파일: `lib/patrol-format.ts`, `components/patrol/copy-button.tsx`(호출부, 타입 변경 없음), `docs/PRD.md`(이미 갱신)
+  - 구현 사항:
+    - ✅ `formatSeatCode(seat)`와 상수 `SEAT_ROOM_RANGES`를 추가하고 졸음/딴짓 구문을 `2-012, 4-035 졸아서 깨움`으로 생성(정렬은 숫자 오름차순 유지)
+    - ✅ 칩·입력란·DB·`lib/seat-numbers.ts`는 변경하지 않음(복사 전용)
+  - 완료 기준: PRD 복사 문구 표 6건이 새 형식으로 정확히 나오고 졸음/딴짓이 없는 기록의 문구는 이전과 같다. `npm run check` 통과.
+  - 테스트 체크리스트:
+    - 정상: `node check.ts(임시) → formatPatrolLine([23]) → "(3-023 졸아서 깨움)"`, `[35, 12] → "2-012, 4-035"` 정렬
+    - 오류: 해당 없음(순수 함수, 입력은 이미 검증된 양의 정수)
+    - 엣지: `128 → "11-128"`, `129 → "129"`, `21 → "3-021"`, 메모 있음+졸음 있음 → ", " 연결, 졸음 없음 → 문구 변경 없음(회귀), 메모만/모두 비어 있음
+    - 화면: `browser_navigate → /logs → [복사] → 붙여넣은 문구가 새 형식의 한 줄(개행·탭 없음)`
+  - 테스트 결과(2026-10-22): `npm run check` 통과. 임시 스크립트(스크래치 `check.ts`, 커밋 안 함): `1→1-001`, `5→1-005`, `10→1-010`, `11→2-011`, `20→2-020`, `21→3-021`, `23→3-023`, `29→3-029`, `30→4-030`, `128→11-128`, `129→129`, `0→0`, 열람실 구간이 빈틈·겹침 없이 이어짐, 졸음 없는 기록의 문구는 이전과 같고 메모 있음+졸음 있음은 `", "`로 연결, `[100, 23, 5, 129]` → `1-005, 3-023, 9-100, 129` 숫자 오름차순, 결과에 개행·탭 없음. 화면은 Playwright MCP + 개발 서버로 비로그인 `/logs?date=2026-10-21`(졸음 기록 6건)의 [복사] 6개를 눌러 `navigator.clipboard.writeText` 인자를 가로채 확인했다: 6건 모두 개행·탭 없는 한 줄이고 졸음 구문이 `5-041 졸아서 깨움`, `4-035, 5-041 졸아서 깨움`, `3-025, 4-035, 8-086 졸아서 깨움` 등 새 형식이며 `N번 졸아서 깨움` 형태는 없었다. 콘솔 에러·경고 0. 미확인: 실제 클립보드에 붙여넣은 내용(쓰기 인자만 확인), 실기기·태블릿, 구간 밖 번호가 든 실제 기록(실데이터에 없어 순수 함수로만 확인).
+
+- **Task 029: 직전 스탠딩·카페존 자동 채움**
+  - 관련 기능: F12, F07
+  - 설명: 순찰 기록 페이지 진입 시 서버 초안이 완전히 비어 있으면 현재 영업일 가장 최신 일지의 스탠딩·카페존을 초안 입력에 채운다.
+  - 선행 조건: 없음(Task 027의 "완료 후 `/logs` 이동" 흐름을 전제로 다음 순찰 진입 때 채워짐)
+  - 관련 파일: `lib/queries/patrol-logs.ts`(최신 일지 조회 추가), `app/protected/patrol/page.tsx`, `lib/patrol-form-reducer.ts`, `hooks/use-patrol-draft.ts`, `lib/business-date.ts`(재사용)
+  - 구현 사항:
+    - [ ] 현재 영업일의 `patrolled_at` 최신 1건에서 `standing`, `cafe_zone`만 select(기존 `(business_date, patrolled_at)` 인덱스 사용)하는 쿼리를 추가하고 `getMyDraft`와 `Promise.all`로 병렬 조회
+    - [ ] 초안이 완전히 비어 있을 때만 병합. 입력이 하나라도 있으면 덮어쓰지 않음
+    - [ ] 채운 값이 `complete_patrol`(서버 초안 사용)에 들어가도록 채움 직후 한 번 자동 저장하고 `revision`·충돌 규칙을 그대로 따름
+  - 완료 기준: 같은 영업일에 일지가 있으면 빈 초안 진입 시 스탠딩·카페존이 채워지고, 초안에 입력이 있으면 그대로다. `npm run check` 통과.
+  - 테스트 체크리스트:
+    - 정상: `(qa-manager) 일지 완료(스탠딩 3, 카페존 7) → /protected/patrol 진입 → 칩 3·7 표시, 저장됨`
+    - 오류: 최신 일지 조회 실패 시 채우지 않고 화면은 정상(콘솔 에러 없음)
+    - 엣지: 당일 일지 없음/두 배열 모두 비어 있음 → 채우지 않음, 초안에 메모만 있음 → 덮어쓰지 않음, 다른 매니저의 일지가 최신 → 그 값으로 채움, 영업일 경계(03:59/04:00) 전후, 완료 직후 재진입 시 같은 값이 다시 채워짐
+  - 테스트 결과: (미수행)
+
+- **Task 030: 좌석 통계 DB 함수**
+  - 관련 기능: F13, F14
+  - 설명: 좌석 번호별 기록 횟수와 요주의 좌석을 DB에서 집계하는 함수 2종을 추가한다.
+  - 선행 조건: 없음
+  - 관련 파일: `supabase/migrations/<타임스탬프>_create_seat_stats_functions.sql`, `lib/supabase/database.types.ts`(재생성), `lib/stats.ts`(상수 `WATCH_WINDOW_DAYS`, `WATCH_THRESHOLD`, 순수 함수)
+  - 구현 사항:
+    - [ ] `get_seat_stats(from_date, to_date)`: `unnest`로 펼쳐 좌석별 스탠딩·카페존·졸음/딴짓 횟수 반환(`security invoker`, `business_date` 범위로 기존 인덱스 사용)
+    - [ ] `get_watchlist_seats(as_of date)`: 최근 30영업일 `drowsy` 5회 이상인 좌석 `int[]` 반환
+    - [ ] 실행 권한은 anon·authenticated만, 기본 PUBLIC 권한 회수. `client_request_id` 등 비공개 컬럼은 읽지 않음. 기준값(30, 5)은 DB 함수 인자로 받아 `lib/stats.ts` 상수 한 곳에서 전달
+    - [ ] `get_advisors`(security, performance) 새 경고 없음
+  - 완료 기준: 결과가 수동 집계와 일치하고 권한이 PRD와 같다. `npm run check` 통과.
+  - 테스트 체크리스트:
+    - 정상: 롤백되는 트랜잭션에서 기록 몇 건을 만들어 `get_seat_stats`, `get_watchlist_seats` 결과 대조(`execute_sql`)
+    - 오류: 역전된 기간(`from > to`)은 빈 결과, `null` 인자 처리
+    - 엣지: 기록이 없을 때 빈 결과, 경계일(윈도우 첫날/마지막 날) 포함 여부, 한 기록 안에서 한 좌석은 1회로 계산, 4번 임계값 정확히 5회/4회, anon·authenticated 모두 호출 가능하고 쓰기 불가
+  - 테스트 결과: (미수행)
+
+- **Task 031: 좌석 통계 화면**
+  - 관련 기능: F13, F14
+  - 설명: `/logs/stats`에 스탠딩·카페존·졸음/딴짓 TOP 10과 요주의 좌석 목록을 보여 주고 내비게이션에 "통계"를 추가한다.
+  - 선행 조건: Task 030
+  - 관련 파일: `app/logs/stats/page.tsx`, `app/logs/stats/_components/*`, `components/layout/nav-menu.tsx`(`items` 추가, `/logs` 활성 판정 분리), `components/patrol/seat-chips.tsx`(카테고리 상수 재사용)
+  - 구현 사항:
+    - [ ] `app/logs/page.tsx`와 같은 `<Suspense>` + 스켈레톤 구조, 현재 영업일 계산 전 `await io()`
+    - [ ] 빈 상태 안내, 모바일 375px 가로 넘침 없음, 라이트/다크 대비
+    - [ ] 내비게이션에서 `/logs/stats`일 때 "일지 조회"가 같이 활성화되지 않도록 정확 일치 처리
+  - 완료 기준: 비로그인으로 열람되고 숫자가 Task 030 결과와 일치한다. 콘솔 에러·hydration 경고 없음. `npm run check` 통과.
+  - 테스트 체크리스트:
+    - 정상: `browser_navigate → /logs/stats (비로그인) → TOP 10 3종과 요주의 목록 표시`
+    - 오류: 통계 함수 오류 시 한국어 오류 화면(`error.tsx`)이 나오고 다른 화면은 영향 없음
+    - 엣지: 데이터 없음 → 빈 상태, 요주의 없음 → 안내 문구, 375px/820px 뷰포트, 내비 활성 표시
+  - 테스트 결과: (미수행)
+
+- **Task 032: 요주의 카드 구분 표기**
+  - 관련 기능: F14
+  - 설명: 일지 조회에서 요주의 좌석이 졸음/딴짓에 든 기록 카드를 다른 스타일로 표시한다.
+  - 선행 조건: Task 030
+  - 관련 파일: `app/logs/page.tsx`(요주의 좌석 병렬 조회), `app/logs/_components/patrol-log-list.tsx`, `app/logs/_components/patrol-log-item.tsx`, `components/patrol/seat-chips.tsx`(강조 prop), 공용 카드 variant(`cva`)
+  - 구현 사항:
+    - [ ] 요주의 좌석 목록을 `Promise.all`에 추가해 `PatrolLogItem`에 `watchSeats`로 전달
+    - [ ] 해당 기록 카드에 강조 테두리·배경·"요주의" 배지, 해당 좌석 칩 강조(색에만 의존하지 않음)
+    - [ ] 복사 문구와 수정·삭제 동작은 변경 없음
+  - 완료 기준: 요주의 좌석이 든 기록만 다른 카드로 보이고 나머지 카드는 그대로다. `npm run check` 통과.
+  - 테스트 체크리스트:
+    - 정상: `browser_navigate → /logs → 요주의 좌석이 든 카드에 "요주의" 배지, 다른 카드는 일반 스타일`
+    - 오류: 요주의 조회 실패 시 모든 카드가 일반 스타일로 표시되고 목록은 정상
+    - 엣지: 한 기록에 요주의 좌석이 여러 개, 졸음/딴짓이 아닌 카테고리에만 있는 좌석은 강조 없음, 과거 날짜 조회에도 같은 판정, 라이트/다크, 수정·복사 동작 유지
+  - 테스트 결과: (미수행)
+
+- **Task 033: 응답 속도 측정·개선**
+  - 관련 기능: 전체
+  - 설명: 느림 체감의 원인을 측정으로 확인하고 확인된 병목만 개선한다. 신규 조회(Task 029~032)가 늘린 비용까지 포함해 마지막에 수행한다.
+  - 선행 조건: Task 028~032 완료
+  - 관련 파일: `lib/auth/dal.ts`, `app/layout.tsx`(헤더 Suspense), `lib/queries/quick-tags.ts`, `app/logs/_components/edit-log-dialog.tsx`, `package.json`(radix 중복), 필요 시 `lib/supabase/*`
+  - 구현 사항:
+    - [ ] 개선 전 측정: Playwright MCP로 `/logs`, `/logs/stats`, `/protected/patrol`의 요청 수·소요 시간·수신 크기, 프로덕션 빌드 Lighthouse 기록
+    - [ ] 코드 점검에서 나온 후보(검증 후 적용): `getViewer`의 `getClaims` → `profiles` 직렬 조회, 헤더 전체를 가리는 `AppChrome` Suspense, `use cache` 미사용(쿠키 없는 데이터에만), 기록 카드마다 다이얼로그가 hydrate되는 구조, `radix-ui`·개별 `@radix-ui/*` 중복, `/` → `/logs` 리디렉션 왕복
+    - [ ] 개선 후 같은 방법으로 재측정해 전후를 이 Task에 기록. 권한 검증은 줄이지 않음
+  - 완료 기준: 측정으로 확인한 병목이 줄어든 수치가 기록되고 `npm run check`·`npm run build` 통과, 권한 동작은 Task 023 시나리오와 같다.
+  - 테스트 체크리스트:
+    - 정상: 개선 전/후 `/logs` 첫 렌더·이동 시간 비교, 캐시한 데이터의 변경이 즉시 반영(태그 수정 후 순찰 화면)
+    - 오류: 캐시 무효화 실패 시 오래된 데이터가 남지 않는지(퀵 태그 숨김 후 순찰 화면)
+    - 엣지: 비로그인/매니저/관리자 각각의 `/logs`, 느린 네트워크(스로틀) 상태의 로딩 표시
+  - 테스트 결과: (미수행)
+
 ## 주요 설계 결정
 
 | 항목                     | 결정                                                                                                                                              |
@@ -760,7 +874,7 @@ Phase 0 (완료)
 
 ## MVP 이후 (로드맵 범위 제외)
 
-- 통계/리포트, 다중 지점, 30분 리마인더 알림, 좌석 배치도 UI, 실시간 공동 편집
+- 고급 통계/리포트(기간 선택·비교, 내보내기, 학생 단위 집계), 다중 지점, 30분 리마인더 알림, 좌석 배치도 UI, 실시간 공동 편집
 - 관리자 역할 지정 화면(현재는 Supabase 대시보드에서 수동 승격)
 - 자동화 테스트 러너(Vitest/Playwright Test) 및 CI 파이프라인 도입
 - 긴 메모(2,000자) 기록 카드의 접기/더 보기 (Task 011 검토 3번: 375px에서 카드 높이 약 3,000px)
