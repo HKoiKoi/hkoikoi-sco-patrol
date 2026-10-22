@@ -809,21 +809,22 @@ PRD "3. 운영 후 추가 기능"(F12~F14)과 "복사 문구 형식" 변경을 �
     - 엣지: 기록이 없을 때 빈 결과, 경계일(윈도우 첫날/마지막 날) 포함 여부, 한 기록 안에서 한 좌석은 1회로 계산, 4번 임계값 정확히 5회/4회, anon·authenticated 모두 호출 가능하고 쓰기 불가
   - 테스트 결과(2026-10-22): `npm run check` 통과. 마이그레이션 `20261022122528_create_seat_stats_functions`를 적용했고 두 함수 모두 `security invoker`, `stable`, `search_path` 고정이며 PUBLIC 실행 권한이 없고 anon·authenticated만 실행 가능함을 `pg_proc`·`has_function_privilege`로 확인했다. `private.is_valid_seats` 본문으로 카테고리 내 중복 불허를 확인했다. 검증은 2099년 날짜의 테스트 행을 `DO` 블록에서 넣고 마지막 예외로 롤백해 수행했다(`patrol_logs` 257행 그대로): 수동 집계와 일치, 역전된 기간·null 인자·기록 없는 기간은 빈 결과/빈 배열, 윈도우 첫날(`as_of-29`)과 마지막 날(`as_of`) 포함, `as_of-30` 제외, `drowsy` 정확히 5회 좌석 포함·4회 제외, 자리비움만 든 좌석은 통계에 없음. 한 기록 안의 좌석 중복은 CHECK 제약으로 애초에 거부된다. anon·authenticated 호출 결과는 소유자와 같았고, 두 역할의 `insert`와 anon의 `update`·`delete`는 42501, authenticated의 `update`·`delete`는 0행, `client_request_id` 읽기는 두 역할 모두 42501이었다. `(business_date, patrolled_at)` 인덱스 스캔을 확인했고 `get_advisors`(security, performance)에 새 경고는 없었다. `lib/stats.ts`는 임시 스크립트(스크래치 `check.ts`, 커밋 안 함)로 상수 30·5, `topSeats`의 정렬·동률(좌석 번호 오름차순)·`limit`·빈 입력·0회 제외·입력 불변을 확인했다. 미확인: 함수 자체의 `explain`(인덱스 스캔은 같은 조건의 쿼리로 확인), 실데이터에서의 집계 결과, QA 계정 로그인 상태의 실제 호출(role 흉내로만 확인).
 
-- **Task 031: 좌석 통계 화면**
+- **Task 031: 좌석 통계 화면** ✅
   - 관련 기능: F13, F14
   - 설명: `/logs/stats`에 스탠딩·카페존·졸음/딴짓 TOP 10과 요주의 좌석 목록을 보여 주고 내비게이션에 "통계"를 추가한다.
   - 선행 조건: Task 030
   - 관련 파일: `app/logs/stats/page.tsx`, `app/logs/stats/_components/*`, `components/layout/nav-menu.tsx`(`items` 추가, `/logs` 활성 판정 분리), `components/patrol/seat-chips.tsx`(카테고리 상수 재사용)
   - 구현 사항:
-    - [ ] `app/logs/page.tsx`와 같은 `<Suspense>` + 스켈레톤 구조, 현재 영업일 계산 전 `await io()`
-    - [ ] 빈 상태 안내, 모바일 375px 가로 넘침 없음, 라이트/다크 대비
-    - [ ] 내비게이션에서 `/logs/stats`일 때 "일지 조회"가 같이 활성화되지 않도록 정확 일치 처리
+    - ✅ `app/logs/page.tsx`와 같은 `<Suspense>` + 스켈레톤 구조, 현재 영업일 계산 전 `await io()`(조회는 `lib/queries/seat-stats.ts`의 `getSeatStats`, 요주의 횟수는 `lib/stats.ts`의 `watchlistRows`로 `get_seat_stats` 행과 조인)
+    - ✅ 빈 상태 안내, 모바일 375px 가로 넘침 없음, 라이트/다크 대비(통계 전용 `app/logs/stats/error.tsx` 추가)
+    - ✅ 내비게이션에서 `/logs/stats`일 때 "일지 조회"가 같이 활성화되지 않도록 정확 일치 처리(`/logs` 항목만 `exact`)
   - 완료 기준: 비로그인으로 열람되고 숫자가 Task 030 결과와 일치한다. 콘솔 에러·hydration 경고 없음. `npm run check` 통과.
   - 테스트 체크리스트:
     - 정상: `browser_navigate → /logs/stats (비로그인) → TOP 10 3종과 요주의 목록 표시`
     - 오류: 통계 함수 오류 시 한국어 오류 화면(`error.tsx`)이 나오고 다른 화면은 영향 없음
     - 엣지: 데이터 없음 → 빈 상태, 요주의 없음 → 안내 문구, 375px/820px 뷰포트, 내비 활성 표시
-  - 테스트 결과: (미수행)
+  - 테스트 결과(2026-10-22): `npm run check` 통과. `watchlistRows`는 임시 스크립트(커밋 안 함)로 정렬·동률(좌석 번호 오름차순)·빈 입력·입력 불변을 확인했다. 화면 숫자(스탠딩·카페존·졸음/딴짓 TOP 10 각 10행, 요주의 41·53·35)가 `execute_sql`로 같은 기간(2026-09-23~2026-10-22) `get_seat_stats`·`get_watchlist_seats`를 조회한 결과와 일치했다. 비로그인 요청(`curl`, 쿠키 없음)은 200이고 리디렉션 없이 요주의 섹션이 렌더되며 "퀵 태그 관리"는 노출되지 않았다. Playwright(관리자 세션이 남은 브라우저)에서 375px·820px 가로 넘침 없음(`scrollWidth == clientWidth`), 라이트/다크 대비 양호, 콘솔 에러·경고 0건, `/logs`에서는 "일지 조회"만 `/logs/stats`에서는 "통계"만 `aria-current="page"`임을 확인했다. 오류 경로는 RPC 이름을 임시로 틀리게 바꿔 한국어 오류 화면("통계를 불러오지 못했습니다")과 정상 헤더·내비가 유지됨을 확인한 뒤 원복했다(이때 콘솔에 의도한 `console.error` 3건). 미확인: 비로그인 상태의 Playwright 화면 확인(요청·HTML만 확인), 데이터 없음·요주의 없음 빈 상태의 실제 렌더(현재 실데이터에는 둘 다 해당 없음), 모바일 햄버거 드롭다운의 "통계" 항목 표시, 날짜 경계(04:00 직전·직후) 시점의 기간.
+  - 추가 변경(2026-10-22): 요주의 목록을 5회 이상 중 많은 순 상위 10좌석으로 제한했다(`lib/stats.ts`의 `WATCH_LIST_LIMIT`, `watchlistRows`의 `limit` 인자). 판정(DB)은 전체 좌석에 그대로 적용되어 Task 032의 카드 강조에는 영향이 없다. 임시 스크립트(커밋 안 함)로 15좌석 입력 시 10좌석만 반환, 횟수 내림차순·동률 시 좌석 번호 오름차순, 10좌석 미만·빈 입력, `limit` 인자, 입력 불변을 확인했고 `npm run check`를 통과했다. 미확인: 실데이터에 요주의가 11좌석 이상일 때의 화면(현재 3좌석).
 
 - **Task 032: 요주의 카드 구분 표기**
   - 관련 기능: F14
