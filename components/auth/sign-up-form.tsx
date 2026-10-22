@@ -105,14 +105,25 @@ export function SignUpForm({
                   type="text"
                   autoComplete="name"
                   placeholder="홍길동"
+                  maxLength={50}
                   value={name}
                   aria-invalid={nameError ? true : undefined}
-                  aria-describedby={nameError ? "full-name-error" : undefined}
+                  aria-describedby={
+                    nameError
+                      ? "full-name-hint full-name-error"
+                      : "full-name-hint"
+                  }
                   onChange={(e) => {
                     setName(e.target.value);
                     setNameError(null);
                   }}
                 />
+                <p
+                  id="full-name-hint"
+                  className="text-sm text-muted-foreground"
+                >
+                  50자 이내로 입력해 주세요
+                </p>
                 {nameError && (
                   <p
                     id="full-name-error"
