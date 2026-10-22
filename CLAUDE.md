@@ -20,7 +20,7 @@ SCO 관리형 독서실의 30분 간격 순찰을 스마트폰/태블릿에서 �
 - **프레임워크**: Next.js 16.4.0 (App Router, `proxy.ts`, `cacheComponents: true`), React 19, TypeScript 5. `next`, `@supabase/ssr`, `@supabase/supabase-js`는 정확한 버전으로 고정하며 업그레이드는 의도적으로 진행한다.
 - **백엔드/인증**: Supabase (`@supabase/ssr`, `@supabase/supabase-js`) — 쿠키 기반 세션, Google 로그인과 이메일 가입
 - **스타일링**: Tailwind CSS v4 (`@tailwindcss/postcss`), `tailwindcss-animate`, `tailwind-merge`, `clsx`, `class-variance-authority`
-- **UI**: shadcn/ui + Radix UI(checkbox, dropdown-menu, label, slot), `lucide-react` 아이콘, `next-themes`(다크 모드)
+- **UI**: shadcn/ui + Radix UI(checkbox, dropdown-menu, label, separator, slot와 통합 패키지 `radix-ui`의 dialog, alert-dialog, switch), `lucide-react` 아이콘, `next-themes`(다크 모드)
 - **린트**: ESLint 9 flat config + `eslint-config-next` 16
 
 ## 명령어
@@ -65,7 +65,7 @@ Next.js 16 App Router + Supabase Auth(`@supabase/ssr`) 스타터 기반 프로�
 
 ## 참고 문서 / 도구
 
-- `docs/PRD.md`(요구사항·데이터 모델·RLS 규칙), `docs/ROADMAP.md`(Phase 0~7, Task 000~033 진행 현황. Phase 7은 2026-10-22 운영 후 개선 계획이며 구현 전) — 기능 구현 전에 해당 Task와 PRD 절을 먼저 읽는다. PRD와 ROADMAP은 서로 맞춰 유지하며, 한쪽을 바꾸면 다른 쪽도 갱신한다.
+- `docs/PRD.md`(요구사항·데이터 모델·RLS 규칙), `docs/ROADMAP.md`(Phase 0~7, Task 000~035 진행 현황. Phase 7은 2026-10-22 운영 후 개선이며 Task 028~035까지 구현·완료) — 기능 구현 전에 해당 Task와 PRD 절을 먼저 읽는다. PRD와 ROADMAP은 서로 맞춰 유지하며, 한쪽을 바꾸면 다른 쪽도 갱신한다.
   - 별도 `tasks/` 파일은 만들지 않고 ROADMAP의 Task 항목에 직접 기록한다. 완료한 Task만 ✅ 표시와 테스트 결과를 반영하고, 한 Task를 마치면 멈추고 다음 지시를 기다린다.
   - 모든 Task의 완료 조건: `npm run check` 통과, 관련 화면의 Playwright MCP 시나리오 통과, 콘솔 에러·hydration 경고 없음.
   - 테스트 러너가 없으므로 순수 함수는 커밋하지 않는 임시 스크립트(Node 24 `node check.ts`), DB는 Supabase MCP `execute_sql`(트랜잭션 안에서 `set local role` / `request.jwt.claims`로 사용자 흉내 후 `rollback`)과 `get_advisors`, 화면은 Playwright MCP로 검증한다.

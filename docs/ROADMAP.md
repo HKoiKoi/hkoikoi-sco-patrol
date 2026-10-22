@@ -85,7 +85,7 @@ SCO 순찰 일지는 SCO 관리형 독서실에서 순찰하는 매니저와 이
 | F10     | 자리비움 사후 처리  | 004, 007, 011, 013, 019, 023                               |
 | F11     | 퀵 태그 관리        | 004, 009, 011, 013, 014, 022, 023                          |
 
-운영 후 추가(Phase 7): F06(복사 문구 변경) → 028, F12 → 029, F13 → 030·031, F14 → 030·032, 응답 속도 → 033, 순찰 기록 화면 레이아웃 시프트(CLS) → 034
+운영 후 추가(Phase 7): F06(복사 문구 변경) → 028, F12 → 029, F13 → 030·031, F14 → 030·032, 응답 속도 → 033, 순찰 기록 화면 레이아웃 시프트(CLS) → 034, 코드 리뷰 권장사항 처리 → 035
 
 ## Task 의존성 요약
 
@@ -111,6 +111,7 @@ Phase 0 (완료)
                         → 031 통계 화면 · 032 요주의 카드  (030 이후)
                         → 033 성능 측정·개선  (028~032 이후, 새 조회가 늘린 비용까지 측정)
                         → 034 순찰 기록 화면 CLS 점검  (033에서 남긴 후속)
+                        → 035 코드 리뷰 권장사항 처리  (034 이후, 보안·입력 검증·동시성 보강)
 ```
 
 - Phase 2·3은 DB 없이 Task 002의 타입 계약만으로 진행한다. Phase 2의 세 Task는 서로 병렬로 진행할 수 있고, Phase 3의 Task 007~010은 Task 006 이후 병렬로 진행할 수 있다.
@@ -878,6 +879,29 @@ PRD "3. 운영 후 추가 기능"(F12~F14)과 "복사 문구 형식" 변경을 �
     - 엣지: 느린 네트워크(스로틀)에서의 스트리밍 순서, 다크 모드, 퀵 태그 개수가 많거나 적을 때, 푸터가 없는 화면은 영향 없음
     - 회귀: 비로그인/pending/manager/admin 4종 헤더 표시와 권한 동작이 Task 023·033 시나리오와 같다
   - 테스트 결과(2026-10-22): `npm run check`와 `npm run build` 통과(변경은 `app/protected/patrol/page.tsx` 하나). 측정은 Task 033과 같은 방식이다(로컬 프로덕션 서버, Chrome 새 컨텍스트 5회, Lighthouse 모바일 기본 프로필 5회, 임시 `@example.com` 계정 3개를 운영 DB에 만들어 SQL로 역할 지정). **원인**: 정적 셸의 푸터가 짧은 스켈레톤(464px) 아래 `min-h-screen` 하단에 먼저 그려졌다가 폼이 도착해 `main`이 544 → 1134px(375px)로 늘면 푸터가 `691 → 1191`로 화면 밖에 밀렸다(시프트 소스는 푸터 하나). 데스크톱은 스켈레톤 464px 대비 폼 650px에 더해, `useActionBarHeight`가 hydrate 뒤에야 `--action-bar-height`(73/81px)를 채워 푸터 하단 여백이 뒤늦게 커졌다(820px 푸터 높이 89 → 170, 0.0099). 헤더 인증 영역은 0.001~0.003으로 주원인이 아니며 `/logs`에도 같은 값이 있다. **개선 전 → 후**: Lighthouse CLS manager·admin 0.1037 → 0.001(5회 모두 동일, 점수 92~94 → 95~96, 시프트 요소는 푸터 1개 → 헤더 인증 영역 1개). Chrome CLS manager 375/820/1280px 0.1106/0.0120/0.0115 → 0.0011/0.0022/0.0025, admin 0.1106/0.0128/0.0166 → 0.0011/0.0030/0.0034, 다크 모드도 같다. 스켈레톤 단계와 폼 단계의 `main`(1134/730px)·푸터 위치가 일치한다. `/logs`(admin 0.001~0.0034, 비로그인 0)와 `/logs/stats`(375/820px 0, 1280px 0.0247)는 전후 값이 같다. **오류**: 서버 초안(칩 86개·긴 메모)이 있으면 820px 0.0231, 1280px 0.0099, 로컬 백업 복원(마운트 뒤 칩 채움)은 820px 0.0164, 1280px 0.0102이고 375px는 0.0011 그대로다(스켈레톤이 빈 초안 기준이라 칩이 많으면 폼이 더 길어져 남는 시프트이며 모두 0.087 이하). **엣지**: 스로틀(600ms 지연·300kbps·CPU 4x)에서 CLS 0~0.0004(퀵 태그 버튼 폭이 폰트 로드 뒤 1~6px 변하는 정도), 375px 다크 화면에서 푸터가 고정 액션바 위에 가려지지 않고 표시된다. **회귀**: 비로그인은 `/protected/patrol`·`/protected/admin/tags` 모두 `/auth/login?next=…`, pending은 두 경로 모두 `/logs?notice=pending`과 승인 대기 배너 1개, manager는 `/protected/patrol` 통과·`/protected/admin/tags`는 `/logs?notice=admin-required`, admin은 두 경로 통과와 "퀵 태그 관리" 메뉴 노출이며 375px·1280px 가로 넘침 없음, 4종 모두 콘솔 에러·경고·hydration 경고 0건이다. 임시 계정 3개와 초안 행은 측정 후 삭제했고 `auth.users` 2·`profiles` 2·`staff_names` 2·admin 2·`patrol_logs` 257·`patrol_drafts` 2가 시작 전과 같음을 확인했다. **미확인·후속**: ① 퀵 태그 개수가 8개와 다를 때의 시프트(운영 데이터라 바꾸지 않았다. 스켈레톤은 8개 기준이고 태그 한 줄은 56px이므로 줄 수가 달라지면 그 차이만큼 푸터가 움직인다). ② `/logs/stats` 1280px의 0.0247은 이번 변경 전부터 있던 푸터 시프트(같은 원리: 짧은 본문 + `min-h-screen` 푸터)로 범위 밖이라 그대로 두었다. ③ 모바일 실기기·운영 배포 환경 측정, 서버 초안이 있는 경우의 개선 전 비교값(수정 전에는 측정하지 않았다). ④ 헤더 인증 영역의 0.001~0.003(스켈레톤 `w-24`와 실제 이름·로그아웃 폭 차이)은 사용자 이름 길이에 따라 달라 고정 폭으로 맞추지 않았다.
+
+- **Task 035: 코드 리뷰 권장사항 처리** ✅
+  - 관련 기능: 전체(보안·입력 검증·동시성·표시 보강, 기능 변경 없음)
+  - 설명: `develop` 전체 코드 리뷰에서 나온 Minor 권장사항 10건을 8개 묶음으로 처리한다. Critical·확정 Major는 없었다. 공개 API(RPC 시그니처, Server Action 시그니처, 컴포넌트 props)는 바꾸지 않았다.
+  - 선행 조건: Task 034
+  - 브랜치: `fix/db-input-limits`(PR #30), `fix/auth-hardening`(PR #31), `fix/logs-concurrency`(PR #32). 문서 기록은 `develop`에서 별도 반영한다.
+  - 구현 사항:
+    - ✅ 공개 통계 RPC 기간 상한: `get_seat_stats`·`get_watchlist_seats`에 366일 상한을 걸고 초과·null은 예외 없이 빈 결과로 처리(`20261022152056_cap_seat_stats_range`). 시그니처·`security invoker`·`search_path`·grant는 그대로다.
+    - ✅ `profiles.full_name` 제약: `profiles_full_name_check`(앞뒤 공백 제거 후 1~50자, LF·CR 금지)와 `handle_new_user`의 값 정리(개행→공백, 50자 절단, `role`은 여전히 `pending` 고정), 가입 폼 `maxLength` 50과 안내 문구(`20261022152617_constrain_profiles_full_name`).
+    - ✅ 로그아웃 실패 처리: `signOut`이 reject돼도 `draft:` 백업 삭제와 `/logs` 이동을 보장(`try/catch/finally`).
+    - ✅ 푸터 연도를 `Asia/Seoul` 기준 포맷터로 표시, `getSafeNextPath`의 콜론 검사를 첫 `?`·`#` 앞 경로에만 적용(`/logs?x=a:b` 허용, `//`·`/\`·`/javascript:`·제어문자 거부는 유지).
+    - ✅ `/auth/callback`의 `x-forwarded-host` 분기 제거: 호스팅이 Vercel이라 항상 요청 URL의 origin만 쓴다. 환경 변수는 새로 만들지 않았고 `/auth/confirm`에는 같은 패턴이 없었다.
+    - ✅ 자리비움 처리 낙관적 조건: `moveAwaySeat`는 `standing`·`cafe_zone`·`away`, `removeAwaySeat`는 `away`가 읽은 값 그대로일 때만 update한다. 0행이면 `away`를 재조회해 동시 수정(`ERROR_CONFLICT`)과 권한 없음(`ERROR_FORBIDDEN`)을 구분한다.
+    - ✅ `/logs?date`가 현재 영업일 + 1일을 넘으면 리디렉션 없이 현재 영업일을 표시(다음 날짜 이동과 같은 상한, PRD F08 보강). `?date`를 받는 페이지는 `/logs`뿐이다.
+    - ✅ CLAUDE.md의 Task 범위(000~035)·Phase 7 상태·Radix 목록을 실제와 맞춤.
+  - 구현하지 않기로 결정한 항목:
+    - `createTag`의 `sort_order` 경합: 마지막 값 + 1 방식이라 동시 추가 시 값이 겹칠 수 있지만 관리자 전용이고, 겹쳐도 순서만 모호해질 뿐 저장은 막지 않으며, 코드 주석이 이미 이를 인지·허용한다. 유일 제약이나 RPC가 필요해지면 별도 마이그레이션 Task로 분리한다.
+    - `SIGNED_OUT` 이벤트 구독으로 백업 일괄 삭제: PRD상 `draft:` 백업은 세션이 끊긴 뒤 복구하려는 수단이고, 명시적 로그아웃과 토큰 갱신 실패·세션 만료를 이벤트로 구분할 수 없어 복구 기능과 충돌한다. 공용 기기의 잔여 메모는 명시적 로그아웃 때만 지운다.
+    - `profiles`의 `full_name` 수정 GRANT 회수: 앱에 이름 변경 UI가 없지만 가입 경로(메타데이터)도 막아야 하므로 GRANT 회수 대신 CHECK 제약으로 해결했다.
+  - 완료 기준: `npm run check`·`npm run build` 통과, `get_advisors` 신규 경고 없음, 콘솔 에러·hydration 경고 없음, PRD와 ROADMAP 일치.
+  - 운영 DB 적용 마이그레이션(`list_migrations`로 확인): `20261022152056_cap_seat_stats_range`, `20261022152617_constrain_profiles_full_name`.
+  - 테스트 결과(2026-10-22): 병합된 `develop`(PR #32 포함)에서 `npm run check`·`npm run build` 통과. `get_advisors(performance)` 0건, `get_advisors(security)` 4건은 모두 이번 변경과 무관한 기존 항목이다(`complete_patrol`·`save_patrol_draft`·`swap_quick_tag_order`가 `authenticated`에 실행 가능한 `SECURITY DEFINER`라는 경고는 본문에서 `is_staff()`로 재검사하는 의도된 설계이고, Auth 유출 비밀번호 보호 비활성은 Supabase 대시보드 설정이다). **DB**: anon 역할로 30일 호출이 변경 전과 같은 64행·합계 608, 1900-01-01~9999-12-31과 `window_days` 400은 빈 결과, 366일 정상·367일 빈 결과. `authenticated`로 51자·LF·CR·공백만 이름은 차단되고 50자·정상 이름은 `staff_names`에 반영, 80자·개행·긴 이메일 가입 흉내도 모두 `pending`으로 생성(롤백 후 잔여 행 없음). **화면(로컬 프로덕션 서버, 콘솔 에러·경고 0건)**: `?date=9999-12-31`·`2026-02-30`·`abc`는 현재 영업일, 과거 날짜는 그대로, 가입 폼 이름 입력란 `maxLength` 50과 안내 문구 표시, 로그인된 pending 계정의 `/protected/patrol`은 `/logs?notice=pending`으로 이동. 비로그인 `/protected/patrol`·`/protected/admin/tags`는 `/auth/login?next=…`, 가짜 `x-forwarded-host` 헤더를 보내도 콜백 리디렉션은 `localhost:3000` 기준이다. 순수 함수는 임시 스크립트(커밋 안 함)로 `getSafeNextPath` 허용·거부 케이스와 `2026-12-31T16:00Z → 2027`, 04:00 KST 경계 전후 9건을 확인했다. 자리비움 처리는 임시 QA 계정 3개로 이동·삭제 정상, 오래된 `away` 조건 PATCH는 0행·현재 값은 1행, 타인 기록(`qa-manager2`)·`qa-pending`은 0행, anon은 401로 거부됨을 확인했고 임시 계정·기록은 삭제했다.
+  - 미확인·후속: ① 이번 최종 검증에서는 운영 DB에 임시 계정을 새로 만들지 않아 manager·admin 로그인 상태의 `/protected/patrol`·`/protected/admin/tags` 전체 회귀를 다시 돌리지 않았다(해당 변경은 이전 Task 단계에서 임시 계정으로 확인함). ② `signOut` 요청을 네트워크 차단으로 실패시킨 뒤 `draft:` 키 삭제와 `/logs` 이동이 일어나는지는 코드 변경과 `npm run check`만 확인했고 브라우저에서 재현하지 않았다. ③ 로그인 성공 콜백(코드 교환 성공 분기)의 실제 리디렉션 대상은 로컬에서 재현하지 못했다(가짜 코드는 `/auth/error`로 간다). 운영 배포 후 Google 로그인으로 확인한다. ④ 두 탭 경합으로 `ERROR_CONFLICT` 문구가 화면에 뜨는 장면과 타인 기록에 대한 Server Action 거부 문구는 UI로 재현할 수 없어 보지 못했다(PATCH 수준에서는 확인). ⑤ pending 계정의 `/logs?notice=pending`에는 같은 문구가 상단 승인 대기 배너와 `notice` 배너로 두 번 나온다. Task 006부터 있던 동작이고 이번 변경과 무관하다. 문구 중복이 거슬리면 별도 Task로 정리한다. ⑥ 운영 배포(Vercel)에 새 마이그레이션 영향은 없으며, 배포 후 스모크는 PR 병합 뒤 진행한다.
 
 ## 주요 설계 결정
 

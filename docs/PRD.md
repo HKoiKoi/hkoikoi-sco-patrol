@@ -276,15 +276,15 @@ HH:mm 순찰 → 완료[ (상세)]
 
 ### profiles (사용자 프로필, F01)
 
-| 필드       | 설명                                                  | 관계            |
-| ---------- | ----------------------------------------------------- | --------------- |
-| id         | 사용자 식별자 (인증 계정과 동일)                      | → auth.users.id |
-| full_name  | 실제 이름 (Google 계정 이름 또는 이메일 가입 폼 입력) |                 |
-| role       | `pending` / `manager` / `admin` (기본 `pending`)      |                 |
-| updated_at | 수정 시각                                             |                 |
+| 필드       | 설명                                                                                      | 관계            |
+| ---------- | ----------------------------------------------------------------------------------------- | --------------- |
+| id         | 사용자 식별자 (인증 계정과 동일)                                                          | → auth.users.id |
+| full_name  | 실제 이름 (Google 계정 이름 또는 이메일 가입 폼 입력, 앞뒤 공백 제거 후 1~50자·개행 불가) |                 |
+| role       | `pending` / `manager` / `admin` (기본 `pending`)                                          |                 |
+| updated_at | 수정 시각                                                                                 |                 |
 
 - 기존 스타터의 `username`(unique)·`website`·`avatar_url` 컬럼과 관련 제약은 쓰지 않으므로 정리한다(프로필 사진 기능은 MVP 범위 밖).
-- 가입 시 트리거(`handle_new_user`)가 가입 정보의 `full_name`을 복사해 프로필을 만든다(비어 있으면 가입 정보의 `name`, 그것도 없으면 이메일 앞부분). 이메일 가입은 가입 폼의 이름을 같은 키(`options.data.full_name`)로 전달한다. 트리거는 가입 정보에서 `role`을 읽지 않으며 항상 `pending`으로 만든다.
+- 가입 시 트리거(`handle_new_user`)가 가입 정보의 `full_name`을 복사해 프로필을 만든다(비어 있으면 가입 정보의 `name`, 그것도 없으면 이메일 앞부분). 이메일 가입은 가입 폼의 이름을 같은 키(`options.data.full_name`)로 전달한다. 트리거는 가입 정보에서 `role`을 읽지 않으며 항상 `pending`으로 만든다. `full_name`에는 DB CHECK(`profiles_full_name_check`: 앞뒤 공백 제거 후 1~50자, LF·CR 금지)가 있고, 트리거는 값을 복사하기 전에 개행을 공백으로 바꾸고 50자로 잘라 가입이 제약 위반으로 실패하지 않게 한다. 가입 폼 이름 입력란도 `maxLength` 50이다. `staff_names`는 비로그인에게 공개되므로 이 제약이 작성자 이름 오염을 막는다.
 
 ### staff_names (작성자 이름 공개용, F08)
 
@@ -341,20 +341,20 @@ HH:mm 순찰 → 완료[ (상세)]
 - patrol_drafts: 본인 행만 조회. 쓰기는 `save_patrol_draft` / `complete_patrol` RPC로만.
 - quick_tags: 비로그인은 활성 태그만, 로그인 사용자는 활성 태그만, 관리자는 전체(숨김 포함) 조회. 두 경우를 정책 두 개(비로그인용/로그인용)로 나눈다. 추가/수정/삭제와 순서 맞바꿈은 관리자만.
 - **역할 판별 함수(`is_admin`, `is_staff`)**: API로 노출되지 않는 별도 스키마(`private`)에 두고, 로그인 사용자 권한으로 정책에서 호출되게 하되 외부에서 직접 호출할 수 없게 한다.
-- **통계 함수 2종**(`get_seat_stats(from_date, to_date)`, `get_watchlist_seats(as_of, window_days, threshold)`): `security invoker`라 `patrol_logs`의 공개 조회 규칙을 그대로 따른다. 비로그인·로그인 모두 실행할 수 있고 쓰기는 하지 않으며, 화면이 읽도록 허용된 컬럼(`business_date`, 좌석 배열)만 읽는다. 비공개 컬럼(`client_request_id`)은 건드리지 않는다.
+- **통계 함수 2종**(`get_seat_stats(from_date, to_date)`, `get_watchlist_seats(as_of, window_days, threshold)`): `security invoker`라 `patrol_logs`의 공개 조회 규칙을 그대로 따른다. 비로그인·로그인 모두 실행할 수 있고 쓰기는 하지 않으며, 화면이 읽도록 허용된 컬럼(`business_date`, 좌석 배열)만 읽는다. 비공개 컬럼(`client_request_id`)은 건드리지 않는다. 비로그인도 PostgREST로 직접 호출할 수 있어 `patrol_logs` 전체 집계로 DB 부하를 줄 수 있으므로 기간 상한을 366일로 둔다. 상한을 넘거나 인자가 null이면 예외 없이 빈 결과를 돌려준다. 앱의 정상 호출은 30일뿐이다.
 - **RPC 3종**: 기본 부여되는 실행 권한을 회수하고 로그인 사용자에게만 부여하며, **함수 본문 안에서** 호출자 역할(`is_staff`/`is_admin`)을 다시 검사한다(브라우저가 직접 호출해도 안전하도록).
 
 ### DB 함수·스케줄 요약
 
-| 이름                   | 역할                                                                                                                                                                                                                    | 실행 권한     |
-| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
-| `save_patrol_draft`    | `base_revision` 확인(첫 저장은 0일 때만 행 생성) 후 값 검증·저장, 새 `revision`과 서버 `updated_at` 반환 또는 충돌 응답                                                                                                 | 매니저·관리자 |
-| `complete_patrol`      | 행 보장·잠금 → 같은 요청 ID면 기존 기록 반환 → `expected_revision` 확인 → 서버 초안으로 기록 생성(완료 시각·영업일·작성자는 서버 계산) → 초안 초기화                                                                    | 매니저·관리자 |
-| `swap_quick_tag_order` | 두 태그의 표시 순서를 한 트랜잭션으로 맞바꿈                                                                                                                                                                            | 관리자        |
-| `get_seat_stats`       | `(from_date, to_date)` 영업일 범위의 좌석별 `standing_count`·`cafe_zone_count`·`drowsy_count` 반환(자리비움 제외, `security invoker`)                                                                                   | 누구나        |
-| `get_watchlist_seats`  | `(as_of, window_days, threshold)` `as_of`를 포함한 최근 `window_days`영업일에 졸음/딴짓이 `threshold`회 이상인 좌석을 `int[]`로 반환(없거나 인자가 null·1 미만이면 빈 배열). 기준값은 `lib/stats.ts` 상수(30, 5)로 전달 | 누구나        |
-| 방치 초안 정리 스케줄  | 30분마다 마지막 저장 후 2시간 지난 비어 있지 않은 초안을 빈 값 + `revision + 1`로 초기화 (`pg_cron`, 행 삭제 없음, 빈 초안은 제외)                                                                                      | 시스템        |
-| 이름 동기화 트리거     | `profiles`의 역할·이름 변경을 `staff_names`에 반영(강등 시에도 행 유지)                                                                                                                                                 | 시스템        |
+| 이름                   | 역할                                                                                                                                                                                                                                                   | 실행 권한     |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------- |
+| `save_patrol_draft`    | `base_revision` 확인(첫 저장은 0일 때만 행 생성) 후 값 검증·저장, 새 `revision`과 서버 `updated_at` 반환 또는 충돌 응답                                                                                                                                | 매니저·관리자 |
+| `complete_patrol`      | 행 보장·잠금 → 같은 요청 ID면 기존 기록 반환 → `expected_revision` 확인 → 서버 초안으로 기록 생성(완료 시각·영업일·작성자는 서버 계산) → 초안 초기화                                                                                                   | 매니저·관리자 |
+| `swap_quick_tag_order` | 두 태그의 표시 순서를 한 트랜잭션으로 맞바꿈                                                                                                                                                                                                           | 관리자        |
+| `get_seat_stats`       | `(from_date, to_date)` 영업일 범위의 좌석별 `standing_count`·`cafe_zone_count`·`drowsy_count` 반환(자리비움 제외, `security invoker`, `to_date - from_date`가 366일을 넘거나 인자가 null이면 빈 결과)                                                  | 누구나        |
+| `get_watchlist_seats`  | `(as_of, window_days, threshold)` `as_of`를 포함한 최근 `window_days`영업일에 졸음/딴짓이 `threshold`회 이상인 좌석을 `int[]`로 반환(없거나 인자가 null·1 미만이거나 `window_days`가 366을 넘으면 빈 배열). 기준값은 `lib/stats.ts` 상수(30, 5)로 전달 | 누구나        |
+| 방치 초안 정리 스케줄  | 30분마다 마지막 저장 후 2시간 지난 비어 있지 않은 초안을 빈 값 + `revision + 1`로 초기화 (`pg_cron`, 행 삭제 없음, 빈 초안은 제외)                                                                                                                     | 시스템        |
+| 이름 동기화 트리거     | `profiles`의 역할·이름 변경을 `staff_names`에 반영(강등 시에도 행 유지)                                                                                                                                                                                | 시스템        |
 
 ## 🛠️ 기술 스택
 
@@ -381,7 +381,7 @@ HH:mm 순찰 → 완료[ (상세)]
 
 - **Cache Components**: 로그인 정보(쿠키)나 DB를 읽는 컴포넌트는 `<Suspense>` 경계 안에 두고 로딩 표시를 제공한다 (`node_modules/next/dist/docs/01-app/02-guides/authentication-with-cache-components.md`).
 - **서버 권한 검증**: `lib/auth/dal.ts`의 `requireStaff()` / `requireAdmin()`이 로그인 정보와 `profiles.role`을 서버에서 확인하고 부족하면 리디렉션한다. 순찰 기록 페이지·퀵 태그 관리 페이지와 **모든 Server Action**에서 호출한다(레이아웃에서만 검사하지 않는다). `proxy.ts`는 로그인 여부만 판단하고 공개 경로에 `/logs*`를 추가한다. 최종 방어선은 RLS다.
-- **로그인 후 이동**: 인증 콜백 기본 경로, Google 로그인 버튼, 이메일 가입 확인 링크, 로그인 폼의 이동 경로를 모두 `/logs`로 맞추고, 스타터 데모인 `/protected` 페이지와 `/`(스타터 홈)는 `/logs`로 리디렉션한다. 로그아웃 후에도 `/logs`로 이동하며 브라우저에 남은 `draft:` 백업 키를 모두 지운다.
+- **로그인 후 이동**: 인증 콜백 기본 경로, Google 로그인 버튼, 이메일 가입 확인 링크, 로그인 폼의 이동 경로를 모두 `/logs`로 맞추고, 스타터 데모인 `/protected` 페이지와 `/`(스타터 홈)는 `/logs`로 리디렉션한다. 로그아웃 후에도 `/logs`로 이동하며 브라우저에 남은 `draft:` 백업 키를 모두 지운다. `signOut` 요청이 실패해도 백업 삭제와 이동은 실행한다. 반대로 세션 만료·다른 탭 로그아웃(`SIGNED_OUT` 이벤트)에서는 백업을 지우지 않는다. 백업은 세션이 끊긴 뒤 복구하려는 수단이고 명시적 로그아웃과 토큰 갱신 실패를 이벤트로 구분할 수 없기 때문이다. 인증 콜백의 최종 리디렉션은 `x-forwarded-host`를 쓰지 않고 요청 URL의 origin만 쓴다.
 - **원래 화면 복귀**: 비로그인이 작성 페이지로 보내질 때 원래 경로를 `next`로 전달하고, 로그인 폼·Google 버튼·인증 콜백이 같은 방식으로 이어받는다. `next`는 사이트 내부 경로만 허용하는 공통 검증 함수로 처리한다(외부 주소 리디렉션 방지).
 - **이메일 가입 확인**: Supabase 확인 메일 템플릿을 `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/logs`로 바꾸고(가입한 기기와 링크를 연 기기가 달라도 동작), `/auth/confirm` 라우트에도 `next` 검증을 추가해 기본값을 `/logs`로 한다.
 - **시각 표시**: `HH:mm` 포맷은 서버·클라이언트 모두 `timeZone: 'Asia/Seoul'`을 명시한다(hydration 불일치 방지).
