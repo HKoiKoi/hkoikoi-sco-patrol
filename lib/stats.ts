@@ -33,6 +33,18 @@ export function topSeats(
 }
 
 /**
+ * 한 기록의 졸음/딴짓 좌석 중 요주의 좌석만 입력 순서대로 돌려준다. 입력 배열은 바꾸지 않는다.
+ * 스탠딩·카페존 좌석은 drowsy 인자로 들어오지 않으므로 강조 대상이 아니다.
+ */
+export function watchSeatsInLog(
+  drowsy: readonly number[],
+  watchSeats: readonly number[],
+): number[] {
+  const watch = new Set(watchSeats);
+  return drowsy.filter((seat) => watch.has(seat));
+}
+
+/**
  * get_watchlist_seats가 돌려준 좌석의 통계 행만 졸음/딴짓 횟수 내림차순으로 limit개 돌려준다.
  * 동률이면 좌석 번호 오름차순이며 입력 배열은 바꾸지 않는다. 요주의 판정은 DB가 하므로 임계값은 다시 비교하지 않는다.
  */
