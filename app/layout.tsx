@@ -6,21 +6,8 @@ import { Suspense } from "react";
 import { AppFooter } from "@/components/layout/app-footer";
 import { AppChrome } from "@/components/layout/app-chrome";
 import { NoticeBanner } from "@/components/layout/notice-banner";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
-
-// AppChrome 로딩 중 헤더 자리를 지키는 스켈레톤(헤더와 같은 border-b, min-h-14)
-function HeaderSkeleton() {
-  return (
-    <div className="border-b bg-background">
-      <div className="mx-auto flex min-h-14 w-full max-w-5xl items-center justify-between px-4">
-        <Skeleton className="h-6 w-32" />
-        <Skeleton className="h-9 w-24" />
-      </div>
-    </div>
-  );
-}
 
 const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
@@ -60,10 +47,8 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {/* 쿠키를 읽는 AppChrome은 Suspense 안에 두고, 같은 높이의 자리표시자로 레이아웃 시프트를 줄인다 */}
-          <Suspense fallback={<HeaderSkeleton />}>
-            <AppChrome />
-          </Suspense>
+          {/* 쿠키를 읽는 부분은 AppChrome 안에서 조각별 Suspense로 감싸므로 헤더 뼈대는 정적 셸에 포함된다 */}
+          <AppChrome />
           <Suspense fallback={null}>
             <NoticeBanner />
           </Suspense>
