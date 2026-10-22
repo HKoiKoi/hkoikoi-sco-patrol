@@ -85,7 +85,7 @@ SCO 순찰 일지는 SCO 관리형 독서실에서 순찰하는 매니저와 이
 | F10     | 자리비움 사후 처리  | 004, 007, 011, 013, 019, 023                               |
 | F11     | 퀵 태그 관리        | 004, 009, 011, 013, 014, 022, 023                          |
 
-운영 후 추가(Phase 7): F06(복사 문구 변경) → 028, F12 → 029, F13 → 030·031, F14 → 030·032, 응답 속도 → 033
+운영 후 추가(Phase 7): F06(복사 문구 변경) → 028, F12 → 029, F13 → 030·031, F14 → 030·032, 응답 속도 → 033, 순찰 기록 화면 레이아웃 시프트(CLS) → 034
 
 ## Task 의존성 요약
 
@@ -110,6 +110,7 @@ Phase 0 (완료)
   Phase 7 (운영 후 개선): 028 복사 표기 · 029 자동 채움 · 030 통계 DB 함수  (서로 병렬)
                         → 031 통계 화면 · 032 요주의 카드  (030 이후)
                         → 033 성능 측정·개선  (028~032 이후, 새 조회가 늘린 비용까지 측정)
+                        → 034 순찰 기록 화면 CLS 점검  (033에서 남긴 후속)
 ```
 
 - Phase 2·3은 DB 없이 Task 002의 타입 계약만으로 진행한다. Phase 2의 세 Task는 서로 병렬로 진행할 수 있고, Phase 3의 Task 007~010은 Task 006 이후 병렬로 진행할 수 있다.
@@ -858,6 +859,24 @@ PRD "3. 운영 후 추가 기능"(F12~F14)과 "복사 문구 형식" 변경을 �
     - 오류: 캐시 무효화 실패 시 오래된 데이터가 남지 않는지(퀵 태그 숨김 후 순찰 화면)
     - 엣지: 비로그인/매니저/관리자 각각의 `/logs`, 느린 네트워크(스로틀) 상태의 로딩 표시
   - 테스트 결과(2026-10-22): `npm run check`와 `npm run build` 통과(변경은 `app/layout.tsx`, `components/layout/app-header.tsx`, `components/layout/app-chrome.tsx`, 커밋 `170bd04`). 측정은 로컬 프로덕션 서버(`localhost:3000`)에서 원격 Supabase를 호출하는 구성이며 Chrome 새 컨텍스트 5회 중앙값(워밍업 1회 제외), Lighthouse는 모바일 기본 프로필 5회 중앙값이다. 서버 쪽 Supabase 호출은 `fetch`에 시간만 기록하는 preload(`NODE_OPTIONS`, 코드 수정 없음)로 집계했다. **개선 전 기준선**: 서버 Supabase 호출 `/logs` 비로그인 2건·로그인 3건(`patrol_logs`, `get_watchlist_seats`, `profiles` 병렬, 합계 약 82~114ms), `/protected/patrol` 4건(`profiles` 선행 후 3건 병렬, 126~157ms), 문서 9~13KB, 클라이언트 JS 281~292KB(17~18개), TTFB 2ms, FCP 52~84ms, LCP 344~388ms, Lighthouse 점수 92~95·LCP 2.9~3.4초(시뮬레이션)·TBT 0~5.5ms, `getClaims` 0.16ms(JWKS 첫 호출 26ms 이후 네트워크 없음), `profiles` 조회 28ms. **개선 후**: 헤더 실제 렌더(`<header>` 등장) admin `/logs?date=2026-08-25`(12건) 64ms → 13ms, CPU 4x 208ms → 21ms, 오늘 날짜 63ms → 11ms(CPU 4x 208ms → 21ms), 비로그인은 11ms → 12ms로 그대로다. 그러나 페이지 단위 지표는 달라지지 않았다: TTFB 2ms, LCP `/logs` 364·372·368 → 344·376·368ms, `/protected/patrol` 384·388 → 388·384ms, JS 용량·서버 Supabase 호출 수 동일, 문서 +0.1~0.4KB, Lighthouse 점수 92~95 → 92~94·LCP 변화 없음(값이 2890/3157/3231로 양자화되어 `/logs/stats`의 ±300ms 차이는 오차 범위). 즉 **사용자가 보는 효과는 로고·테마 전환이 스켈레톤 없이 먼저 나오는 것에 한정**되고 내비게이션·로그인 버튼은 여전히 `profiles` 응답(약 30ms)을 기다린다. 권한: Task 023 시나리오 중 이번 변경과 맞닿은 부분을 같은 결과로 확인했다. 비로그인 `/protected/patrol`·`/protected/admin/tags`는 `/auth/login?next=…`, pending은 두 경로 모두 `/logs?notice=pending`과 승인 대기 배너 1개·"퀵 태그 관리" 메뉴 없음, manager는 `/protected/patrol` 통과·`/protected/admin/tags`는 `/logs?notice=admin-required`, admin은 두 경로 통과와 메뉴 4개. 헤더는 375px(햄버거)·1280px(가로 링크)에서 가로 넘침 없이 표시되고 비로그인·manager·admin·pending 4종 모두 콘솔 에러·경고 0건, hydration 경고 없음. CLS: 로컬 admin 0.0014(375px)·0.0039(1280px), 비로그인 0. 임시 계정은 운영 DB에 만들어(`@example.com` 3개, 역할은 SQL로 지정) 측정 후 삭제했고 `auth.users` 2·`profiles` 2·`staff_names` 2·admin 2·`patrol_logs` 257건이 시작 전과 같음을 확인했다(`staff_names`가 `profiles`를 참조해 그 행을 먼저 지워야 삭제된다). **미확인·후속**: ① `/protected/patrol`의 Lighthouse CLS가 0.087 → 0.104로 올랐다. 로컬 측정에서 가장 큰 시프트(0.0874)는 이번 변경과 무관한 푸터(`702→0`)이고 헤더 인증 영역은 0.0019뿐이라 Lighthouse의 +0.017을 헤더 때문이라고 단정하지 못했으며 푸터 시프트가 CLS의 주원인으로 보여 별도 점검이 필요하다. ② 스로틀(600ms 지연·300kbps·CPU 4x) 상태의 중간 로딩 표시는 첫 바이트 전까지 빈 화면이고 그 뒤 정적 셸과 스트리밍이 거의 한 번에 도착해 포착하지 못했다. ③ 퀵 태그 수정·숨김 후 순찰 화면 즉시 반영과 캐시 무효화 실패 시나리오는 `use cache`를 적용하지 않아 해당 없음. ④ 운영(배포) 네트워크 지연·모바일 실기기·콜드 스타트, Lighthouse LCP 요소(시뮬레이션 LCP 약 3초의 원인: JS 약 285KB 다운로드·hydrate vs 스트리밍 구간)와 `unused-javascript` 추정 절감 750ms, 클라이언트 이동의 RSC 바이트(0으로 집계, 프리페치 캐시 적중으로 추정)는 확인하지 못했다. ⑤ 내비게이션·로그인 버튼의 `profiles` 대기를 없애려면 역할을 JWT claims 등에 싣는 구조 변경이 필요하나 권한 판정을 DB에서 한다는 원칙과 충돌해 범위에서 제외했다.
+
+- **Task 034: 순찰 기록 화면 레이아웃 시프트(CLS) 점검**
+  - 관련 기능: 전체(`/protected/patrol` 화면 안정성)
+  - 설명: Task 033 후속. `/protected/patrol`의 Lighthouse CLS가 0.087 → 0.104로 올랐고 로컬 측정에서 가장 큰 시프트(0.0874)는 푸터(`702→0`)였다. 헤더 인증 영역은 0.0019뿐이라 Task 033의 헤더 분리가 원인이라고 단정할 수 없으므로, 먼저 원인을 측정으로 확정한 뒤 확인된 시프트만 고친다.
+  - 선행 조건: Task 033
+  - 브랜치: `develop`에서 분기한 별도 브랜치(예: `perf/patrol-cls`)
+  - 관련 파일: 푸터 컴포넌트와 `app/layout.tsx`, `app/protected/patrol/*`(로딩 fallback·초안 복원 후 레이아웃), `components/layout/app-header.tsx`(필요 시 fallback 크기), 필요 시 `components/layout/nav-menu.tsx`. 정확한 대상은 측정 후 확정한다.
+  - 구현 사항:
+    - 개선 전 측정: 프로덕션 빌드에서 `/protected/patrol`의 시프트 요소와 점수를 Task 033과 같은 방법(Chrome 새 컨텍스트 5회 중앙값, Lighthouse 모바일 기본 프로필 5회 중앙값)으로 기록. 푸터가 왜 `702→0`으로 움직이는지(콘텐츠 스트리밍 전 푸터가 먼저 보이는지)부터 확인한다.
+    - 원인으로 확인된 시프트만 고친다(예: 본문 fallback에 최소 높이를 확보하거나 푸터를 콘텐츠 뒤로 밀기). 측정에서 원인이 아닌 것으로 나온 부분은 건드리지 않는다.
+    - Task 033 리뷰의 경미 제안 2건(데스크톱 내비 자리 미확보 `md:hidden` fallback, 모바일 햄버거 `size-12`와 `NavMenu` 버튼 크기의 연동)은 측정에서 시프트 원인으로 확인될 때만 함께 처리한다.
+    - 개선 후 같은 방법으로 재측정해 전후를 이 Task에 기록. 권한 검증과 DB 최종 방어선은 바꾸지 않는다.
+  - 완료 기준: `/protected/patrol`의 Lighthouse CLS가 Task 033 이전 기준선(0.087) 이하로 내려가거나, 더 줄일 수 없는 사유가 측정으로 기록된다. `/logs`·`/logs/stats`의 CLS는 악화되지 않는다. `npm run check`·`npm run build` 통과, 콘솔 에러·hydration 경고 없음.
+  - 테스트 체크리스트:
+    - 정상: 개선 전/후 `/protected/patrol`(manager·admin)의 CLS와 시프트 요소 비교, 375px·820px·1280px
+    - 오류: 초안 복원 지연·서버 초안이 있는 경우(칩·메모가 늦게 채워질 때)의 시프트
+    - 엣지: 느린 네트워크(스로틀)에서의 스트리밍 순서, 다크 모드, 퀵 태그 개수가 많거나 적을 때, 푸터가 없는 화면은 영향 없음
+    - 회귀: 비로그인/pending/manager/admin 4종 헤더 표시와 권한 동작이 Task 023·033 시나리오와 같다
 
 ## 주요 설계 결정
 
