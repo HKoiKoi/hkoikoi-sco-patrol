@@ -2,10 +2,16 @@ import { io } from "next/cache";
 import Image from "next/image";
 import { Suspense } from "react";
 
+// 서버 시간대(보통 UTC)와 무관하게 KST 연도를 표시한다
+const kstYearFormatter = new Intl.DateTimeFormat("en", {
+  timeZone: "Asia/Seoul",
+  year: "numeric",
+});
+
 // 현재 연도: 요청 시점에 읽도록 io()로 정적 셸에서 제외한다
 async function CurrentYear() {
   await io();
-  return <>{new Date().getFullYear()}</>;
+  return <>{kstYearFormatter.format(new Date())}</>;
 }
 
 // 앱 공통 하단 푸터: 앱 이름, 짧은 설명, 저작권 표기
