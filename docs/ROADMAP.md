@@ -12,7 +12,7 @@ SCO 순찰 일지는 SCO 관리형 독서실에서 순찰하는 매니저와 이
 - **일지 조회와 사후 정정 (F08, F09, F10)**: 로그인 없이 영업일별 전체 타임라인을 열람하고, 권한자는 기록 수정/삭제와 자리비움 번호 이동/삭제
 - **인증과 역할 (F01)**: Google/이메일 로그인, `pending` → `manager`/`admin` 승인 기반 운영
 - **퀵 태그 관리 (F11)**: 관리자가 태그 추가/수정/순서 변경/노출 전환/삭제
-- **운영 후 개선 (F12~F14, Phase 7)**: 복사 문구 열람실-좌석 코드(`3-023`) 표기, 순찰 시작 시 직전 스탠딩·카페존 자동 채움, 좌석 통계 화면, 요주의 좌석 카드 구분, 응답 속도 개선
+- **운영 후 개선 (F12~F14, Phase 7)**: 복사 문구 열람실-좌석 코드(`3-023`) 표기, 순찰 시작 시 직전 스탠딩·카페존 자동 채움, 좌석 통계 화면, 요주의 좌석 카드 구분, 응답 속도·레이아웃 시프트 개선, 코드 리뷰 권장사항 처리(통계 RPC 기간 상한, `full_name` 제약, 인증·동시성 보강)
 
 ### 기술 스택 요약
 
@@ -751,7 +751,7 @@ Phase 0 (완료)
     - 엣지: 같은 요청 ID 재전송(`duplicate`)에도 1건만 기록되고 `/logs`로 이동, 키보드를 올린 채 완료 버튼 탭
   - 테스트 결과(2026-10-21): `npm run check`·`npm run build` 통과. 임시 주소(`chore/verification-deploy` 푸시로 자동 배포)에서 사용자가 실기기로 확인해 **요청한 항목이 모두 통과**했다: ① Galaxy Z Fold8 Chrome과 iPad Safari에서 키보드를 올려도 [순찰 완료] 바가 키보드 위에 보이고 내리면 원위치 ② [순찰 완료] 후 `/logs` 이동과 방금 기록 표시, 뒤로 가기 시 빈 입력란 ③ 토스트가 헤더 아래에 박스·색을 갖고 표시 ④ iPad `/logs` 날짜 입력란이 [다음 영업일] 버튼과 겹치지 않고 날짜 선택기가 열려 이동. Playwright(프로덕션 빌드, 375px·820px): 복사 토스트 위치·폭·헤더와의 간격·라이트/다크 색 확인. 미확인: 순찰 완료 후 이동을 Playwright로 확인하지 못했다(QA 계정 비밀번호가 없어 로그인 불가). `conflict`·네트워크 실패에서 이동하지 않는 분기와 `duplicate` 이동은 실행해 보지 않고 코드(`onCompleted` 호출 위치)로만 확인했다. 오류 토스트의 실제 모습, iPhone 크기 화면도 미확인.
 
-### Phase 7: 운영 후 개선 (2026-10-22 요구 변경)
+### Phase 7: 운영 후 개선 (2026-10-22 요구 변경) ✅
 
 PRD "3. 운영 후 추가 기능"(F12~F14)과 "복사 문구 형식" 변경을 구현한다. 확정된 결정:
 
@@ -884,7 +884,7 @@ PRD "3. 운영 후 추가 기능"(F12~F14)과 "복사 문구 형식" 변경을 �
   - 관련 기능: 전체(보안·입력 검증·동시성·표시 보강, 기능 변경 없음)
   - 설명: `develop` 전체 코드 리뷰에서 나온 Minor 권장사항 10건을 8개 묶음으로 처리한다. Critical·확정 Major는 없었다. 공개 API(RPC 시그니처, Server Action 시그니처, 컴포넌트 props)는 바꾸지 않았다.
   - 선행 조건: Task 034
-  - 브랜치: `fix/db-input-limits`(PR #30), `fix/auth-hardening`(PR #31), `fix/logs-concurrency`(PR #32). 문서 기록은 `develop`에서 별도 반영한다.
+  - 브랜치: `fix/db-input-limits`(PR #30), `fix/auth-hardening`(PR #31), `fix/logs-concurrency`(PR #32). 문서 기록은 `develop`에서 별도로 반영했다.
   - 구현 사항:
     - ✅ 공개 통계 RPC 기간 상한: `get_seat_stats`·`get_watchlist_seats`에 366일 상한을 걸고 초과·null은 예외 없이 빈 결과로 처리(`20261022152056_cap_seat_stats_range`). 시그니처·`security invoker`·`search_path`·grant는 그대로다.
     - ✅ `profiles.full_name` 제약: `profiles_full_name_check`(앞뒤 공백 제거 후 1~50자, LF·CR 금지)와 `handle_new_user`의 값 정리(개행→공백, 50자 절단, `role`은 여전히 `pending` 고정), 가입 폼 `maxLength` 50과 안내 문구(`20261022152617_constrain_profiles_full_name`).
