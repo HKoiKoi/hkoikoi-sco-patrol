@@ -388,7 +388,7 @@ HH:mm 순찰 → 완료[ (상세)]
 - **호출 경로**: 초안 저장·순찰 완료는 지연을 줄이기 위해 브라우저 Supabase 클라이언트에서 RPC를 직접 호출한다(실행 권한은 `authenticated`만, 역할 검사는 함수 본문). 기록 수정·삭제, 자리비움 처리, 퀵 태그 관리는 Server Action에서 `requireStaff()` / `requireAdmin()`을 호출하고 최종 판단은 RLS·컬럼 GRANT가 한다. 갱신·삭제된 행이 0개면 "권한이 없거나 삭제된 기록"으로 처리한다.
 - **권한 미달 안내**: 서버 리디렉션은 `/logs?notice=<코드>`(`login-required` / `pending` / `admin-required`)로 전달하고 공통 배너가 문구를 표시한다. `requireStaff()`는 비로그인을 `/auth/login?next=<현재 경로>`로, `pending`을 `notice=pending`으로 보내며, `requireAdmin()`은 `manager`를 `notice=admin-required`로 보낸다. 알 수 없는 코드는 배너를 표시하지 않는다.
 - **공통 모듈 위치**: `lib/auth/dal.ts`(`requireStaff` / `requireAdmin`, `getViewer`), `lib/auth/safe-next.ts`(내부 경로 검증), `lib/auth/notice.ts`, `lib/business-date.ts`, `lib/patrol-format.ts`, `lib/seat-numbers.ts`, `lib/quick-tag-label.ts`, `lib/stats.ts`(요주의 기준 상수와 순수 함수). 좌석·태그 문구 정규화는 클라이언트와 서버가 같은 함수를 쓰고 DB 제약과 규칙이 일치해야 한다.
-- **응답 속도**: 느림 체감이 보고되었다(2026-10-22). 코드로 원인을 단정하지 않고 먼저 `/logs`·`/protected/patrol`의 요청 수와 소요 시간을 측정한 뒤, 측정에서 확인된 병목만 고친다. 권한 판정(서버 `requireStaff()` 등)과 DB 최종 방어선은 속도를 이유로 줄이지 않는다. 캐시를 도입하면 쿠키에 의존하지 않는 데이터(퀵 태그 등)만 대상으로 하고, 변경 시 무효화 경로를 함께 둔다.
+- **응답 속도**: 느림 체감이 보고되었다(2026-10-22). 코드로 원인을 단정하지 않고 먼저 `/logs`·`/protected/patrol`의 요청 수와 소요 시간을 측정한 뒤, 측정에서 확인된 병목만 고친다. 권한 판정(서버 `requireStaff()` 등)과 DB 최종 방어선은 속도를 이유로 줄이지 않는다. 캐시를 도입하면 쿠키에 의존하지 않는 데이터(퀵 태그 등)만 대상으로 하고, 변경 시 무효화 경로를 함께 둔다. 2026-10-22 측정 결과 서버 Supabase 호출은 병렬이고 `getClaims`는 네트워크 호출이 없어(0.16ms) 캐시 도입 대상이 없었으며, 헤더의 `getViewer()` 대기만 정적 셸에서 분리했다(`AppChrome`은 조각별 `<Suspense>`로 `viewer`를 기다린다).
 - **검증 방식**: 테스트 러너는 도입하지 않는다(MVP 이후 검토). 순수 함수는 커밋하지 않는 임시 스크립트로, DB 권한·RPC는 Supabase MCP SQL로(역할을 흉내 낸 트랜잭션), 화면은 Playwright MCP로 확인한다.
 
 ## 📝 가정 사항
