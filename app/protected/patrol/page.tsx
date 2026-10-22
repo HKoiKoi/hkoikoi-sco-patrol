@@ -1,8 +1,11 @@
+import { io } from "next/cache";
 import { Suspense } from "react";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { requireStaff } from "@/lib/auth/dal";
+import { getBusinessDate } from "@/lib/business-date";
 import { getMyDraft } from "@/lib/queries/patrol-draft";
+import { getLatestStandingCafeZone } from "@/lib/queries/patrol-logs";
 import { getActiveQuickTags } from "@/lib/queries/quick-tags";
 
 import { PatrolFormHost } from "./_components/patrol-form-host";
@@ -22,9 +25,14 @@ function PatrolSkeleton() {
 async function PatrolContent() {
   const viewer = await requireStaff("/protected/patrol");
 
-  const [initialDraft, quickTags] = await Promise.all([
+  // 현재 시각을 읽기 전에 호출한다(Cache Components). 영업일은 직전 순찰을 찾는 기준이다.
+  await io();
+  const businessDate = getBusinessDate(new Date());
+
+  const [initialDraft, quickTags, prefill] = await Promise.all([
     getMyDraft(viewer.userId),
     getActiveQuickTags(),
+    getLatestStandingCafeZone(businessDate),
   ]);
 
   return (
@@ -32,6 +40,7 @@ async function PatrolContent() {
       viewer={viewer}
       quickTags={quickTags}
       initialDraft={initialDraft}
+      prefill={prefill}
     />
   );
 }

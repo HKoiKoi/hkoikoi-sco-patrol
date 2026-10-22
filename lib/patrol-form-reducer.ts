@@ -94,6 +94,39 @@ export function createInitialPatrolFormState(
   };
 }
 
+/** 좌석 4종과 메모가 모두 비어 있는 입력인지 */
+export function isEmptyPatrolContent(content: PatrolContent): boolean {
+  return (
+    content.memo === "" &&
+    (["standing", "cafe_zone", "drowsy", "away"] as const).every(
+      (c) => content[c].length === 0,
+    )
+  );
+}
+
+export type PatrolPrefill = Pick<PatrolContent, "standing" | "cafe_zone">;
+
+/**
+ * 직전 순찰의 스탠딩·카페존을 초안에 채운다. 초안이 완전히 비어 있을 때만 병합해,
+ * 이미 입력한 내용(메모만 있는 초안 포함)을 덮어쓰지 않는다. applied는 병합 여부다.
+ */
+export function applyPrefill(
+  draft: PatrolContent,
+  prefill: PatrolPrefill | null | undefined,
+): { content: PatrolContent; applied: boolean } {
+  if (!prefill || !isEmptyPatrolContent(draft)) {
+    return { content: draft, applied: false };
+  }
+  return {
+    content: {
+      ...draft,
+      standing: prefill.standing,
+      cafe_zone: prefill.cafe_zone,
+    },
+    applied: true,
+  };
+}
+
 function clampMemo(memo: string): string {
   return memo.length > MEMO_MAX_LENGTH ? memo.slice(0, MEMO_MAX_LENGTH) : memo;
 }

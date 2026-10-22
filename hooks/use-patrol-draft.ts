@@ -19,10 +19,13 @@ import {
 } from "@/lib/draft-backup";
 import { PatrolDraftNetworkError } from "@/lib/patrol-draft-rpc";
 import {
+  applyPrefill,
   createInitialPatrolFormState,
+  isEmptyPatrolContent,
   patrolFormReducer,
   type PatrolFormAction,
   type PatrolFormState,
+  type PatrolPrefill,
 } from "@/lib/patrol-form-reducer";
 import type {
   PatrolContent,
@@ -53,17 +56,25 @@ function isSameContent(a: PatrolContent, b: PatrolContent): boolean {
   );
 }
 
-function isEmptyContent(content: PatrolContent): boolean {
-  return (
-    content.memo === "" && SEAT_CATEGORIES.every((c) => !content[c].length)
-  );
+interface InitialStateInput {
+  draft: PatrolDraft;
+  prefill?: PatrolPrefill | null;
 }
 
-/** 서버 초안으로 초기 상태를 만든다. 내용이 있으면 이미 저장된 상태("저장됨 HH:mm")로 시작한다. */
-function createInitialState(draft: PatrolDraft): PatrolFormState {
+/**
+ * 서버 초안으로 초기 상태를 만든다. 내용이 있으면 이미 저장된 상태("저장됨 HH:mm")로 시작한다.
+ * 빈 초안에 prefill이 병합되면 서버에 없는 내용이므로 dirty로 시작해 자동 저장되게 한다(revision은 서버 값 그대로).
+ */
+function createInitialState({
+  draft,
+  prefill,
+}: InitialStateInput): PatrolFormState {
   const base = createInitialPatrolFormState(draft);
-  if (isEmptyContent(draft.content)) return base;
-  return { ...base, status: "saved", lastSavedAt: draft.updatedAt || null };
+  if (!isEmptyPatrolContent(draft.content)) {
+    return { ...base, status: "saved", lastSavedAt: draft.updatedAt || null };
+  }
+  const { content, applied } = applyPrefill(draft.content, prefill);
+  return applied ? { ...base, content, status: "dirty" } : base;
 }
 
 interface UsePatrolDraftOptions {
@@ -71,6 +82,8 @@ interface UsePatrolDraftOptions {
   adapter: PatrolDraftAdapter;
   /** 서버가 조회한 본인 초안 (행이 없으면 revision 0의 빈 초안) */
   initialDraft: PatrolDraft;
+  /** 직전 순찰의 스탠딩·카페존. 초안이 완전히 비어 있을 때만 초기 상태에 채운다. */
+  prefill?: PatrolPrefill | null;
   /** 완료 응답이 ok·duplicate로 확정되고 입력이 초기화된 직후 한 번 호출된다(conflict·실패에서는 호출하지 않는다). */
   onCompleted?: () => void;
 }
@@ -90,11 +103,12 @@ export function usePatrolDraft({
   userId,
   adapter,
   initialDraft,
+  prefill,
   onCompleted,
 }: UsePatrolDraftOptions): UsePatrolDraftResult {
   const [state, rawDispatch] = useReducer(
     patrolFormReducer,
-    initialDraft,
+    { draft: initialDraft, prefill },
     createInitialState,
   );
   const stateRef = useRef(state);
@@ -150,7 +164,7 @@ export function usePatrolDraft({
         } else {
           dispatch({ type: "SAVE_CONFLICT", serverDraft: result.serverDraft });
           // 서버 초안이 비어 있으면 선택 없이 로컬 입력을 서버 revision 기준으로 다시 저장한다.
-          if (isEmptyContent(result.serverDraft.content)) {
+          if (isEmptyPatrolContent(result.serverDraft.content)) {
             dispatch({ type: "RESOLVE_CONFLICT", choice: "local" });
           }
         }
@@ -187,7 +201,7 @@ export function usePatrolDraft({
     const serverAhead = backup.revision < initialDraft.revision;
     if (
       !isSameContent(backup.payload, initialDraft.content) &&
-      !(serverAhead && isEmptyContent(backup.payload))
+      !(serverAhead && isEmptyPatrolContent(backup.payload))
     ) {
       needsBackupRef.current = true;
       dispatch({
