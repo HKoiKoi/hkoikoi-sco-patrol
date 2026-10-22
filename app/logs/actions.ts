@@ -23,6 +23,8 @@ const ERROR_INVALID = "잘못된 요청입니다";
 const ERROR_SAVE_FAILED = "저장하지 못했습니다. 잠시 후 다시 시도해 주세요";
 const ERROR_DELETE_FAILED = "삭제하지 못했습니다. 잠시 후 다시 시도해 주세요";
 const ERROR_SEAT_GONE = "이미 처리된 자리비움 번호입니다";
+const ERROR_CONFLICT =
+  "다른 곳에서 먼저 수정되었습니다. 새로고침 후 다시 시도해 주세요";
 const ERROR_MEMO_TOO_LONG = `메모는 ${MEMO_MAX_LENGTH.toLocaleString("ko-KR")}자 이하로 입력하세요`;
 
 const OK: LogResult = { ok: true, data: null };
@@ -47,6 +49,33 @@ function toResult(
   if (!rows || rows.length === 0) return { ok: false, error: ERROR_FORBIDDEN };
   refresh();
   return OK;
+}
+
+/** PostgREST eq 필터용 int[] 리터럴. 배열을 그대로 넘기면 `1,2`로 전송되어 22P02가 난다. */
+function toPgArray(seats: number[]): string {
+  return `{${seats.join(",")}}`;
+}
+
+/**
+ * 낙관적 조건 update가 0행일 때 원인을 가른다. 일지는 공개 조회라 행이 보이는지만으로는
+ * RLS 거부와 경합을 구분할 수 없으므로, 읽었던 away가 바뀌었는지로 판단한다.
+ */
+async function explainZeroRows(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  id: string,
+  readAway: number[],
+): Promise<LogResult> {
+  const { data: row, error } = await supabase
+    .from("patrol_logs")
+    .select("away")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) return { ok: false, error: ERROR_SAVE_FAILED };
+  if (!row) return { ok: false, error: ERROR_FORBIDDEN };
+  if (toPgArray(row.away) !== toPgArray(readAway)) {
+    return { ok: false, error: ERROR_CONFLICT };
+  }
+  return { ok: false, error: ERROR_FORBIDDEN };
 }
 
 /** 좌석 4종과 메모를 수정한다. 완료 시각·영업일·작성자는 받지 않는다. */
@@ -130,7 +159,7 @@ export async function moveAwaySeat(
   if (!row) return { ok: false, error: ERROR_FORBIDDEN };
   if (!row.away.includes(seat)) return { ok: false, error: ERROR_SEAT_GONE };
 
-  // 동시 수정은 마지막 저장이 우선한다(PRD).
+  // 읽은 시점의 세 배열이 그대로일 때만 갱신해, 그 사이의 동시 수정을 덮어쓰지 않는다.
   const next = moveAwaySeatInSeats(row, seat, target);
   const { data, error } = await supabase
     .from("patrol_logs")
@@ -140,8 +169,14 @@ export async function moveAwaySeat(
       away: next.away,
     })
     .eq("id", id)
+    .filter("standing", "eq", toPgArray(row.standing))
+    .filter("cafe_zone", "eq", toPgArray(row.cafe_zone))
+    .filter("away", "eq", toPgArray(row.away))
     .select("id");
 
+  if (!error && data?.length === 0) {
+    return explainZeroRows(supabase, id, row.away);
+  }
   return toResult(error, data, ERROR_SAVE_FAILED);
 }
 
@@ -170,7 +205,11 @@ export async function removeAwaySeat(
     .from("patrol_logs")
     .update({ away: removeSeat(row.away, seat) })
     .eq("id", id)
+    .filter("away", "eq", toPgArray(row.away))
     .select("id");
 
+  if (!error && data?.length === 0) {
+    return explainZeroRows(supabase, id, row.away);
+  }
   return toResult(error, data, ERROR_SAVE_FAILED);
 }
