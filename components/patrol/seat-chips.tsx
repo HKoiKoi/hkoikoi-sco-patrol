@@ -75,6 +75,8 @@ interface SeatChipsProps {
   hideCategories?: readonly SeatCategory[];
   /** 자리비움 칩 대신 렌더할 노드 (클릭 가능한 칩 등). 라벨은 그대로 유지한다. */
   awaySlot?: ReactNode;
+  /** 졸음/딴짓 칩 중 강조할 좌석 (요주의). 링·굵은 글씨와 스크린리더용 텍스트를 붙인다. */
+  highlightSeats?: readonly number[];
   className?: string;
 }
 
@@ -83,6 +85,7 @@ export function SeatChips({
   seats,
   hideCategories = [],
   awaySlot,
+  highlightSeats = [],
   className,
 }: SeatChipsProps) {
   const categories = SEAT_CATEGORY_ORDER.filter(
@@ -110,20 +113,28 @@ export function SeatChips({
             awaySlot
           ) : (
             <div className="flex min-w-0 flex-wrap gap-2">
-              {seats[category].map((seat) => (
-                <Badge
-                  key={seat}
-                  variant="outline"
-                  className={cn(
-                    "min-w-0 break-words",
-                    SEAT_CHIP_SIZE_CLASS,
-                    SEAT_CATEGORY_COLORS[category],
-                  )}
-                >
-                  {seat}
-                  <span className="sr-only">번</span>
-                </Badge>
-              ))}
+              {seats[category].map((seat) => {
+                // 요주의 강조는 졸음/딴짓 칩에만 적용한다.
+                const highlighted =
+                  category === "drowsy" && highlightSeats.includes(seat);
+                return (
+                  <Badge
+                    key={seat}
+                    variant="outline"
+                    className={cn(
+                      "min-w-0 break-words",
+                      SEAT_CHIP_SIZE_CLASS,
+                      SEAT_CATEGORY_COLORS[category],
+                      highlighted && "font-bold ring-2 ring-destructive",
+                    )}
+                  >
+                    {seat}
+                    <span className="sr-only">
+                      번{highlighted && " 요주의"}
+                    </span>
+                  </Badge>
+                );
+              })}
             </div>
           )}
         </li>
