@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 
 import { usePatrolDraft } from "@/hooks/use-patrol-draft";
+import type { PatrolPrefill } from "@/lib/patrol-form-reducer";
 import type { AuthenticatedViewer } from "@/lib/types/auth";
 import type {
   PatrolDraft,
@@ -24,6 +25,8 @@ interface PatrolFormProps {
   quickTags: QuickTag[];
   /** 서버가 조회한 본인 초안 */
   initialDraft: PatrolDraft;
+  /** 직전 순찰의 스탠딩·카페존. 초안이 비어 있을 때만 채워진다. */
+  prefill: PatrolPrefill | null;
 }
 
 // 순찰 입력 폼: 좌석 4종(모바일 1열, md 이상 2x2) → 메모(라벨, 퀵 태그, 입력창) 순으로 세로 배치
@@ -32,6 +35,7 @@ export function PatrolForm({
   adapter,
   quickTags,
   initialDraft,
+  prefill,
 }: PatrolFormProps) {
   const router = useRouter();
   const { state, dispatch, resolveConflict, handleComplete, flushing } =
@@ -39,6 +43,7 @@ export function PatrolForm({
       userId: viewer.userId,
       adapter,
       initialDraft,
+      prefill,
       // 순찰 완료 후 방금 기록을 일지 목록에서 확인할 수 있게 이동한다
       onCompleted: () => router.push("/logs"),
     });
