@@ -791,22 +791,23 @@ PRD "3. 운영 후 추가 기능"(F12~F14)과 "복사 문구 형식" 변경을 �
     - 엣지: 당일 일지 없음/두 배열 모두 비어 있음 → 채우지 않음, 초안에 메모만 있음 → 덮어쓰지 않음, 다른 매니저의 일지가 최신 → 그 값으로 채움, 영업일 경계(03:59/04:00) 전후, 완료 직후 재진입 시 같은 값이 다시 채워짐
   - 테스트 결과(2026-10-22): `npm run check` 통과. 순수 함수는 커밋하지 않는 임시 스크립트(스크래치 `check.ts`, `@/` 별칭 리졸버 훅 사용)로 확인했다: `getBusinessDate` 03:59 KST → 전일(10/21), 04:00 KST → 당일(10/22), 03:59:59.999 → 전일. `applyPrefill`은 빈 초안 → 병합(`applied: true`), 메모만·졸음만 있는 초안과 prefill `null` → 병합 안 함. QA 계정(`qa-*`)이 현재 DB에 없어 사용자 승인 아래 실제 `admin` 계정 `hhak3504@naver.com`(함상현)으로 Playwright MCP + 개발 서버에서 수행했다. ① 당일 일지 0건 → `/protected/patrol` 진입 시 스탠딩·카페존 0개, 채우지 않음. ② 스탠딩 3·카페존 7 입력 후 [순찰 완료] → `/logs` 이동, `patrol_logs`에 `standing [3]`·`cafe_zone [7]` 기록. ③ `/protected/patrol` 재진입 → 칩 3·7, "저장됨 12:12", `save_patrol_draft` 1회(개발 서버 StrictMode 포함, 200), DB 초안 `[3]`·`[7]`·`revision 13` 저장 확인(완료 직후 재진입 시 같은 값이 다시 채워짐). ④ `execute_sql`로 초안을 메모만("QA029 메모만")으로 만들고 재진입 → 메모 유지, 칩 0개, 저장 RPC 호출 없음(덮어쓰지 않음). ⑤ 초안을 비우고 다른 작성자(`koikoilove99@gmail.com`)의 더 최신 일지(스탠딩 5, 카페존 9)를 `execute_sql`로 넣고 재진입 → 칩 5·9로 채워지고 "저장됨", `save_patrol_draft` 1회. ⑥ 콘솔: warning 이상 에러 0·경고 0(hydration 경고 없음). 테스트로 만든 일지 2건(`id` 지정 삭제)을 지우고 `patrol_drafts`를 빈 값으로 되돌렸다. PRD F12와 구현이 일치함을 확인했다(빈 초안일 때만 병합, 작성자 무관 최신 일지, 졸음/딴짓·자리비움·메모는 채우지 않음, 채움 직후 자동 저장, `revision` 유지). 미확인: 조회 실패 경로(`getLatestStandingCafeZone`이 `error` 또는 행 없음에서 `null`을 돌려주는 코드와 `null` prefill에서 `applyPrefill`이 병합하지 않는 것만 확인, 실제 DB 오류는 재현하지 않음), 두 배열이 모두 빈 일지의 실제 조회(코드 `length === 0` 분기만 확인), 03:59/04:00 전후의 실제 화면 채움(`getBusinessDate`와 DB 영업일 함수 기준으로만 확인), 모바일 뷰포트·다크 모드, 실기기·태블릿, QA 계정(`qa-manager`·`qa-manager2`) 로그인 시나리오(계정 부재로 실제 admin 계정 2개로 대체).
 
-- **Task 030: 좌석 통계 DB 함수**
+- **Task 030: 좌석 통계 DB 함수** ✅
   - 관련 기능: F13, F14
   - 설명: 좌석 번호별 기록 횟수와 요주의 좌석을 DB에서 집계하는 함수 2종을 추가한다.
   - 선행 조건: 없음
   - 관련 파일: `supabase/migrations/<타임스탬프>_create_seat_stats_functions.sql`, `lib/supabase/database.types.ts`(재생성), `lib/stats.ts`(상수 `WATCH_WINDOW_DAYS`, `WATCH_THRESHOLD`, 순수 함수)
   - 구현 사항:
-    - [ ] `get_seat_stats(from_date, to_date)`: `unnest`로 펼쳐 좌석별 스탠딩·카페존·졸음/딴짓 횟수 반환(`security invoker`, `business_date` 범위로 기존 인덱스 사용)
-    - [ ] `get_watchlist_seats(as_of date)`: 최근 30영업일 `drowsy` 5회 이상인 좌석 `int[]` 반환
-    - [ ] 실행 권한은 anon·authenticated만, 기본 PUBLIC 권한 회수. `client_request_id` 등 비공개 컬럼은 읽지 않음. 기준값(30, 5)은 DB 함수 인자로 받아 `lib/stats.ts` 상수 한 곳에서 전달
-    - [ ] `get_advisors`(security, performance) 새 경고 없음
+    - ✅ `get_seat_stats(from_date, to_date)`: `unnest`로 펼쳐 좌석별 스탠딩·카페존·졸음/딴짓 횟수 반환(`security invoker`, `business_date` 범위로 기존 인덱스 사용)
+    - ✅ `get_watchlist_seats(as_of, window_days, threshold)`: `as_of` 포함 최근 `window_days`영업일 `drowsy` `threshold`회 이상인 좌석 `int[]` 반환(실제 시그니처는 계획의 `(as_of date)`에서 기준값을 인자로 받도록 변경)
+    - ✅ 실행 권한은 anon·authenticated만, 기본 PUBLIC 권한 회수. `client_request_id` 등 비공개 컬럼은 읽지 않음. 기준값(30, 5)은 DB 함수 인자로 받아 `lib/stats.ts` 상수 한 곳에서 전달
+    - ✅ `get_advisors`(security, performance) 새 경고 없음
+    - ✅ `lib/supabase/database.types.ts`에 두 함수 타입 병합, `lib/stats.ts`에 `WATCH_WINDOW_DAYS`·`WATCH_THRESHOLD`·`SeatStatRow`·`topSeats` 추가(Task 031용)
   - 완료 기준: 결과가 수동 집계와 일치하고 권한이 PRD와 같다. `npm run check` 통과.
   - 테스트 체크리스트:
     - 정상: 롤백되는 트랜잭션에서 기록 몇 건을 만들어 `get_seat_stats`, `get_watchlist_seats` 결과 대조(`execute_sql`)
     - 오류: 역전된 기간(`from > to`)은 빈 결과, `null` 인자 처리
     - 엣지: 기록이 없을 때 빈 결과, 경계일(윈도우 첫날/마지막 날) 포함 여부, 한 기록 안에서 한 좌석은 1회로 계산, 4번 임계값 정확히 5회/4회, anon·authenticated 모두 호출 가능하고 쓰기 불가
-  - 테스트 결과: (미수행)
+  - 테스트 결과(2026-10-22): `npm run check` 통과. 마이그레이션 `20261022122528_create_seat_stats_functions`를 적용했고 두 함수 모두 `security invoker`, `stable`, `search_path` 고정이며 PUBLIC 실행 권한이 없고 anon·authenticated만 실행 가능함을 `pg_proc`·`has_function_privilege`로 확인했다. `private.is_valid_seats` 본문으로 카테고리 내 중복 불허를 확인했다. 검증은 2099년 날짜의 테스트 행을 `DO` 블록에서 넣고 마지막 예외로 롤백해 수행했다(`patrol_logs` 257행 그대로): 수동 집계와 일치, 역전된 기간·null 인자·기록 없는 기간은 빈 결과/빈 배열, 윈도우 첫날(`as_of-29`)과 마지막 날(`as_of`) 포함, `as_of-30` 제외, `drowsy` 정확히 5회 좌석 포함·4회 제외, 자리비움만 든 좌석은 통계에 없음. 한 기록 안의 좌석 중복은 CHECK 제약으로 애초에 거부된다. anon·authenticated 호출 결과는 소유자와 같았고, 두 역할의 `insert`와 anon의 `update`·`delete`는 42501, authenticated의 `update`·`delete`는 0행, `client_request_id` 읽기는 두 역할 모두 42501이었다. `(business_date, patrolled_at)` 인덱스 스캔을 확인했고 `get_advisors`(security, performance)에 새 경고는 없었다. `lib/stats.ts`는 임시 스크립트(스크래치 `check.ts`, 커밋 안 함)로 상수 30·5, `topSeats`의 정렬·동률(좌석 번호 오름차순)·`limit`·빈 입력·0회 제외·입력 불변을 확인했다. 미확인: 함수 자체의 `explain`(인덱스 스캔은 같은 조건의 쿼리로 확인), 실데이터에서의 집계 결과, QA 계정 로그인 상태의 실제 호출(role 흉내로만 확인).
 
 - **Task 031: 좌석 통계 화면**
   - 관련 기능: F13, F14
