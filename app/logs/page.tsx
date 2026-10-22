@@ -2,7 +2,11 @@ import { io } from "next/cache";
 import { Suspense } from "react";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import { getBusinessDate, parseBusinessDateParam } from "@/lib/business-date";
+import {
+  getBusinessDate,
+  parseBusinessDateParam,
+  shiftBusinessDate,
+} from "@/lib/business-date";
 import { getViewer } from "@/lib/auth/dal";
 import { getPatrolLogsByDate } from "@/lib/queries/patrol-logs";
 import { getWatchSeats } from "@/lib/queries/seat-stats";
@@ -31,7 +35,13 @@ async function LogsContent({ searchParams }: LogsPageProps) {
   await io();
   const currentDate = getBusinessDate(new Date());
   // 잘못된 date는 리디렉션 없이 현재 영업일로 대체한다.
-  const businessDate = parseBusinessDateParam(date) ?? currentDate;
+  // 다음 날짜 이동과 같은 상한(현재 영업일 + 1일)을 직접 입력한 URL에도 적용한다.
+  // YYYY-MM-DD는 문자열 비교가 곧 날짜 비교다.
+  const parsedDate = parseBusinessDateParam(date);
+  const businessDate =
+    parsedDate !== null && parsedDate <= shiftBusinessDate(currentDate, 1)
+      ? parsedDate
+      : currentDate;
   // 요주의 판정은 보는 날짜와 무관하게 현재 영업일 기준이다.
   const [viewer, logs, watchSeats] = await Promise.all([
     getViewer(),
