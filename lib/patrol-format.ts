@@ -18,6 +18,32 @@ export function normalizeMemoLines(memo: string): string[] {
     .filter((line) => line.length > 0);
 }
 
+/** 열람실별 전역 좌석 번호 구간(양 끝 포함). 복사 문구의 좌석 코드 변환에만 쓴다. */
+export const SEAT_ROOM_RANGES: readonly {
+  room: number;
+  from: number;
+  to: number;
+}[] = [
+  { room: 1, from: 1, to: 10 },
+  { room: 2, from: 11, to: 20 },
+  { room: 3, from: 21, to: 29 },
+  { room: 4, from: 30, to: 39 },
+  { room: 5, from: 40, to: 51 },
+  { room: 6, from: 52, to: 63 },
+  { room: 7, from: 64, to: 77 },
+  { room: 8, from: 78, to: 91 },
+  { room: 9, from: 92, to: 105 },
+  { room: 10, from: 106, to: 119 },
+  { room: 11, from: 120, to: 128 },
+];
+
+/** 좌석 번호를 `열람실-3자리 번호` 코드로 바꾼다 (23 → `3-023`). 구간 밖이면 숫자만 반환한다. */
+export function formatSeatCode(seat: number): string {
+  const range = SEAT_ROOM_RANGES.find((r) => seat >= r.from && seat <= r.to);
+  if (!range) return String(seat);
+  return `${range.room}-${String(seat).padStart(3, "0")}`;
+}
+
 interface FormatPatrolLineInput {
   /** 순찰 완료 시각 (ISO 문자열) */
   patrolledAt: string;
@@ -42,8 +68,11 @@ export function formatPatrolLine({
   if (memoText) parts.push(memoText);
 
   if (drowsy.length > 0) {
-    const seats = [...drowsy].sort((a, b) => a - b).join(", ");
-    parts.push(`${seats}번 졸아서 깨움`);
+    const seats = [...drowsy]
+      .sort((a, b) => a - b)
+      .map(formatSeatCode)
+      .join(", ");
+    parts.push(`${seats} 졸아서 깨움`);
   }
 
   const base = `${time} 순찰 → 완료`;

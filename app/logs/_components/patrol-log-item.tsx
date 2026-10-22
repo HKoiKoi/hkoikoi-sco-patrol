@@ -1,4 +1,5 @@
-import { StickyNote } from "lucide-react";
+import { cva } from "class-variance-authority";
+import { AlertTriangle, StickyNote } from "lucide-react";
 
 import { CopyButton } from "@/components/patrol/copy-button";
 import { SeatChips } from "@/components/patrol/seat-chips";
@@ -6,34 +7,64 @@ import { Card, CardContent } from "@/components/ui/card";
 import { formatKstTime } from "@/lib/business-date";
 import { canEdit } from "@/lib/permissions";
 import type { Viewer } from "@/lib/types/auth";
+import { watchSeatsInLog } from "@/lib/stats";
 import type { PatrolLog } from "@/lib/types/patrol";
 
 import { AwaySeatActions } from "./away-seat-actions";
 import { DeleteLogDialog, EditLogDialog } from "./edit-log-dialog";
+
+// 요주의 좌석이 든 카드는 테두리·배경으로 구분한다 (카테고리 칩 색과 겹치지 않게 destructive 토큰 사용).
+const cardVariants = cva("min-w-0 py-4", {
+  variants: {
+    watch: {
+      true: "border-2 border-destructive bg-red-50 dark:bg-red-950/40",
+      false: "",
+    },
+  },
+  defaultVariants: { watch: false },
+});
 
 interface PatrolLogItemProps {
   log: PatrolLog;
   viewer: Viewer;
   /** 해당 영업일 안에서 오래된 기록부터 1, 2, 3 ... 으로 매긴 일련번호 */
   serial: number;
+  /** 현재 요주의 좌석 번호. 이 기록의 졸음/딴짓 좌석과 겹치면 카드를 강조한다. */
+  watchSeats?: readonly number[];
 }
 
 // 순찰 기록 카드: 시각, 작성자, 좌석 칩, 메모, 복사 버튼
-export function PatrolLogItem({ log, viewer, serial }: PatrolLogItemProps) {
+export function PatrolLogItem({
+  log,
+  viewer,
+  serial,
+  watchSeats = [],
+}: PatrolLogItemProps) {
   const editable = canEdit(log, viewer);
   const hasMemo = log.memo.trim().length > 0;
+  const flagged = watchSeatsInLog(log.drowsy, watchSeats);
+  const isWatch = flagged.length > 0;
 
   return (
-    <Card className="min-w-0 py-4">
+    <Card className={cardVariants({ watch: isWatch })}>
       <CardContent className="min-w-0 space-y-3 px-4 pb-0">
-        {/* 일지 번호 배지 */}
-        <span
-          role="img"
-          aria-label={`일지 번호 ${serial}`}
-          className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-primary px-2 text-xs font-bold text-primary-foreground tabular-nums"
-        >
-          <span aria-hidden="true">#{serial}</span>
-        </span>
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          {/* 일지 번호 배지 */}
+          <span
+            role="img"
+            aria-label={`일지 번호 ${serial}`}
+            className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-primary px-2 text-xs font-bold text-primary-foreground tabular-nums"
+          >
+            <span aria-hidden="true">#{serial}</span>
+          </span>
+          {/* 색만으로 구분하지 않도록 아이콘과 텍스트를 함께 둔다 */}
+          {isWatch && (
+            <span className="inline-flex h-6 items-center gap-1 rounded-full border border-destructive px-2 text-xs font-bold text-destructive">
+              <AlertTriangle className="size-3.5 shrink-0" aria-hidden="true" />
+              요주의
+            </span>
+          )}
+        </div>
 
         {/* 시각·작성자 */}
         <div className="flex min-w-0 items-baseline gap-2">
@@ -51,6 +82,7 @@ export function PatrolLogItem({ log, viewer, serial }: PatrolLogItemProps) {
         {/* 수정 권한이 있으면 자리비움 칩이 클릭 가능한 메뉴가 된다 */}
         <SeatChips
           seats={log}
+          highlightSeats={flagged}
           awaySlot={editable ? <AwaySeatActions log={log} /> : undefined}
         />
 

@@ -4,6 +4,7 @@
 import { useState } from "react";
 
 import { createPatrolDraftAdapter } from "@/lib/patrol-draft-rpc";
+import type { PatrolPrefill } from "@/lib/patrol-form-reducer";
 import type { AuthenticatedViewer } from "@/lib/types/auth";
 import type { PatrolDraft, QuickTag } from "@/lib/types/patrol";
 
@@ -14,12 +15,15 @@ interface PatrolFormHostProps {
   quickTags: QuickTag[];
   /** 서버에서 조회한 본인 초안 (행이 없으면 revision 0의 빈 초안) */
   initialDraft: PatrolDraft;
+  /** 오늘 영업일 직전 순찰의 스탠딩·카페존 (없으면 null) */
+  prefill: PatrolPrefill | null;
 }
 
 export function PatrolFormHost({
   viewer,
   quickTags,
   initialDraft,
+  prefill,
 }: PatrolFormHostProps) {
   const [adapter] = useState(createPatrolDraftAdapter);
 
@@ -29,6 +33,7 @@ export function PatrolFormHost({
       adapter={adapter}
       quickTags={quickTags}
       initialDraft={initialDraft}
+      prefill={prefill}
     />
   );
 }

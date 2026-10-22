@@ -14,14 +14,8 @@ export async function GET(request: NextRequest) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error) {
-      const forwardedHost = request.headers.get("x-forwarded-host"); // 로드 밸런서 이전의 원본 host
-      const isLocalEnv = process.env.NODE_ENV === "development";
-
-      if (isLocalEnv) {
-        return NextResponse.redirect(`${origin}${next}`);
-      } else if (forwardedHost) {
-        return NextResponse.redirect(`https://${forwardedHost}${next}`);
-      }
+      // x-forwarded-host는 클라이언트가 조작할 수 있어 리디렉션 대상에 쓰지 않는다.
+      // Vercel 같은 프록시 뒤에서도 request.url의 origin이 공개 호스트로 해석된다.
       return NextResponse.redirect(`${origin}${next}`);
     }
 

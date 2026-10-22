@@ -186,6 +186,19 @@ export type Database = {
         Args: { client_request_id: string; expected_revision: number };
         Returns: Json;
       };
+      get_seat_stats: {
+        Args: { from_date: string; to_date: string };
+        Returns: {
+          cafe_zone_count: number;
+          drowsy_count: number;
+          seat: number;
+          standing_count: number;
+        }[];
+      };
+      get_watchlist_seats: {
+        Args: { as_of: string; threshold: number; window_days: number };
+        Returns: number[];
+      };
       save_patrol_draft: {
         Args: {
           away: number[];
