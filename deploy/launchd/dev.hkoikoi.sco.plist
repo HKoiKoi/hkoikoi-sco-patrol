@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  SCO 순찰 앱 launchd 서비스(사용자 LaunchAgent) 템플릿.
+  __HOME__ 을 서버 사용자의 홈 디렉터리 절대 경로로 치환해 ~/Library/LaunchAgents/ 에 둔다.
+    sed "s|__HOME__|$HOME|g" deploy/launchd/dev.hkoikoi.sco.plist > ~/Library/LaunchAgents/dev.hkoikoi.sco.plist
+  등록: launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/dev.hkoikoi.sco.plist
+  블로그 앱(dev.hkoikoi.web, 포트 3000)과 공존하므로 라벨·경로·포트·로그 파일을 분리한다.
+  node 경로는 Homebrew node@24(Apple Silicon) 기준이다.
+  환경 변수(NEXT_PUBLIC_*)는 plist에 넣지 않고 릴리스의 .env.local(shared/.env.local 링크)에서 읽는다.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>dev.hkoikoi.sco</string>
+
+  <key>WorkingDirectory</key>
+  <string>__HOME__/apps/sco-patrol/current</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/opt/homebrew/bin/node</string>
+    <string>node_modules/next/dist/bin/next</string>
+    <string>start</string>
+    <string>-H</string>
+    <string>127.0.0.1</string>
+    <string>-p</string>
+    <string>3001</string>
+  </array>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>NODE_ENV</key>
+    <string>production</string>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+  </dict>
+
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>ExitTimeOut</key>
+  <integer>30</integer>
+
+  <key>StandardOutPath</key>
+  <string>__HOME__/logs/sco.log</string>
+  <key>StandardErrorPath</key>
+  <string>__HOME__/logs/sco.err.log</string>
+</dict>
+</plist>
