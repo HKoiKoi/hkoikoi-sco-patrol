@@ -1,0 +1,79 @@
+name: CI/CD
+
+# PR(main, develop 대상): check만 실행한다(GitHub 호스티드 러너).
+# main push: check 통과 후 홈 서버의 self-hosted runner(라벨 homeserver)에서 deploy.sh를 실행한다.
+#
+# 보안 경계: 공개 저장소라서 self-hosted runner는 deploy job에서만 쓰고,
+#   그 job은 push 이벤트의 main 브랜치에서만 실행된다. 포크 PR은 check(호스티드)까지만 닿는다.
+#   pull_request_target 이벤트와 self-hosted runner를 함께 쓰지 않는다.
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# PR은 새 커밋이 오면 이전 check를 취소하고, main push는 취소하지 않는다.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      # husky(prepare)는 CI에서 필요 없다.
+      HUSKY: "0"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: 의존성 설치
+        run: npm ci --no-audit --no-fund
+
+      # typecheck + lint + format:check. 환경 변수 없이 동작한다.
+      - name: 검사
+        run: npm run check
+
+  deploy:
+    needs: check
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, homeserver]
+    timeout-minutes: 15
+    # 배포는 항상 한 번에 하나만 실행한다. 진행 중인 배포는 취소하지 않는다.
+    # 대기 중인 배포가 둘 이상이면 GitHub이 가장 최신 하나만 남긴다.
+    concurrency:
+      group: deploy-sco-patrol
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # 운영 환경 변수(.env.local)는 서버의 ~/apps/sco-patrol/shared에만 있다. 저장소·Secrets에 두지 않는다.
+      - name: 배포
+        run: deploy/deploy.sh "$GITHUB_SHA"
+
+      # 테스트 러너가 없어 e2e 대신 로컬 주소로 최소 스모크 검증을 한다.
+      # (서버에서 외부 도메인을 DNS로 푸는 경로에 의존하지 않기 위해 127.0.0.1을 쓴다.)
+      - name: 배포 후 스모크 확인
+        run: |
+          set -euo pipefail
+          base="http://127.0.0.1:3001"
+          for path in /logs /logs/stats; do
+            code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 "$base$path")"
+            echo "$path -> $code"
+            [[ "$code" == "200" ]] || { echo "::error::$path 응답이 200이 아닙니다($code)"; exit 1; }
+          done
+          read -r code location < <(curl -sS -o /dev/null -w '%{http_code} %{redirect_url}\n' --max-time 10 "$base/protected/patrol")
+          echo "/protected/patrol -> $code $location"
+          [[ "$code" == "307" && "$location" == *"/auth/login"* ]] || { echo "::error::보호 경로가 로그인으로 리디렉션되지 않습니다"; exit 1; }
