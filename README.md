@@ -25,10 +25,11 @@ SCO 관리형 독서실의 30분 간격 순찰 업무를 스마트폰/태블릿�
 - Supabase (`@supabase/ssr`, Postgres, RLS, RPC, `pg_cron`)
 - Tailwind CSS v4, shadcn/ui + Radix UI, lucide-react, next-themes
 - ESLint 9, Prettier, Husky, lint-staged
+- 호스팅: 홈 서버(Cloudflare Tunnel → Caddy → Next.js, launchd), 배포: GitHub Actions self-hosted runner (`main` 푸시 때 자동)
 
 ## 개발 진행
 
-[`docs/ROADMAP.md`](docs/ROADMAP.md)가 Phase 0~7, Task 000~035 단위로 진행 현황을 관리합니다.
+[`docs/ROADMAP.md`](docs/ROADMAP.md)가 Phase 0~8, Task 000~038 단위로 진행 현황을 관리합니다.
 
 | Phase | 내용                                                                                                  |
 | ----- | ----------------------------------------------------------------------------------------------------- |
@@ -40,6 +41,7 @@ SCO 관리형 독서실의 30분 간격 순찰 업무를 스마트폰/태블릿�
 | 5     | 핵심 기능: 인증 흐름, 실데이터 조회, 수정·삭제, 자동 저장, 완료·복사                                  |
 | 6     | 실기기 검증, 품질·성능·보안 점검, 운영 배포                                                           |
 | 7     | 운영 후 개선 (좌석 코드 복사, 직전 좌석 채움, 좌석 통계·요주의 카드, 응답 속도·CLS, 리뷰 보강) — 완료 |
+| 8     | 홈 서버 이전과 `main` 푸시 자동 배포 (Vercel 종료, 2026-11-08) — 완료                                 |
 
 Phase 7(운영 후 개선, 2026-10-22)은 복사 문구 좌석 코드 표기, 직전 스탠딩·카페존 자동 채움, 좌석 통계(`/logs/stats`)와 요주의 카드, 응답 속도·레이아웃 시프트 개선, 코드 리뷰 권장사항 처리(통계 RPC 기간 상한, `full_name` 제약, 인증 보강, 자리비움 동시 수정 방지)를 다루며 Task 028~035까지 구현·완료했습니다.
 
@@ -93,9 +95,24 @@ npm run check        # typecheck + lint + format:check
 
 테스트 러너는 없습니다. 순수 함수는 임시 스크립트, DB는 Supabase MCP SQL, 화면은 Playwright MCP로 검증합니다 (자세한 방식은 ROADMAP 참고).
 
+## 배포와 운영
+
+운영 주소 `https://sco.hkoikoi.dev`는 홈 서버(Mac mini)가 서비스합니다. 구조는 브라우저 → Cloudflare(Proxied) → Cloudflare Tunnel → Caddy(`127.0.0.1:8080`) → Next.js(`127.0.0.1:3001`, launchd `dev.hkoikoi.sco`)이고 같은 서버의 블로그와 터널·Caddy를 나눠 씁니다. 자세한 구조·절차·측정 결과는 [`docs/ROADMAP.md`](docs/ROADMAP.md)의 Phase 8을 봅니다.
+
+- **자동 배포**: `main`에 푸시(PR 병합)하면 `check`(`npm run check`) 통과 뒤 서버의 self-hosted runner가 `deploy/deploy.sh <SHA>`를 실행합니다. PR과 `develop` 푸시는 검사만 하고 배포하지 않습니다.
+- **서버 경로**: `~/apps/sco-patrol/` 아래 `releases/<SHA>/`, `shared/.env.local`, `current`(최신 릴리스 링크). 최근 5개 릴리스만 남깁니다.
+- **배포 흐름**: 릴리스 폴더에서 `npm ci`와 `npm run build`가 성공해야 `current`를 바꾸고 재시작합니다. 헬스체크(`/logs`)가 실패하면 이전 릴리스로 자동 롤백하고, 빌드가 실패하면 `current`는 그대로입니다.
+- **마이그레이션은 배포에 포함되지 않습니다.** `supabase/migrations/`는 따로 적용합니다.
+- **수동 롤백**: 서버에서 `current`를 직전 릴리스로 바꾸고 `launchctl kickstart -k "gui/$(id -u)/dev.hkoikoi.sco"`로 재시작합니다(명령 전문은 ROADMAP Phase 8). 나쁜 커밋은 `main`에서 `git revert`해야 다음 푸시가 같은 코드를 다시 배포하지 않습니다. Vercel로 되돌리는 경로는 없습니다.
+- **운영 유의사항**:
+  - 무중단이 아닙니다. 배포·롤백 재시작 때 짧게 502가 날 수 있고, 서버를 재부팅하면 약 40초 동안 Cloudflare 530이 납니다.
+  - 단일 서버라 정전·네트워크·디스크 장애는 곧 서비스 중단입니다. 기록은 Supabase에 있어 유실되지 않지만 복구 전까지 조회·작성이 모두 막힙니다.
+  - 재부팅 뒤 자동 복구를 위해 서버에 macOS 자동 로그인을 켜 둡니다. 서버를 물리적으로 접근하기 어려운 곳에 두는 것이 전제입니다.
+  - Caddyfile의 `@sco host sco.hkoikoi.dev` 블록은 폴백 `redir`보다 앞에 있어야 합니다. 뒤에 두면 SCO 요청이 블로그로 리디렉션됩니다.
+
 ## 운영 메모
 
-- **운영 환경 변수**: 호스팅(예: Vercel)에는 아래 두 값만 입력합니다. 둘 다 `NEXT_PUBLIC_` 접두사라 브라우저에 노출되는 공개 값이며 RLS·RPC가 권한을 지키므로 service role 키는 쓰지 않습니다. `DATA_DIR`, `TEMPLATES_USE`, `ENABLE_GUI`는 shrimp-task-manager MCP용이라 운영에는 넣지 않습니다.
+- **운영 환경 변수**: 운영 서버의 `~/apps/sco-patrol/shared/.env.local`(chmod 600)에는 아래 두 값만 서버에서 직접 입력합니다. 저장소와 GitHub Secrets에는 넣지 않습니다. 둘 다 `NEXT_PUBLIC_` 접두사라 브라우저에 노출되는 공개 값이며 RLS·RPC가 권한을 지키므로 service role 키는 쓰지 않습니다. `DATA_DIR`, `TEMPLATES_USE`, `ENABLE_GUI`는 shrimp-task-manager MCP용이라 운영에는 넣지 않습니다.
 
   | 변수                                   | 값                                 |
   | -------------------------------------- | ---------------------------------- |
@@ -118,4 +135,4 @@ npm run check        # typecheck + lint + format:check
   - 카카오톡 인앱 브라우저: 안내 문구가 노출되고 Google 로그인이 동작했다. 인앱으로 열려면 카카오톡 "나와의 채팅"에 주소를 보내 링크를 누른다.
   - iPad에 외장 키보드를 붙이면 화면 키보드가 올라오지 않아 키보드 가림 점검이 안 된다. 점검할 때는 키보드를 떼거나 화면 키보드로 전환한다.
   - 가상 키보드: `visualViewport`로 키보드가 가린 높이를 계산해 하단 [순찰 완료] 바를 키보드 위에 붙인다(Task 027). 폴드 Chrome과 iPad Safari에서 확인했고 iPhone 크기 화면은 기기가 없어 확인하지 못했다.
-  - 도메인: 임시 주소(`hkoikoi-sco-patrol.vercel.app`)에서 검증한 뒤 2026-10-21에 `sco.hkoikoi.dev`로 전환했다. 이메일 확인 링크는 Supabase Site URL을 따라가므로 운영 도메인으로 도착한다.
+  - 도메인: 임시 주소(`hkoikoi-sco-patrol.vercel.app`)에서 검증한 뒤 2026-10-21에 `sco.hkoikoi.dev`로 전환했다. 이메일 확인 링크는 Supabase Site URL을 따라가므로 운영 도메인으로 도착한다. 2026-11-08에 호스팅을 홈 서버로 옮기면서 Vercel 프로젝트는 삭제했고 같은 도메인을 홈 서버가 서비스한다(Supabase·Google OAuth 설정은 그대로 유효).
