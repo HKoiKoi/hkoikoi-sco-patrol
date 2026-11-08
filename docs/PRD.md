@@ -373,6 +373,13 @@ HH:mm 순찰 → 완료[ (상세)]
 - **Supabase** (`@supabase/ssr` 0.12.7, `@supabase/supabase-js` 2.117.3 — 정확한 버전으로 고정) - Google 로그인과 이메일 가입(구현됨), Postgres(테이블, RLS, 완료/저장 DB 함수, 초안 삭제 스케줄) 사용. 별도 백엔드 서버 불필요
 - 스키마 변경은 `supabase/migrations/`에 `타임스탬프_설명.sql`로 관리
 
+### 호스팅·배포 (2026-11-08 홈 서버로 이전)
+
+- **호스팅**: 홈 서버(Mac mini) 단일 인스턴스. 브라우저 → Cloudflare(Proxied) → Cloudflare Tunnel → Caddy(`127.0.0.1:8080`) → Next.js(`127.0.0.1:3001`, launchd `dev.hkoikoi.sco`). 도메인은 `sco.hkoikoi.dev`이고 블로그(`hkoikoi.dev`)와 서버·터널·Caddy를 공유한다. 이전에 쓰던 Vercel 프로젝트는 삭제했다.
+- **배포**: `main` 푸시 때 `check`(`npm run check`)를 통과하면 self-hosted runner가 `deploy/deploy.sh`로 릴리스 폴더를 만들고 `current` 링크를 바꿔 재시작한다. 헬스체크가 실패하면 이전 릴리스로 자동 롤백한다. DB 마이그레이션은 배포에 포함되지 않는다. 절차와 롤백 방법은 ROADMAP Phase 8을 따른다.
+- **환경 변수**: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` 두 개뿐이며 서버의 `shared/.env.local`(chmod 600)에만 둔다. 저장소·GitHub Secrets에 두지 않는다.
+- **운영 제약**: 무중단이 아니다. 배포·롤백 재시작 때 짧게 502가 날 수 있고, 서버 재부팅 때는 약 40초 동안 Cloudflare 530이 난다. 단일 서버라 서버 장애는 곧 서비스 중단이며 대체 호스팅은 없다. 재부팅 뒤 자동 복구를 위해 서버에 macOS 자동 로그인을 켜 두므로 서버의 물리적 접근 통제가 전제다.
+
 ### 개발 도구
 
 - **ESLint ^9**, **eslint-config-next ^16.4.0**, **Prettier ^3.9.10**, **Husky ^9.1.7**, **lint-staged ^17.6.0**
@@ -400,6 +407,7 @@ HH:mm 순찰 → 완료[ (상세)]
 - 영업일 계산과 시각 표시는 Asia/Seoul 고정이며, 날짜 유틸은 `lib/business-date.ts`로 통일한다. DB 기본 시간대도 한국으로 설정한다.
 - 초안은 사용자당 1건이며 행은 삭제하지 않는다. 2시간 이상 방치된 비어 있지 않은 초안은 30분 주기 작업이 비운다(영업일 경계에서 작성 중인 순찰이 유실되지 않도록 04:00 일괄 삭제는 하지 않는다). 완료 시 기록 생성과 초안 초기화는 한 트랜잭션으로 처리한다.
 - 여러 기기에서 동시에 편집하면 `revision` 충돌 시 사용자가 어느 쪽을 쓸지 선택한다.
+- (운영) 홈 서버 단일 인스턴스 운영을 수용한다. 정전·네트워크·서버 점검 중에는 조회와 작성이 모두 멈추고, 순찰 기록은 Supabase에 있어 유실되지 않지만 복구 전까지 작성할 수 없다.
 - 스타터 잔재(`components/tutorial`, `hero`, `deploy-button`, `hasEnvVars` 등)는 정리를 마쳤고, 공개 경로 조건은 일지 조회(`/logs*`)를 반영해 수정했다.
 - `next`, `@supabase/ssr`, `@supabase/supabase-js`는 정확한 버전으로 고정하며 업그레이드는 의도적으로 진행한다.
 - 구현 전 확인 항목은 대부분 확인을 마쳤다: Google 가입자의 `full_name`, `pg_cron` 활성화와 스케줄 등록, 비로그인 키로 `staff_names` embed 조회(Phase 4~5), 카카오톡 인앱 브라우저의 Google 로그인과 안드로이드·iPad의 복사 동작(Task 024, 2026-10-21), 운영 도메인에서의 이메일 확인 링크(Task 026-E). 남은 미확인은 iPhone 크기 화면의 가상 키보드 동작이다.

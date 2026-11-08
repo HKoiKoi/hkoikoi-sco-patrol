@@ -19,6 +19,7 @@ SCO 순찰 일지는 SCO 관리형 독서실에서 순찰하는 매니저와 이
 - Next.js 16.4.0 (App Router, `proxy.ts`, `cacheComponents: true`), React 19, TypeScript 5
 - Supabase (`@supabase/ssr` 0.12.7, `@supabase/supabase-js` 2.117.3) — Auth, Postgres(RLS, RPC, `pg_cron`)
 - Tailwind CSS v4, shadcn/ui + Radix UI, lucide-react, next-themes
+- 배포(Phase 8, 2026-11-08~): 홈 서버(Mac mini)에서 Cloudflare Tunnel → Caddy → Next.js(launchd)로 서비스하고, `main` 푸시 때 GitHub Actions self-hosted runner가 `deploy/deploy.sh`로 자동 배포한다. 이전에는 Vercel이었다.
 - 검증 도구: `npm run typecheck`, `npm run lint`, `npm run check`, `npm run build`, Playwright MCP, Supabase MCP(`execute_sql`, `get_advisors`). 테스트 러너는 없다.
 
 ## 개발 워크플로우
@@ -112,6 +113,10 @@ Phase 0 (완료)
                         → 033 성능 측정·개선  (028~032 이후, 새 조회가 늘린 비용까지 측정)
                         → 034 순찰 기록 화면 CLS 점검  (033에서 남긴 후속)
                         → 035 코드 리뷰 권장사항 처리  (034 이후, 보안·입력 검증·동시성 보강)
+                        │
+  Phase 8 (홈 서버 이전, 2026-11-08): 036 서버 점검·배포 자산·수동 실행
+                        → 037 인증 점검·CI/CD runner·롤백 리허설
+                        → 038 운영 도메인 확인·배포 문서 갱신
 ```
 
 - Phase 2·3은 DB 없이 Task 002의 타입 계약만으로 진행한다. Phase 2의 세 Task는 서로 병렬로 진행할 수 있고, Phase 3의 Task 007~010은 Task 006 이후 병렬로 진행할 수 있다.
@@ -715,7 +720,7 @@ Phase 0 (완료)
 
 - **Task 026: 운영 배포 및 출시 준비** ✅
   - 관련 기능: 전체
-  - 설명: 운영 환경(예: Vercel)에 배포하고 Supabase 인증 설정과 초기 운영 데이터를 맞춘다.
+  - 설명: 운영 환경(당시 Vercel, 2026-11-08 홈 서버로 이전 — Phase 8 참고)에 배포하고 Supabase 인증 설정과 초기 운영 데이터를 맞춘다.
   - 실행 순서(2026-10-20 결정): 이 Task는 **두 번에 나눠 진행**한다. ① 배포 준비·호스팅·인증 설정(Task 025 직후, Task 024 이전) → Task 024 실기기 검증(배포된 HTTPS 주소) → ② 운영 스모크 테스트·QA 정리(Task 024 이후). 운영 도메인은 `https://sco.hkoikoi.dev`이고 Redirect URLs(`https://sco.hkoikoi.dev/**`)는 Task 017에서 이미 등록했다. Site URL은 아직 `http://localhost:3000`일 수 있어 배포 시 운영 도메인으로 바꾼다.
   - 유의: Supabase 프로젝트가 개발·운영 공용이면 실기기 검증 중 만든 QA 계정·테스트 기록이 운영 DB에 생기므로, 테스트 기록 메모에 식별 접두사(예: `[SMOKE026]`)를 붙이고 정리는 마지막 단계에서 대상 확인과 사용자 승인 뒤에 한다.
   - 관련 파일: `.env.example`, `README.md`
@@ -903,25 +908,125 @@ PRD "3. 운영 후 추가 기능"(F12~F14)과 "복사 문구 형식" 변경을 �
   - 테스트 결과(2026-10-22): 병합된 `develop`(PR #32 포함)에서 `npm run check`·`npm run build` 통과. `get_advisors(performance)` 0건, `get_advisors(security)` 4건은 모두 이번 변경과 무관한 기존 항목이다(`complete_patrol`·`save_patrol_draft`·`swap_quick_tag_order`가 `authenticated`에 실행 가능한 `SECURITY DEFINER`라는 경고는 본문에서 `is_staff()`로 재검사하는 의도된 설계이고, Auth 유출 비밀번호 보호 비활성은 Supabase 대시보드 설정이다). **DB**: anon 역할로 30일 호출이 변경 전과 같은 64행·합계 608, 1900-01-01~9999-12-31과 `window_days` 400은 빈 결과, 366일 정상·367일 빈 결과. `authenticated`로 51자·LF·CR·공백만 이름은 차단되고 50자·정상 이름은 `staff_names`에 반영, 80자·개행·긴 이메일 가입 흉내도 모두 `pending`으로 생성(롤백 후 잔여 행 없음). **화면(로컬 프로덕션 서버, 콘솔 에러·경고 0건)**: `?date=9999-12-31`·`2026-02-30`·`abc`는 현재 영업일, 과거 날짜는 그대로, 가입 폼 이름 입력란 `maxLength` 50과 안내 문구 표시, 로그인된 pending 계정의 `/protected/patrol`은 `/logs?notice=pending`으로 이동. 비로그인 `/protected/patrol`·`/protected/admin/tags`는 `/auth/login?next=…`, 가짜 `x-forwarded-host` 헤더를 보내도 콜백 리디렉션은 `localhost:3000` 기준이다. 순수 함수는 임시 스크립트(커밋 안 함)로 `getSafeNextPath` 허용·거부 케이스와 `2026-12-31T16:00Z → 2027`, 04:00 KST 경계 전후 9건을 확인했다. 자리비움 처리는 임시 QA 계정 3개로 이동·삭제 정상, 오래된 `away` 조건 PATCH는 0행·현재 값은 1행, 타인 기록(`qa-manager2`)·`qa-pending`은 0행, anon은 401로 거부됨을 확인했고 임시 계정·기록은 삭제했다.
   - 미확인·후속: ① 이번 최종 검증에서는 운영 DB에 임시 계정을 새로 만들지 않아 manager·admin 로그인 상태의 `/protected/patrol`·`/protected/admin/tags` 전체 회귀를 다시 돌리지 않았다(해당 변경은 이전 Task 단계에서 임시 계정으로 확인함). ② `signOut` 요청을 네트워크 차단으로 실패시킨 뒤 `draft:` 키 삭제와 `/logs` 이동이 일어나는지는 코드 변경과 `npm run check`만 확인했고 브라우저에서 재현하지 않았다. ③ 로그인 성공 콜백(코드 교환 성공 분기)의 실제 리디렉션 대상은 로컬에서 재현하지 못했다(가짜 코드는 `/auth/error`로 간다). 운영 배포 후 Google 로그인으로 확인한다. ④ 두 탭 경합으로 `ERROR_CONFLICT` 문구가 화면에 뜨는 장면과 타인 기록에 대한 Server Action 거부 문구는 UI로 재현할 수 없어 보지 못했다(PATCH 수준에서는 확인). ⑤ pending 계정의 `/logs?notice=pending`에는 같은 문구가 상단 승인 대기 배너와 `notice` 배너로 두 번 나온다. Task 006부터 있던 동작이고 이번 변경과 무관하다. 문구 중복이 거슬리면 별도 Task로 정리한다. ⑥ 운영 배포(Vercel)에 새 마이그레이션 영향은 없으며, 배포 후 스모크는 PR 병합 뒤 진행한다.
 
+### Phase 8: 홈 서버 이전과 자동 배포 ✅
+
+2026-11-08에 호스팅을 Vercel에서 홈 서버(Mac mini)로 옮기고, `main` 푸시 때 자동 배포하도록 했다. 앱 코드와 DB 스키마는 바꾸지 않았다(기능 변경 없음). 도메인은 `sco.hkoikoi.dev` 그대로다. Vercel 프로젝트는 삭제했으므로 롤백 경로로 쓰지 않는다. Phase 6·7 Task 기록에 나오는 "Vercel"은 당시 상태 그대로 둔다.
+
+#### 운영 구조
+
+| 구성          | 내용                                                                                                                                                                             |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 트래픽 경로   | 브라우저 → Cloudflare(Proxied, TLS 종료) → Cloudflare Tunnel(`cloudflared`) → Caddy `127.0.0.1:8080` → Next.js `127.0.0.1:3001`                                                  |
+| 앱 서비스     | launchd 사용자 LaunchAgent `dev.hkoikoi.sco`. `next start -H 127.0.0.1 -p 3001`, `RunAtLoad`·`KeepAlive`, 로그는 `~/logs/sco.log`·`sco.err.log`                                  |
+| 서버 경로     | `~/apps/sco-patrol/` 아래 `releases/<커밋 SHA>/`, `shared/.env.local`, `current`(최신 릴리스를 가리키는 심볼릭 링크)                                                             |
+| Runner        | `~/actions-runners/sco-patrol`, 이름 `homeserver-sco`, 라벨 `homeserver`, launchd 상시 실행                                                                                      |
+| 블로그와 공존 | 같은 서버·`cloudflared`·Caddy를 블로그(`hkoikoi.dev`, 라벨 `dev.hkoikoi.web`, 포트 3000)와 나눠 쓴다. 라벨·경로·포트·로그·runner는 분리한다                                      |
+| Caddy         | `/opt/homebrew/etc/Caddyfile`의 `@sco host sco.hkoikoi.dev` 블록을 폴백 `redir https://hkoikoi.dev…`보다 **앞에** 둔다(`handle`은 소스 순서대로 평가한다). `auto_https off` 전제 |
+| 환경 변수     | 서버 `shared/.env.local`(chmod 600)에만 둔다. 저장소·GitHub Secrets·로그에 두지 않는다. 값은 README의 "운영 환경 변수" 두 개뿐이다                                               |
+| 배포 자산     | `.nvmrc`(24), `deploy/deploy.sh`, `deploy/launchd/dev.hkoikoi.sco.plist`, `deploy/caddy/sco.Caddyfile.snippet`, `.github/workflows/deploy.yml`                                   |
+
+#### 배포 절차
+
+1. PR(`main`·`develop` 대상)은 `check` job만 실행한다(GitHub 호스티드 러너, `npm run check`). `develop` 푸시는 배포하지 않는다.
+2. `main` 푸시는 `check` 통과 뒤 `deploy` job을 self-hosted runner에서 실행한다. 배포는 직렬화하고 진행 중인 배포는 취소하지 않는다. 포크 PR은 호스티드 `check`까지만 닿는다(외부 기여자 전원 승인 요구, 기본 권한 읽기 전용).
+3. `deploy/deploy.sh <커밋 SHA>`가 `git archive`로 `releases/<SHA>`를 만들고 `.env.local`을 링크한 뒤 `npm ci`와 `npm run build`를 한다. 빌드가 성공해야만 `current`를 원자적으로 교체하고(`mv -fh`) `launchctl kickstart -k`로 재시작한다.
+4. `http://127.0.0.1:3001/logs`를 2초 간격 최대 15회 확인한다. 실패하면 이전 릴리스로 링크를 되돌려 재시작하고 비정상 종료한다(실패한 릴리스 폴더는 조사용으로 남긴다). 빌드가 실패하면 그 폴더를 지우고 `current`는 그대로 둔다. 성공하면 현재·직전 릴리스를 포함해 최근 5개만 남긴다.
+5. 배포 뒤 스모크(`/logs`·`/logs/stats` 200, `/protected/patrol` 307 → `/auth/login`)를 로컬 주소로 확인한다.
+6. **DB 마이그레이션은 배포에 포함되지 않는다.** `supabase/migrations/`는 기존처럼 따로 적용하고 원격과 대조한다.
+
+#### 롤백 방법
+
+- **자동**: 헬스체크 실패 시 `deploy.sh`가 이전 릴리스로 되돌린다. 직전 릴리스가 없는 첫 배포는 되돌릴 곳이 없다.
+- **수동**(배포는 성공했지만 동작이 나쁜 경우): 서버에서 직전 릴리스로 링크를 바꾸고 재시작한다.
+
+  ```bash
+  cd ~/apps/sco-patrol
+  ls -1t releases                                  # 직전 SHA 확인
+  ln -s "$PWD/releases/<이전 SHA>" current.tmp && mv -fh current.tmp current
+  launchctl kickstart -k "gui/$(id -u)/dev.hkoikoi.sco"
+  ```
+
+- **근본 복구**: 나쁜 커밋을 `main`에서 `git revert`로 되돌린다. 수동 롤백만 하면 다음 `main` 푸시가 같은 코드를 다시 배포한다.
+- Vercel로 되돌리는 경로는 없다(프로젝트 삭제). 서버 자체가 죽으면 서버를 복구하는 수밖에 없다.
+
+#### 운영 유의사항
+
+- **무중단이 아니다**: 배포·롤백은 서비스를 재시작한다. 같은 서버에서 재시작 때 포트가 닫히는 시간은 0.3~0.4초, 롤백 재시작은 launchd `ThrottleInterval` 10초 때문에 7.3초가 걸렸다. 그동안 Cloudflare 경유 요청은 짧게 502를 받을 수 있다. Cloudflare를 거친 실제 502 지속 시간은 측정하지 않았다.
+- **재부팅**: 서버가 재부팅하면 블로그와 SCO가 약 40초 동안 Cloudflare 530을 낸다(터널이 다시 붙기 전). 같은 서버의 runner는 세션 충돌 재시도 끝에 약 2분 뒤 online으로 돌아온다. 재부팅 중에 `main`을 푸시하면 deploy job이 runner 복귀까지 대기한다.
+- **단일 서버 위험**: 정전·네트워크·디스크 장애·서버 점검은 곧바로 서비스 중단이다. 대체 호스팅(Vercel)이 없다. 순찰 기록 자체는 Supabase에 있어 서버 장애로 유실되지 않지만, 서버가 복구될 때까지 조회·작성이 모두 막힌다.
+- **자동 로그인 트레이드오프**: 앱 서비스와 runner가 사용자 LaunchAgent라서 재부팅 뒤 자동으로 돌아오려면 서버에 macOS 자동 로그인이 켜져 있어야 한다. 그 대신 서버에 물리적으로 접근할 수 있는 사람은 로그인된 세션을 그대로 쓸 수 있다. 서버를 사람이 드나들지 않는 곳에 두고, 화면 잠금·원격 접속 정책은 그 전제로 정한다.
+- **Caddyfile 수정 시**: `deploy.sh`는 Caddy 설정과 plist를 건드리지 않는다. SCO 블록은 폴백 `redir`보다 앞에 둬야 하며, 뒤에 두면 SCO 요청이 블로그로 308 리디렉션된다. 변경 뒤에는 `caddy validate --config /opt/homebrew/etc/Caddyfile`을 먼저 한다.
+- **개발·운영 DB는 같은 Supabase 프로젝트**다. 서버 이전과 무관하게 기존 규칙(임시 계정 검증 후 삭제, 시작 전 행 수 대조)을 그대로 따른다.
+
+- **Task 036: 홈 서버 점검, 배포 자산, 수동 실행** ✅
+  - 관련 기능: 전체(인프라, 기능 변경 없음)
+  - 설명: 홈 서버를 읽기 전용으로 점검하고 SCO 전용 포트·이름·경로를 정한 뒤, 저장소에 배포 자산을 만들어 서버에서 수동으로 첫 릴리스를 띄운다.
+  - 선행 조건: Task 035
+  - 브랜치: `chore/homeserver-deploy-assets`(PR #35)
+  - 구현 사항:
+    - ✅ 서버 점검: `pmset`(sleep 0, autorestart 1), 자동 로그인, Homebrew, Node 24, `cloudflared`(연결 4개), Caddy, launchd, 사용 중인 포트, 기존 runner. 이미 있는 구성은 재설치하지 않고 재사용했다.
+    - ✅ 결정값: 포트 `3001`, launchd 라벨 `dev.hkoikoi.sco`, 앱 경로 `~/apps/sco-patrol`, runner 폴더 `~/actions-runners/sco-patrol`. 블로그와 충돌이 없다.
+    - ✅ 배포 자산 작성: `.nvmrc`, `deploy/deploy.sh`, `deploy/launchd/dev.hkoikoi.sco.plist`, `deploy/caddy/sco.Caddyfile.snippet`
+    - ✅ 서버에 `releases`·`shared`·`~/logs`와 `shared/.env.local`(chmod 600)을 만들고 `deploy.sh`로 첫 릴리스를 launchd로 기동
+  - 완료 기준: 첫 릴리스가 `127.0.0.1`에만 열리고 `KeepAlive`가 동작하며 공개 경로·보호 경로가 기대대로 응답한다.
+  - 테스트 결과(2026-11-08): 첫 릴리스 `e4d4b3c`가 `127.0.0.1:3001`만 LISTEN하고 LAN IP 접근은 거부된다. `node`를 `kill -9`하면 약 1초 안에 재기동한다. 빌드 로그에 키 값이 없고 라우트 표는 `◐`·`ƒ` 구성이다. Playwright로 비로그인 `/logs`·`/logs/stats` 200, `/protected/patrol`의 `/auth/login` 리디렉션, 콘솔 경고·에러 0건을 확인했다. **결정 변경**: 임시 호스트(`sco-test.hkoikoi.dev`) 대신 DNS가 비어 있던 `sco.hkoikoi.dev`를 직접 썼고, Caddy 블록은 영구로 유지했다(백업 `pre-sco.bak`만 남김).
+
+- **Task 037: 인증 점검, CI/CD runner, 롤백 리허설** ✅
+  - 관련 기능: F01, 전체(인프라)
+  - 설명: 도메인이 같으므로 Supabase·Google 설정이 그대로 유효한지 확인하고, 임시 계정으로 쓰기 흐름을 검증한다. GitHub Actions workflow와 self-hosted runner를 만들고, `deploy.sh`의 성공·실패 경로를 격리된 인스턴스에서 리허설한다.
+  - 선행 조건: Task 036
+  - 브랜치: `chore/homeserver-ci-deploy`(PR #36), 이어서 PR #37
+  - 구현 사항:
+    - ✅ Supabase Site URL, Redirect URLs(`/auth/callback`, `/auth/confirm`), Google OAuth 원본·리디렉션 URI가 `sco.hkoikoi.dev` 기준으로 유효함을 사용자 확인으로 점검(임시 허용 URL은 쓰지 않음)
+    - ✅ `.github/workflows/deploy.yml`·`actionlint.yaml` 작성, SCO용 runner 설치(launchd 상시 실행), 포크 PR 승인 정책을 `hkoikoi-dev`와 같은 `all_external_contributors`로 설정
+    - ✅ `deploy.sh` 롤백 리허설: `APPS_DIR`·`SERVICE_LABEL`·`HEALTH_URL` 환경 변수로 운영과 격리한 포트 3002 인스턴스에서 스크립트를 수정 없이 검증
+  - 완료 기준: PR에서는 `check`만 실행되고 `deploy`는 건너뛴다. `main` 푸시 때 runner가 `deploy.sh`와 스모크를 실행한다. 임시 계정·기록을 지워 행 수가 시작 전과 같다.
+  - 테스트 결과(2026-11-08): PR #36·#37은 `check`만 실행되고 `deploy`는 skipped였다. `main` 푸시(`9fb54e2`)에서 runner가 `deploy.sh`와 스모크를 실행해 성공했고 `current`가 교체됐다. 임시 계정으로 가입 흐름을 제외한 로그인 후 `next` 복귀, 초안 저장·순찰 완료 RPC, 일지 수정, 로그아웃(`draft:` 키 정리)을 Playwright로 검증했고 콘솔은 의도한 `example.com` 가입 실패 500 한 건뿐이었다. 검증 뒤 계정·기록을 삭제해 `profiles`·`patrol_logs`·`patrol_drafts`·`auth.users`·`staff_names`가 시작 전과 같았다.
+
+    | 롤백 리허설 시나리오                        | 기대 결과                                    | 결과 |
+    | ------------------------------------------- | -------------------------------------------- | ---- |
+    | 정상 배포(첫 배포, 이전 릴리스가 있는 경우) | 링크 교체, 헬스체크 통과                     | 통과 |
+    | 헬스체크 실패(확인 포트만 3999로 임시 변경) | 이전 릴리스로 롤백, 종료 코드 1, 서비스 유지 | 통과 |
+    | 빌드 실패                                   | `current` 유지, 미완성 릴리스 폴더 삭제      | 통과 |
+    | 정리(순차 7회 배포)                         | 현재·직전 포함 5개 유지                      | 통과 |
+
+    리허설 뒤 임시 서비스·plist·폴더·브랜치를 모두 지웠고 운영 `current`와 3001 응답은 그대로다. 재부팅 후 블로그·SCO는 약 40초, runner는 약 2분 만에 복귀했다.
+
+  - 미확인·후속: ① 재부팅 뒤 실제 `deploy` job 실행은 따로 시험하지 않았다. ② 이 Task의 검증에서는 `draft:` 백업 생성 경로(순찰 쓰기 중 로컬 백업)를 직접 확인하지 못했다.
+
+- **Task 038: 운영 도메인 전환 확인과 배포 문서 갱신** ✅
+  - 관련 기능: 전체(인프라, 문서)
+  - 설명: `sco.hkoikoi.dev`가 홈 서버에서 서비스되는지 운영 도메인에서 다시 검증하고, README·CLAUDE.md·ROADMAP·PRD에 배포 구조와 운영 유의사항을 반영한다.
+  - 선행 조건: Task 037
+  - 구현 사항:
+    - ✅ 전환 상태 확인: DNS는 Cloudflare Proxied로 이미 터널 Route에 매핑돼 있었고 Vercel 앱은 삭제된 상태였다. 그래서 DNS·Caddyfile은 바꾸지 않았고, Vercel 도메인 해제·롤백 유예 기간 결정은 해당 없음으로 처리했다.
+    - ✅ 운영 도메인 Playwright 재검증(아래 결과)
+    - ✅ README, CLAUDE.md, ROADMAP, PRD에 배포 구조·절차·롤백·운영 유의사항 반영(비밀값·서버 계정명은 쓰지 않음)
+  - 완료 기준: `npm run check` 통과, 문서에 비밀값 없음, PRD와 ROADMAP 일치, 운영 유의사항 명시.
+  - 테스트 결과(2026-11-08): 응답 헤더에 `via: 1.1 Caddy`가 있고 `x-vercel-*`이 없다. 서버 `current`(`9fb54e2`)가 `origin/main`과 같고 launchd `dev.hkoikoi.sco`와 runner가 실행 중이다. 운영 도메인에서 비로그인 `/logs`·`/logs/stats` 200, `/protected/patrol` 307 → `/auth/login?next=…`, 임시 계정(SQL 생성)으로 `pending` 차단(`/logs?notice=pending`), `manager` 승격 뒤 초안 저장 RPC 200과 `revision 1`, 순찰 완료, 일지 수정, 복사 문구(`22:47 순찰 → 완료 (QA 검증용 임시 기록, 1-005 졸아서 깨움)`, 개행·탭 없음), 로그아웃 시 `draft:` 키 삭제를 확인했다. hydration 경고는 없었다. 임시 계정·기록·`staff_names` 행을 삭제해 `auth.users` 1·`profiles` 1·`patrol_logs` 309·`patrol_drafts` 1이 시작 전과 같음을 확인했다.
+  - 미확인·후속: ① 가입 폼은 Supabase 기본 SMTP가 `example.com` 수신자를 거부해(`550 Invalid to field`) 500이 났고, 실제 수신 가능한 주소가 없어 확인하지 못했다(가입 트랜잭션은 롤백돼 잔여 행 없음). ② 일지 삭제 버튼 UI와 Google 로그인은 이번에 다시 보지 않았다. ③ Cloudflare 대시보드의 터널 Route는 원격 관리형이라 CLI로 열람하지 못했고, 응답 경로로 동작만 확인했다.
+
 ## 주요 설계 결정
 
-| 항목                     | 결정                                                                                                                                              |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 개발 순서                | DB 독립 모듈(Phase 2)과 더미 UI(Phase 3)를 먼저 완성하고 Task 011에서 요구사항·데이터 모델을 확정한 뒤 DB(Phase 4)를 만든다                       |
-| UI ↔ 데이터 경계         | 컴포넌트는 Task 002 타입과 `viewer` prop만 받고, 저장·완료는 `PatrolDraftAdapter` 인터페이스로 주입(Phase 3 가짜 어댑터 → Task 020 RPC 구현 교체) |
-| 초안 저장·완료 호출 경로 | 브라우저 Supabase 클라이언트에서 RPC 직접 호출(지연 최소화). RPC는 `authenticated`에만 실행 권한, 본문에서 `is_staff()` 재검사                    |
-| 기록 정정·태그 관리      | Server Action + `requireStaff()`/`requireAdmin()`, 최종 판단은 RLS·컬럼 GRANT. 0행 갱신은 권한 없음으로 처리                                      |
-| 화면 권한 판정           | `lib/permissions.ts`의 `canEdit(log, viewer)` 등 한 곳에서만 판정(편의 기능, 최종 방어선은 RLS)                                                   |
-| 영업일 계산              | 기록의 영업일은 `complete_patrol`이 `private.business_date_of(now())`로 계산. TS `lib/business-date.ts`는 표시·기본값 전용                        |
-| `?date` 오류 처리        | 형식이 틀리거나 존재하지 않는 날짜면 리디렉션 없이 현재 영업일 표시                                                                               |
-| 방치 초안 정리           | 2시간 이상 지난 **비어 있지 않은** 초안만 초기화(빈 초안의 불필요한 `revision` 증가 방지)                                                         |
-| 작성자 이름              | `patrol_logs.author_id`가 `profiles`와 `staff_names`를 모두 참조해 PostgREST embed로 함께 조회                                                    |
-| 권한 미달 안내           | 서버 리디렉션은 `/logs?notice=<코드>`로 전달하고 공통 배너가 문구를 표시                                                                          |
-| 순수 함수 검증           | 테스트 러너를 추가하지 않고 임시 스크립트(커밋 제외)와 Supabase MCP SQL, Playwright MCP로 검증. 러너 도입은 MVP 이후 검토                         |
+| 항목                     | 결정                                                                                                                                                             |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 개발 순서                | DB 독립 모듈(Phase 2)과 더미 UI(Phase 3)를 먼저 완성하고 Task 011에서 요구사항·데이터 모델을 확정한 뒤 DB(Phase 4)를 만든다                                      |
+| UI ↔ 데이터 경계         | 컴포넌트는 Task 002 타입과 `viewer` prop만 받고, 저장·완료는 `PatrolDraftAdapter` 인터페이스로 주입(Phase 3 가짜 어댑터 → Task 020 RPC 구현 교체)                |
+| 초안 저장·완료 호출 경로 | 브라우저 Supabase 클라이언트에서 RPC 직접 호출(지연 최소화). RPC는 `authenticated`에만 실행 권한, 본문에서 `is_staff()` 재검사                                   |
+| 기록 정정·태그 관리      | Server Action + `requireStaff()`/`requireAdmin()`, 최종 판단은 RLS·컬럼 GRANT. 0행 갱신은 권한 없음으로 처리                                                     |
+| 화면 권한 판정           | `lib/permissions.ts`의 `canEdit(log, viewer)` 등 한 곳에서만 판정(편의 기능, 최종 방어선은 RLS)                                                                  |
+| 영업일 계산              | 기록의 영업일은 `complete_patrol`이 `private.business_date_of(now())`로 계산. TS `lib/business-date.ts`는 표시·기본값 전용                                       |
+| `?date` 오류 처리        | 형식이 틀리거나 존재하지 않는 날짜면 리디렉션 없이 현재 영업일 표시                                                                                              |
+| 방치 초안 정리           | 2시간 이상 지난 **비어 있지 않은** 초안만 초기화(빈 초안의 불필요한 `revision` 증가 방지)                                                                        |
+| 작성자 이름              | `patrol_logs.author_id`가 `profiles`와 `staff_names`를 모두 참조해 PostgREST embed로 함께 조회                                                                   |
+| 권한 미달 안내           | 서버 리디렉션은 `/logs?notice=<코드>`로 전달하고 공통 배너가 문구를 표시                                                                                         |
+| 순수 함수 검증           | 테스트 러너를 추가하지 않고 임시 스크립트(커밋 제외)와 Supabase MCP SQL, Playwright MCP로 검증. 러너 도입은 MVP 이후 검토                                        |
+| 호스팅                   | 홈 서버 단일 인스턴스(Cloudflare Tunnel → Caddy → Next.js, launchd). 블로그와 서버·터널·Caddy를 공유하고 라벨·경로·포트는 분리. 무중단·이중화는 목표 아님        |
+| 배포                     | `main` 푸시 → `check` 통과 → self-hosted runner의 `deploy.sh`(릴리스 폴더 + 심볼릭 링크 교체 + 헬스체크, 실패 시 자동 롤백). 마이그레이션은 배포에 포함하지 않음 |
 
 ## MVP 이후 (로드맵 범위 제외)
 
 - 고급 통계/리포트(기간 선택·비교, 내보내기, 학생 단위 집계), 다중 지점, 30분 리마인더 알림, 좌석 배치도 UI, 실시간 공동 편집
 - 관리자 역할 지정 화면(현재는 Supabase 대시보드에서 수동 승격)
-- 자동화 테스트 러너(Vitest/Playwright Test) 및 CI 파이프라인 도입
+- 자동화 테스트 러너(Vitest/Playwright Test) 도입 (CI는 Phase 8에서 `npm run check`와 자동 배포로 도입했고, 테스트 러너가 생기면 `check` job에 추가한다)
 - 긴 메모(2,000자) 기록 카드의 접기/더 보기 (Task 011 검토 3번: 375px에서 카드 높이 약 3,000px)

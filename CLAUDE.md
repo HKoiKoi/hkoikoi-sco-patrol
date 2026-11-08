@@ -23,6 +23,7 @@ SCO 관리형 독서실의 30분 간격 순찰을 스마트폰/태블릿에서 �
 - **스타일링**: Tailwind CSS v4 (`@tailwindcss/postcss`), `tailwindcss-animate`, `tailwind-merge`, `clsx`, `class-variance-authority`
 - **UI**: shadcn/ui + Radix UI(checkbox, dropdown-menu, label, separator, slot와 통합 패키지 `radix-ui`의 dialog, alert-dialog, switch), `lucide-react` 아이콘, `next-themes`(다크 모드)
 - **린트**: ESLint 9 flat config + `eslint-config-next` 16
+- **호스팅/배포**: 홈 서버(Mac mini) 단일 인스턴스. Cloudflare Tunnel → Caddy(`127.0.0.1:8080`) → Next.js(`127.0.0.1:3001`, launchd `dev.hkoikoi.sco`). `main` 푸시 때 GitHub Actions self-hosted runner가 `deploy/deploy.sh`로 자동 배포한다(2026-11-08 Vercel에서 이전, Vercel 프로젝트는 삭제). 아래 "배포·운영" 참고.
 
 ## 명령어
 
@@ -60,13 +61,22 @@ Next.js 16 App Router + Supabase Auth(`@supabase/ssr`) 스타터 기반 프로�
 - 환경 변수(`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`)가 없으면 `proxy.ts`의 `createServerClient`가 바로 실패한다(우회 분기 없음). 로컬·운영 모두 두 값을 반드시 설정한다.
 - 이메일 확인은 `app/auth/confirm/route.ts`, 인증 화면은 `app/auth/*`, 로그인 후 영역은 `app/protected/*`다.
 
+### 배포·운영
+
+- **배포 트리거**: `main`에 푸시(PR 병합 포함)하면 `.github/workflows/deploy.yml`의 `check` 통과 뒤 `deploy` job이 홈 서버 runner(라벨 `homeserver`)에서 `deploy/deploy.sh <SHA>`를 실행한다. PR과 `develop` 푸시는 `check`만 하고 배포하지 않는다. 그래서 `main` 병합은 곧 운영 반영이다.
+- **서버 구조**: `~/apps/sco-patrol/{releases/<SHA>, shared/.env.local, current}`. 운영 환경 변수(`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`)는 서버 `shared/.env.local`(chmod 600)에만 두고 저장소·GitHub Secrets·로그·문서에 쓰지 않는다. 블로그(`hkoikoi.dev`, 포트 3000, 라벨 `dev.hkoikoi.web`)와 서버·터널·Caddy를 공유하므로 라벨·경로·포트를 섞지 않는다.
+- **`deploy.sh` 동작**: 릴리스 폴더에서 `npm ci` → `npm run build`가 성공해야만 `current` 링크를 원자적으로 교체하고 재시작한다. 헬스체크(`127.0.0.1:3001/logs`)가 실패하면 이전 릴리스로 자동 롤백하고, 빌드가 실패하면 `current`는 그대로다. 최근 5개 릴리스만 남긴다. Caddy 설정·plist는 건드리지 않는다.
+- **마이그레이션은 배포에 포함되지 않는다**: `supabase/migrations/`는 따로 적용하고 원격과 대조한다.
+- **롤백**: 자동 롤백 외에, 서버에서 `current`를 직전 릴리스로 바꾸고 `launchctl kickstart -k gui/$(id -u)/dev.hkoikoi.sco`로 재시작한다. 나쁜 커밋은 `main`에서 `git revert`한다(수동 롤백만 하면 다음 푸시가 다시 배포한다). 절차 전문은 ROADMAP Phase 8. Vercel로 되돌리는 경로는 없다.
+- **운영 유의사항**: 무중단이 아니다(배포·롤백 재시작 때 짧은 502, 서버 재부팅 때 약 40초 530). 단일 서버라 서버 장애는 곧 서비스 중단이다. 재부팅 뒤 자동 복구를 위해 서버에 macOS 자동 로그인을 켜 두므로 서버 물리 접근 통제가 전제다. Caddyfile의 `@sco host sco.hkoikoi.dev` 블록은 폴백 `redir`보다 앞에 둬야 한다.
+
 ### 현재 상태
 
 스타터 템플릿 잔재(`components/tutorial/*`, `hero`, `deploy-button`, `env-var-warning`, `hasEnvVars`)는 정리를 마쳤다. 인증 폼 등 일부 스타터 유래 코드가 남아 있으므로 템플릿 코드를 기준 패턴으로 간주하지 말 것. 전역 `error.tsx` / `global-error.tsx` / `not-found.tsx`는 한국어 화면이며 `retry`(Next 16.3+ stable)를 쓴다.
 
 ## 참고 문서 / 도구
 
-- `docs/PRD.md`(요구사항·데이터 모델·RLS 규칙), `docs/ROADMAP.md`(Phase 0~7, Task 000~035 진행 현황. Phase 7은 2026-10-22 운영 후 개선이며 Task 028~035까지 구현·완료, 마이그레이션 20개가 원격과 일치) — 기능 구현 전에 해당 Task와 PRD 절을 먼저 읽는다. PRD와 ROADMAP은 서로 맞춰 유지하며, 한쪽을 바꾸면 다른 쪽도 갱신한다.
+- `docs/PRD.md`(요구사항·데이터 모델·RLS 규칙), `docs/ROADMAP.md`(Phase 0~8, Task 000~038 진행 현황. Phase 7은 2026-10-22 운영 후 개선이며 Task 028~035까지 구현·완료, Phase 8은 2026-11-08 홈 서버 이전·자동 배포이며 Task 036~038까지 완료, 마이그레이션 20개가 원격과 일치) — 기능 구현 전에 해당 Task와 PRD 절을 먼저 읽는다. PRD와 ROADMAP은 서로 맞춰 유지하며, 한쪽을 바꾸면 다른 쪽도 갱신한다.
   - 별도 `tasks/` 파일은 만들지 않고 ROADMAP의 Task 항목에 직접 기록한다. 완료한 Task만 ✅ 표시와 테스트 결과를 반영하고, 한 Task를 마치면 멈추고 다음 지시를 기다린다.
   - 모든 Task의 완료 조건: `npm run check` 통과, 관련 화면의 Playwright MCP 시나리오 통과, 콘솔 에러·hydration 경고 없음.
   - 테스트 러너가 없으므로 순수 함수는 커밋하지 않는 임시 스크립트(Node 24 `node check.ts`), DB는 Supabase MCP `execute_sql`(트랜잭션 안에서 `set local role` / `request.jwt.claims`로 사용자 흉내 후 `rollback`)과 `get_advisors`, 화면은 Playwright MCP로 검증한다.
