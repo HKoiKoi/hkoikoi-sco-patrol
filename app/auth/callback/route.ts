@@ -1,9 +1,10 @@
 import { getSafeNextPath } from "@/lib/auth/safe-next";
 import { createClient } from "@/lib/supabase/server";
-import { NextResponse, type NextRequest } from "next/server";
+import { redirect } from "next/navigation";
+import { type NextRequest } from "next/server";
 
 export async function GET(request: NextRequest) {
-  const { searchParams, origin } = new URL(request.url);
+  const { searchParams } = new URL(request.url);
   const code = searchParams.get("code");
 
   // open redirect 방지: 사이트 내부 경로만 허용
@@ -14,17 +15,13 @@ export async function GET(request: NextRequest) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error) {
-      // x-forwarded-host는 클라이언트가 조작할 수 있어 리디렉션 대상에 쓰지 않는다.
-      // Vercel 같은 프록시 뒤에서도 request.url의 origin이 공개 호스트로 해석된다.
-      return NextResponse.redirect(`${origin}${next}`);
+      // 홈 서버에서는 Next.js가 127.0.0.1:3001로 요청을 받으므로 request.url의 origin을
+      // 리디렉션에 쓰면 localhost:3001로 간다. 상대 경로로 보내 브라우저가 공개 호스트 기준으로 이동하게 한다.
+      redirect(next);
     }
 
-    return NextResponse.redirect(
-      `${origin}/auth/error?error=${encodeURIComponent(error.message)}`,
-    );
+    redirect(`/auth/error?error=${encodeURIComponent(error.message)}`);
   }
 
-  return NextResponse.redirect(
-    `${origin}/auth/error?error=${encodeURIComponent("인증 코드가 없습니다.")}`,
-  );
+  redirect(`/auth/error?error=${encodeURIComponent("인증 코드가 없습니다.")}`);
 }
